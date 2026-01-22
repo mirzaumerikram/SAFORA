@@ -1,0 +1,85 @@
+const mongoose = require('mongoose');
+
+const rideSchema = new mongoose.Schema({
+    passenger: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    driver: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Driver'
+    },
+    pickupLocation: {
+        address: String,
+        coordinates: {
+            type: [Number], // [longitude, latitude]
+            required: true
+        }
+    },
+    dropoffLocation: {
+        address: String,
+        coordinates: {
+            type: [Number],
+            required: true
+        }
+    },
+    plannedRoute: {
+        type: [[Number]], // Array of [longitude, latitude] pairs
+        default: []
+    },
+    distance: {
+        type: Number, // in kilometers
+        required: true
+    },
+    estimatedDuration: {
+        type: Number, // in minutes
+        required: true
+    },
+    estimatedPrice: {
+        type: Number,
+        required: true
+    },
+    actualPrice: Number,
+    status: {
+        type: String,
+        enum: ['requested', 'accepted', 'started', 'completed', 'cancelled'],
+        default: 'requested'
+    },
+    type: {
+        type: String,
+        enum: ['standard', 'pink-pass'],
+        default: 'standard'
+    },
+    paymentMethod: {
+        type: String,
+        enum: ['cash', 'card', 'wallet'],
+        default: 'cash'
+    },
+    paymentStatus: {
+        type: String,
+        enum: ['pending', 'paid', 'failed'],
+        default: 'pending'
+    },
+    startedAt: Date,
+    completedAt: Date,
+    cancelledAt: Date,
+    cancelledBy: {
+        type: String,
+        enum: ['passenger', 'driver', 'system']
+    },
+    rating: {
+        passengerRating: {
+            score: Number,
+            comment: String
+        },
+        driverRating: {
+            score: Number,
+            comment: String
+        }
+    }
+}, {
+    timestamps: true
+});
+
+module.exports = mongoose.model('Ride', rideSchema);
