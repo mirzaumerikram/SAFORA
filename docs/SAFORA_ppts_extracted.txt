@@ -1,0 +1,69 @@
+
+--- Page 1 ---
+
+--- Page 2 ---
+
+--- Page 3 ---
+
+--- Page 4 ---
+
+--- Page 5 ---
+Comparative Analysis of Existing Solutions vs. 
+Proposed System
+App Name Limitation (The Problem) How SAFORA   
+Solves It
+Uber / Careem Hidden extra fees (you don't see the 
+math).
+Manual Safety (you must press SOS 
+yourself)Clear Pricing (Standard 
+formula).
+Active Monitoring (We watch 
+the ride for you).
+InDrive Negotiating is slow.
+Easy -to-fake Gender ProfilesInstant Pairing (No waiting).
+Pink Pass (Real -time Face ID 
+check).
+Yango Low -quality drivers due to very cheap 
+fares.Fairness Score (Good drivers 
+get better rewards).
+--- Page 6 ---
+Automatic Ride Monitor
+Instant Driver Matching Pink Pass VerificationUnified Web App (PWA)
+--- Page 7 ---
+Pink Pass: Women -Only Safety Shield
+Allows Female Passengers to book Female Drivers exclusively.
+How it Works :
+•Identity Scan (OCR ): Extracts Name & Gender from CNIC via OCR.
+•Liveness Check: User must blink/smile at the camera.
+•AI Validation: System confirms gender and "liveness" in real -time.2-Layer Verification
+--- Page 8 ---
+Smart Driver Selection
+A driver 1 km away gets 50 points .
+A driver 5 km away gets 10 points.5.0 Rating 30 points. 
+4.0 Rating 24 points.Driver waiting 30 mins 20 points. 
+Driver who just finished a ride 
+0 points.
+--- Page 9 ---
+Automatic Ride Monitor
+We watch the road so you don't have to.
+Triggers if the driver 
+goes off the correct path.
+ Triggers if the car stops for 
+5 minutes unexpectedly.
+The system automatically asks: "Are you okay ?“
+If no answer, it alerts your emergency contacts.
+--- Page 10 ---
+Driver PWA Interface
+--- Page 11 ---
+
+--- Page 12 ---
+
+--- Page 13 ---
+AIMicro -serviceData StorageSystem Architecture Diagram
+Backend API
+--- Page 14 ---
+Project Scope & Roadmap
+Future Roadmap In Scope
+--- Page 15 ---
+Making Every Ride Safe & Fair
+--- Page 16 ---
