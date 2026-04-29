@@ -7,7 +7,7 @@ import {
     ViewStyle,
     TextStyle,
 } from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
+import SaforaGradient from './SaforaGradient';
 import theme from '../../utils/theme';
 
 interface ButtonProps {
@@ -38,7 +38,7 @@ const Button: React.FC<ButtonProps> = ({
                 disabled={isDisabled}
                 style={[styles.container, style]}
                 activeOpacity={0.8}>
-                <LinearGradient
+                <SaforaGradient
                     colors={
                         isDisabled
                             ? [theme.colors.border, theme.colors.border]
@@ -52,7 +52,7 @@ const Button: React.FC<ButtonProps> = ({
                     ) : (
                         <Text style={[styles.primaryText, textStyle]}>{title}</Text>
                     )}
-                </LinearGradient>
+                </SaforaGradient>
             </TouchableOpacity>
         );
     }

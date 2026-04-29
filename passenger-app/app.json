@@ -23,10 +23,18 @@
                 "foregroundImage": "./assets/adaptive-icon.png",
                 "backgroundColor": "#6C63FF"
             },
-            "package": "com.safora.passenger"
+            "package": "com.safora.passenger",
+            "permissions": [
+                "ACCESS_FINE_LOCATION",
+                "ACCESS_COARSE_LOCATION",
+                "ACCESS_BACKGROUND_LOCATION"
+            ]
         },
         "web": {
-            "favicon": "./assets/favicon.png"
+            "favicon": "./assets/favicon.png",
+            "themeColor": "#F5C518",
+            "backgroundColor": "#000000",
+            "display": "standalone"
         }
     }
 }

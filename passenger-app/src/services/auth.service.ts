@@ -17,6 +17,7 @@ export interface RegisterData {
 export interface AuthResponse {
     success: boolean;
     token: string;
+    isNewUser?: boolean;
     user: {
         id: string;
         name: string;
@@ -26,7 +27,41 @@ export interface AuthResponse {
     };
 }
 
+export interface OTPResponse {
+    success: boolean;
+    message: string;
+    isNewUser?: boolean;
+    otp?: string;
+}
+
 class AuthService {
+    async sendOTP(phone: string): Promise<OTPResponse> {
+        try {
+            return await apiService.post<OTPResponse>(
+                AUTH_ENDPOINTS.SEND_OTP,
+                { phone }
+            );
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async verifyOTP(phone: string, otp: string): Promise<AuthResponse> {
+        try {
+            const response = await apiService.post<AuthResponse>(
+                AUTH_ENDPOINTS.VERIFY_OTP,
+                { phone, otp }
+            );
+
+            if (response.success && response.token) {
+                await this.saveAuthData(response.token, response.user);
+            }
+
+            return response;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
     async login(credentials: LoginCredentials): Promise<AuthResponse> {
         try {
             const response = await apiService.post<AuthResponse>(
@@ -38,6 +73,21 @@ class AuthService {
                 await this.saveAuthData(response.token, response.user);
             }
 
+            return response;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async verifyFirebaseToken(idToken: string): Promise<AuthResponse> {
+        try {
+            const response = await apiService.post<AuthResponse>(
+                '/auth/verify-firebase-token',
+                { idToken }
+            );
+            if (response.success && response.token) {
+                await this.saveAuthData(response.token, response.user);
+            }
             return response;
         } catch (error) {
             throw this.handleError(error);

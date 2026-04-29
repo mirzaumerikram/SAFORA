@@ -3,6 +3,7 @@ const router = express.Router();
 const User = require('../models/User');
 const axios = require('axios');
 const multer = require('multer');
+const { auth } = require('../middleware/auth');
 
 // Configure multer for file uploads
 const storage = multer.memoryStorage();
@@ -14,7 +15,7 @@ const upload = multer({
 // @route   POST /api/pink-pass/enroll
 // @desc    Enroll user in Pink Pass program
 // @access  Private (Female passengers only)
-router.post('/enroll', upload.single('video'), async (req, res) => {
+router.post('/enroll', auth, upload.single('video'), async (req, res) => {
     try {
         const userId = req.user.userId;
 
@@ -85,7 +86,7 @@ router.post('/enroll', upload.single('video'), async (req, res) => {
 // @route   GET /api/pink-pass/status
 // @desc    Get Pink Pass verification status
 // @access  Private
-router.get('/status', async (req, res) => {
+router.get('/status', auth, async (req, res) => {
     try {
         const user = await User.findById(req.user.userId);
 
@@ -100,6 +101,34 @@ router.get('/status', async (req, res) => {
             eligible: user.gender === 'female'
         });
 
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// @route   POST /api/pink-pass/demo-verify
+// @desc    Demo verification (bypasses AI for demo/testing)
+// @access  Private
+router.post('/demo-verify', auth, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.userId);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        if (user.gender !== 'female') {
+            return res.status(403).json({
+                success: false,
+                message: 'Pink Pass is only for female passengers'
+            });
+        }
+
+        user.pinkPassVerified = true;
+        await user.save();
+
+        res.json({
+            success: true,
+            message: 'Pink Pass verified successfully (Demo Mode)',
+            confidence: 0.97
+        });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }

@@ -1,0 +1,94 @@
+.sidebar {
+  width: 220px;
+  min-width: 220px;
+  background: white;
+  border-right: 1px solid #ebebeb;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 12px;
+  gap: 4px;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px 20px;
+}
+.sb-icon { font-size: 26px; }
+.sb-name { font-size: 16px; font-weight: 900; color: #1a1a2e; letter-spacing: 2px; }
+.sb-sub { font-size: 8px; letter-spacing: 1.5px; color: #aaa; font-weight: 700; margin-top: 2px; }
+
+.sidebar-nav { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+
+.nav-section-label {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: #bbb;
+  padding: 14px 10px 6px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  color: #555;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background 0.15s, color 0.15s;
+  position: relative;
+}
+.nav-item:hover { background: #f9f9f9; color: #1a1a2e; }
+.nav-item.active { background: #F5C518; color: #1a1a2e; font-weight: 700; }
+.nav-icon { font-size: 15px; width: 20px; text-align: center; }
+.nav-label { flex: 1; }
+.nav-badge {
+  background: #e74c3c;
+  color: white;
+  border-radius: 10px;
+  min-width: 18px;
+  height: 18px;
+  font-size: 10px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+}
+
+.sidebar-footer {
+  border-top: 1px solid #f0f0f0;
+  padding-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sf-user { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+.sf-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: #F5C518;
+  color: #1a1a2e;
+  font-weight: 900;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.sf-name { font-size: 12px; font-weight: 700; color: #1a1a2e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sf-role { font-size: 10px; color: #aaa; }
+.sf-logout {
+  background: #fff0f0;
+  color: #e74c3c;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 14px;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.sf-logout:hover { background: #ffe0e0; }

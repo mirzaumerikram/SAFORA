@@ -48,7 +48,7 @@ const rideSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ['standard', 'pink-pass'],
+        enum: ['standard', 'pink-pass', 'eco'],
         default: 'standard'
     },
     paymentMethod: {
@@ -68,14 +68,17 @@ const rideSchema = new mongoose.Schema({
         type: String,
         enum: ['passenger', 'driver', 'system']
     },
+    paymentIntentId: String,
     rating: {
         passengerRating: {
-            score: Number,
-            comment: String
+            score: { type: Number, min: 1, max: 5 },
+            comment: String,
+            ratedAt: Date
         },
         driverRating: {
-            score: Number,
-            comment: String
+            score: { type: Number, min: 1, max: 5 },
+            comment: String,
+            ratedAt: Date
         }
     }
 }, {

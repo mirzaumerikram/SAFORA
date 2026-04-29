@@ -1,15 +1,33 @@
-// API Configuration
+// API Configuration — auto-detects PC vs mobile browser
+// PC browser (localhost) → uses localhost:5000
+// Phone browser (192.168.x.x) → uses the same host's port 5000
+const WIFI_IP = '192.168.43.47';
+
+const getApiHost = (): string => {
+    if (typeof window !== 'undefined') {
+        const h = window.location.hostname;
+        if (h === 'localhost' || h === '127.0.0.1') return 'localhost';
+        return WIFI_IP;
+    }
+    return WIFI_IP; // native mobile
+};
+
+const API_HOST = getApiHost();
+
 export const API_CONFIG = {
-    BASE_URL: 'http://192.168.1.3:5000/api',
-    AI_SERVICE_URL: 'http://192.168.1.3:5001/api',
+    BASE_URL: `http://${API_HOST}:5000/api`,
+    AI_SERVICE_URL: `http://${API_HOST}:5001/api`,
     TIMEOUT: 10000,
 };
 
 // Auth endpoints
 export const AUTH_ENDPOINTS = {
     REGISTER: '/auth/register',
+    COMPLETE_PROFILE: '/auth/complete-profile',
     LOGIN: '/auth/login',
-    PROFILE: '/auth/profile',
+    PROFILE: '/auth/me',
+    SEND_OTP: '/auth/send-otp',
+    VERIFY_OTP: '/auth/verify-otp',
 };
 
 // Ride endpoints
@@ -31,6 +49,24 @@ export const PINK_PASS_ENDPOINTS = {
 export const SAFETY_ENDPOINTS = {
     ALERT: '/safety/alert',
     SOS: '/safety/sos',
+    ALERTS: '/safety/alerts',
+    RESOLVE: '/safety/alerts',
+};
+
+// Payment endpoints
+export const PAYMENT_ENDPOINTS = {
+    CASH:          '/payment/cash',
+    CREATE_INTENT: '/payment/create-intent',
+    CONFIRM:       '/payment/confirm',
+    STATUS:        '/payment/status',
+};
+
+// Driver endpoints
+export const DRIVER_ENDPOINTS = {
+    REGISTER: '/drivers/register',
+    STATUS:   '/drivers/status',
+    LOCATION: '/drivers/location',
+    NEARBY:   '/drivers/nearby',
 };
 
 // Storage keys

@@ -3,6 +3,7 @@ const router = express.Router();
 const Alert = require('../models/Alert');
 const Ride = require('../models/Ride');
 const User = require('../models/User');
+const { auth, authorize } = require('../middleware/auth');
 
 // Initialize Twilio client only if credentials are provided and valid
 let twilioClient = null;
@@ -23,8 +24,8 @@ if (twilioSid && twilioToken &&
 
 // @route   POST /api/safety/alert
 // @desc    Create a safety alert
-// @access  Private
-router.post('/alert', async (req, res) => {
+// @access  Private (Passenger)
+router.post('/alert', auth, async (req, res) => {
     try {
         const { rideId, type, location, description } = req.body;
 
@@ -146,7 +147,7 @@ router.post('/alert', async (req, res) => {
 // @route   GET /api/safety/alerts
 // @desc    Get all active alerts
 // @access  Private (Admin only)
-router.get('/alerts', async (req, res) => {
+router.get('/alerts', auth, authorize('admin'), async (req, res) => {
     try {
         const { status = 'active' } = req.query;
 
@@ -175,7 +176,7 @@ router.get('/alerts', async (req, res) => {
 // @route   PATCH /api/safety/alerts/:id/resolve
 // @desc    Resolve a safety alert
 // @access  Private (Admin only)
-router.patch('/alerts/:id/resolve', async (req, res) => {
+router.patch('/alerts/:id/resolve', auth, authorize('admin'), async (req, res) => {
     try {
         const { notes } = req.body;
 
@@ -203,6 +204,49 @@ router.patch('/alerts/:id/resolve', async (req, res) => {
             alert
         });
 
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// @route   POST /api/safety/sos
+// @desc    Standalone SOS (no active ride required)
+// @access  Private
+router.post('/sos', auth, async (req, res) => {
+    try {
+        const { location, message } = req.body;
+
+        const alert = new Alert({
+            passenger: req.user.userId,
+            type: 'sos',
+            severity: 'critical',
+            location: {
+                type: 'Point',
+                coordinates: [location?.lng || 0, location?.lat || 0]
+            },
+            description: message || 'Emergency SOS activated from Safety Center',
+            status: 'active'
+        });
+
+        await alert.save();
+
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('safety-alert', {
+                alertId: alert._id,
+                type: 'sos',
+                severity: 'critical',
+                location,
+                passengerId: req.user.userId,
+                timestamp: alert.createdAt
+            });
+        }
+
+        res.status(201).json({
+            success: true,
+            alertId: alert._id,
+            message: 'SOS sent to SAFORA safety team'
+        });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }

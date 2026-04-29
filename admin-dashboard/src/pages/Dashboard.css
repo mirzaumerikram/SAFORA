@@ -1,0 +1,98 @@
+.dashboard { display: flex; flex-direction: column; gap: 24px; }
+.dash-loading { color: #888; font-size: 14px; padding: 40px; text-align: center; }
+.dash-offline {
+  background: #fff9e6; border: 1px solid #f5c518;
+  border-radius: 10px; padding: 10px 16px;
+  font-size: 12px; color: #a0820d; font-weight: 600;
+}
+
+.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+
+.stat-card {
+  background: white; border-radius: 16px; padding: 20px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+}
+.sc-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.sc-icon { width: 44px; height: 44px; border-radius: 12px; font-size: 22px; display: flex; align-items: center; justify-content: center; }
+.sc-change { font-size: 11px; font-weight: 700; color: #27ae60; background: #eafbea; border-radius: 6px; padding: 3px 7px; }
+.sc-value { font-size: 36px; font-weight: 900; color: #1a1a2e; line-height: 1; }
+.sc-label { font-size: 10px; font-weight: 700; color: #aaa; letter-spacing: 1px; margin-top: 6px; }
+
+.mid-row { display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; }
+
+.map-card, .sos-card, .section-card {
+  background: white; border-radius: 16px; padding: 20px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+}
+
+.card-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 16px;
+}
+.ch-title { font-size: 14px; font-weight: 700; color: #1a1a2e; }
+.ch-link { font-size: 12px; font-weight: 600; color: #F5C518; text-decoration: underline; cursor: pointer; }
+.ch-link:hover { color: #d4a800; }
+
+.map-embed-wrap { position: relative; height: 260px; border-radius: 12px; overflow: hidden; }
+.map-overlay-stats {
+  position: absolute; bottom: 12px; right: 12px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.mos-item {
+  background: rgba(255,255,255,0.92); border-radius: 8px;
+  padding: 5px 10px; font-size: 11px; font-weight: 700;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+.mos-drivers { color: #27ae60; }
+.mos-rides   { color: #3498db; }
+.mos-sos     { color: #e74c3c; }
+
+.sos-table-head {
+  display: grid; grid-template-columns: 1.6fr 1fr 0.8fr;
+  font-size: 10px; font-weight: 800; color: #bbb;
+  letter-spacing: 1px; padding: 0 4px 10px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.sos-rows { display: flex; flex-direction: column; }
+.sos-row {
+  display: grid; grid-template-columns: 1.6fr 1fr 0.8fr;
+  align-items: center; padding: 12px 4px;
+  border-bottom: 1px solid #f7f7f7;
+}
+.sos-row:last-child { border-bottom: none; }
+.sos-passenger { display: flex; align-items: center; gap: 10px; }
+.sos-avatar {
+  width: 32px; height: 32px; border-radius: 10px;
+  background: #F5C518; color: #1a1a2e;
+  font-weight: 900; font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.sos-name { font-size: 13px; font-weight: 700; color: #1a1a2e; }
+.sos-time { font-size: 10px; color: #aaa; margin-top: 1px; }
+.sos-loc { font-size: 12px; color: #555; }
+.sos-status { font-size: 11px; font-weight: 700; }
+.sos-empty { padding: 24px; text-align: center; color: #bbb; font-size: 13px; }
+
+.empty-hint { padding: 24px; text-align: center; color: #bbb; font-size: 13px; }
+
+.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.data-table th {
+  text-align: left; font-size: 10px; font-weight: 800;
+  color: #bbb; letter-spacing: 1px; padding: 0 12px 10px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.data-table td { padding: 12px; color: #444; border-bottom: 1px solid #f7f7f7; }
+.data-table tr:last-child td { border-bottom: none; }
+.td-trunc { max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.status-chip { border-radius: 6px; padding: 3px 8px; font-size: 10px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
+.chip-started  { background: #eafbea; color: #27ae60; }
+.chip-accepted { background: #e8f4fd; color: #3498db; }
+.chip-matched  { background: #fef9e7; color: #f39c12; }
+.chip-completed { background: #f4f4f4; color: #888; }
+
+@media (max-width: 1100px) {
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+  .mid-row { grid-template-columns: 1fr; }
+}

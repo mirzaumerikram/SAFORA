@@ -1,12 +1,66 @@
+# Dependencies
 node_modules/
-.expo/
+.pnp
+.pnp.js
+
+# Environment files — NEVER commit real keys
 .env
-.DS_Store
+.env.*
+!.env.example
+
+# Firebase service account — private keys
+firebase-service-account.json
+*-service-account.json
+
+# Expo
+.expo/
+dist/
+web-build/
+
+# Build outputs
+admin-dashboard/dist/
+*.tsbuildinfo
+
+# Logs
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Microsoft Office temp files
+~$*
+*.tmp
 
 # Python
 venv/
 env/
 __pycache__/
 *.pyc
+*.pyo
+
+# University documents — not needed to run the app
+*.docx
+*.doc
+*.pdf
+*.xlsx
+*.xls
+Uni/
+LogBook*
+sds_template_extracted.md
+generate_*.py
+analyze_*.py
+convert_*.py
+create_*.py
+SAFORA_SRS*
+SAFORA_SDS*
+SAFORA_Phase*
+SAFORA_30*
+SDS_Phase_2_Report.md
+*_DELIVERY_SUMMARY.md
+*_DIAGRAM_PLACEMENT_GUIDE.md
+diagrams/
+api-tester.html

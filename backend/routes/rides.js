@@ -1,12 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const Ride = require('../models/Ride');
+const Driver = require('../models/Driver');
 const axios = require('axios');
+const { auth, authorize } = require('../middleware/auth');
 
 // @route   POST /api/rides/request
 // @desc    Request a new ride
 // @access  Private (Passenger)
-router.post('/request', async (req, res) => {
+router.post('/request', auth, authorize('passenger'), async (req, res) => {
     try {
         const { pickupLocation, dropoffLocation, type } = req.body;
         const passengerId = req.user.userId; // From auth middleware
@@ -16,19 +18,25 @@ router.post('/request', async (req, res) => {
         const distance = 10; // km
         const estimatedDuration = 20; // minutes
 
-        // Get price prediction from AI service
-        const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:5001';
-        const pricingResponse = await axios.post(`${aiServiceUrl}/api/pricing/predict`, {
-            distance,
-            duration: estimatedDuration,
-            time_of_day: new Date().getHours(),
-            day_of_week: new Date().getDay(),
-            demand_level: 'medium',
-            origin_area: 0,
-            traffic_multiplier: 1.0
-        });
-
-        const estimatedPrice = pricingResponse.data.estimated_price;
+        // Get price prediction from AI service (fallback to formula if service is down)
+        let estimatedPrice = Math.round((distance * 35) + (estimatedDuration * 5) + 50); // base formula
+        try {
+            const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:5001';
+            const pricingResponse = await axios.post(`${aiServiceUrl}/api/pricing/predict`, {
+                distance,
+                duration: estimatedDuration,
+                time_of_day: new Date().getHours(),
+                day_of_week: new Date().getDay(),
+                demand_level: 'medium',
+                origin_area: 0,
+                traffic_multiplier: 1.0
+            }, { timeout: 3000 });
+            if (pricingResponse.data?.estimated_price) {
+                estimatedPrice = pricingResponse.data.estimated_price;
+            }
+        } catch {
+            // AI service not running — use formula price
+        }
 
         // Create ride request
         const ride = new Ride({
@@ -50,8 +58,55 @@ router.post('/request', async (req, res) => {
 
         await ride.save();
 
-        // TODO: Trigger driver matching algorithm
-        // TODO: Send ride request to matched driver via Socket.io
+        // Driver matching: find nearest online driver
+        // For Pink Pass rides, only match female drivers with pinkPassCertified
+        const matchQuery = {
+            status: 'online',
+            currentLocation: {
+                $near: {
+                    $geometry: {
+                        type: 'Point',
+                        coordinates: [pickupLocation.lng, pickupLocation.lat]
+                    },
+                    $maxDistance: 10000 // 10km radius
+                }
+            }
+        };
+
+        const nearbyDrivers = await Driver.find(matchQuery)
+            .populate('user', 'name gender phone')
+            .limit(10);
+
+        let matchedDriver = null;
+
+        if (type === 'pink-pass') {
+            // Pink Pass: must be female and certified
+            matchedDriver = nearbyDrivers.find(
+                d => d.user.gender === 'female' && d.pinkPassCertified
+            );
+        } else {
+            // Standard: nearest available driver
+            matchedDriver = nearbyDrivers[0] || null;
+        }
+
+        if (matchedDriver) {
+            ride.driver = matchedDriver._id;
+            ride.status = 'matched';
+            await ride.save();
+
+            // Notify matched driver via Socket.io
+            const io = req.app.get('io');
+            io.to(`driver-${matchedDriver._id}`).emit('ride:request', {
+                rideId: ride._id,
+                passenger: { name: 'Passenger' },
+                pickup: pickupLocation,
+                dropoff: dropoffLocation,
+                estimatedPrice,
+                estimatedDuration,
+                distance,
+                type: ride.type
+            });
+        }
 
         res.status(201).json({
             success: true,
@@ -59,7 +114,8 @@ router.post('/request', async (req, res) => {
                 id: ride._id,
                 estimatedPrice,
                 estimatedDuration,
-                status: ride.status
+                status: ride.status,
+                driverMatched: !!matchedDriver
             }
         });
     } catch (error) {
@@ -70,7 +126,7 @@ router.post('/request', async (req, res) => {
 // @route   GET /api/rides/:id
 // @desc    Get ride details
 // @access  Private
-router.get('/:id', async (req, res) => {
+router.get('/:id', auth, async (req, res) => {
     try {
         const ride = await Ride.findById(req.params.id)
             .populate('passenger', 'name phone')
@@ -89,7 +145,7 @@ router.get('/:id', async (req, res) => {
 // @route   PATCH /api/rides/:id/status
 // @desc    Update ride status
 // @access  Private (Driver)
-router.patch('/:id/status', async (req, res) => {
+router.patch('/:id/status', auth, authorize('driver'), async (req, res) => {
     try {
         const { status } = req.body;
         const ride = await Ride.findById(req.params.id);
@@ -112,6 +168,129 @@ router.patch('/:id/status', async (req, res) => {
         io.to(`ride-${ride._id}`).emit('ride-status-updated', { rideId: ride._id, status });
 
         res.json({ success: true, ride });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// @route   PATCH /api/rides/:id/accept
+// @desc    Driver accepts a ride
+// @access  Private (Driver)
+router.patch('/:id/accept', auth, authorize('driver'), async (req, res) => {
+    try {
+        const ride = await Ride.findById(req.params.id);
+        if (!ride) return res.status(404).json({ message: 'Ride not found' });
+
+        if (ride.status !== 'matched' && ride.status !== 'requested') {
+            return res.status(400).json({ message: 'Ride is no longer available' });
+        }
+
+        ride.status = 'accepted';
+        await ride.save();
+
+        const io = req.app.get('io');
+        io.to(`ride-${ride._id}`).emit('ride:accepted', {
+            rideId: ride._id,
+            driverId: ride.driver
+        });
+
+        res.json({ success: true, ride });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// @route   PATCH /api/rides/:id/reject
+// @desc    Driver rejects a ride — triggers re-matching
+// @access  Private (Driver)
+router.patch('/:id/reject', auth, authorize('driver'), async (req, res) => {
+    try {
+        const ride = await Ride.findById(req.params.id);
+        if (!ride) return res.status(404).json({ message: 'Ride not found' });
+
+        ride.status = 'requested';
+        ride.driver = null;
+        await ride.save();
+
+        const io = req.app.get('io');
+        io.to(`ride-${ride._id}`).emit('ride:no-driver', { rideId: ride._id });
+
+        res.json({ success: true, message: 'Ride returned to pool' });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// @route   GET /api/rides/history/:userId
+// @desc    Get ride history for a user or driver
+// @access  Private
+router.get('/history/:userId', auth, async (req, res) => {
+    try {
+        const rides = await Ride.find({
+            $or: [
+                { passenger: req.params.userId },
+                { driver: req.params.userId }
+            ],
+            status: 'completed'
+        })
+        .sort({ completedAt: -1 })
+        .limit(20)
+        .populate('passenger', 'name phone')
+        .populate('driver');
+
+        res.json({ success: true, count: rides.length, rides });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// @route   POST /api/rides/:id/rate
+// @desc    Rate a completed ride
+// @access  Private
+router.post('/:id/rate', auth, async (req, res) => {
+    try {
+        const { score, comment, raterRole } = req.body;
+        if (!score || score < 1 || score > 5) {
+            return res.status(400).json({ message: 'Score must be between 1 and 5' });
+        }
+
+        const ride = await Ride.findById(req.params.id);
+        if (!ride) return res.status(404).json({ message: 'Ride not found' });
+        if (ride.status !== 'completed') {
+            return res.status(400).json({ message: 'Can only rate completed rides' });
+        }
+
+        const ratingField = raterRole === 'driver' ? 'passengerRating' : 'driverRating';
+        ride.rating[ratingField] = { score, comment, ratedAt: new Date() };
+        await ride.save();
+
+        res.json({ success: true, message: 'Rating submitted successfully' });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// @route   POST /api/rides/:id/cancel
+// @desc    Cancel a ride
+// @access  Private
+router.post('/:id/cancel', auth, async (req, res) => {
+    try {
+        const { cancelledBy } = req.body;
+        const ride = await Ride.findById(req.params.id);
+        if (!ride) return res.status(404).json({ message: 'Ride not found' });
+        if (['completed', 'cancelled'].includes(ride.status)) {
+            return res.status(400).json({ message: 'Ride already ended' });
+        }
+
+        ride.status      = 'cancelled';
+        ride.cancelledAt = new Date();
+        ride.cancelledBy = cancelledBy || 'passenger';
+        await ride.save();
+
+        const io = req.app.get('io');
+        io.to(`ride-${ride._id}`).emit('ride:cancelled', { rideId: ride._id, cancelledBy: ride.cancelledBy });
+
+        res.json({ success: true, message: 'Ride cancelled' });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }

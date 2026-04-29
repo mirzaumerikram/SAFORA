@@ -1,29 +1,19 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
 import AuthNavigator from '../navigation/AuthNavigator';
-import authService from '../services/auth.service';
+import MainNavigator from '../navigation/MainNavigator';
+import DriverDashboard from '../screens/driver/DriverDashboard';
+import AdminDashboard from '../screens/admin/AdminDashboard';
+import { AuthProvider, useAuth } from '../context/AuthContext';
+import { LanguageProvider } from '../context/LanguageContext';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import theme from '../utils/theme';
 
-const AppNavigator: React.FC = () => {
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
+const RootStack = createStackNavigator();
 
-    useEffect(() => {
-        checkAuthStatus();
-    }, []);
-
-    const checkAuthStatus = async () => {
-        try {
-            const authenticated = await authService.isAuthenticated();
-            setIsAuthenticated(authenticated);
-        } catch (error) {
-            console.error('Auth check error:', error);
-            setIsAuthenticated(false);
-        } finally {
-            setIsLoading(false);
-        }
-    };
+const RootNavigator: React.FC = () => {
+    const { isAuthenticated, isLoading, userRole } = useAuth();
 
     if (isLoading) {
         return (
@@ -33,12 +23,51 @@ const AppNavigator: React.FC = () => {
         );
     }
 
+    if (!isAuthenticated) {
+        return (
+            <NavigationContainer>
+                <AuthNavigator />
+            </NavigationContainer>
+        );
+    }
+
+    // Admin role — dedicated admin panel
+    if (userRole === 'admin') {
+        return (
+            <NavigationContainer>
+                <RootStack.Navigator screenOptions={{ headerShown: false }}>
+                    <RootStack.Screen name="AdminHome" component={AdminDashboard} />
+                </RootStack.Navigator>
+            </NavigationContainer>
+        );
+    }
+
+    // Driver role
+    if (userRole === 'driver') {
+        return (
+            <NavigationContainer>
+                <RootStack.Navigator screenOptions={{ headerShown: false }}>
+                    <RootStack.Screen name="DriverHome" component={DriverDashboard} />
+                </RootStack.Navigator>
+            </NavigationContainer>
+        );
+    }
+
+    // Default: passenger
     return (
         <NavigationContainer>
-            {/* For now, always show AuthNavigator */}
-            {/* TODO: Add MainNavigator when user is authenticated */}
-            <AuthNavigator />
+            <MainNavigator />
         </NavigationContainer>
+    );
+};
+
+const AppNavigator: React.FC = () => {
+    return (
+        <LanguageProvider>
+            <AuthProvider>
+                <RootNavigator />
+            </AuthProvider>
+        </LanguageProvider>
     );
 };
 

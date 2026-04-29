@@ -1,0 +1,66 @@
+.header {
+  background: white;
+  border-bottom: 1px solid #ebebeb;
+  padding: 16px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.page-title { font-size: 20px; font-weight: 800; color: #1a1a2e; }
+.page-date { font-size: 12px; color: #aaa; margin-top: 2px; }
+
+.header-right { display: flex; align-items: center; gap: 10px; }
+
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f4f5f7;
+  border: 1.5px solid #e8e8e8;
+  border-radius: 10px;
+  padding: 8px 14px;
+  width: 240px;
+}
+.search-icon { font-size: 13px; }
+.search-box input {
+  background: none;
+  border: none;
+  font-size: 13px;
+  color: #1a1a2e;
+  width: 100%;
+}
+.search-box input::placeholder { color: #bbb; }
+
+.notif-btn {
+  background: #f4f5f7;
+  border: 1.5px solid #e8e8e8;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 15px;
+  position: relative;
+}
+.notif-dot {
+  position: absolute;
+  top: 6px; right: 6px;
+  width: 7px; height: 7px;
+  background: #e74c3c;
+  border-radius: 50%;
+  border: 1.5px solid white;
+}
+
+.live-badge {
+  background: #eafbea;
+  color: #27ae60;
+  border: 1.5px solid #a3e6a8;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}

@@ -16,14 +16,16 @@ class ApiService {
     }
 
     private async getHeaders(customHeaders?: Record<string, string>): Promise<Record<string, string>> {
-        const headers: Record<string, string> = {
-            'Content-Type': 'application/json',
-            ...customHeaders,
-        };
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
 
         const token = await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
         if (token) {
             headers.Authorization = `Bearer ${token}`;
+        }
+
+        // Custom headers override defaults (including Authorization)
+        if (customHeaders) {
+            Object.assign(headers, customHeaders);
         }
 
         return headers;
@@ -85,6 +87,10 @@ class ApiService {
 
     async put<T = any>(url: string, data?: any, config?: RequestConfig): Promise<T> {
         return this.request<T>('PUT', url, data, config);
+    }
+
+    async patch<T = any>(url: string, data?: any, config?: RequestConfig): Promise<T> {
+        return this.request<T>('PATCH', url, data, config);
     }
 
     async delete<T = any>(url: string, config?: RequestConfig): Promise<T> {

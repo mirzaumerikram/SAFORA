@@ -4,7 +4,12 @@ const alertSchema = new mongoose.Schema({
     ride: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Ride',
-        required: true
+        required: false   // Optional: SOS can be triggered without an active ride
+    },
+    passenger: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: false
     },
     type: {
         type: String,

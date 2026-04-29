@@ -2,11 +2,12 @@ const express = require('express');
 const router = express.Router();
 const Driver = require('../models/Driver');
 const User = require('../models/User');
+const { auth, authorize } = require('../middleware/auth');
 
 // @route   POST /api/drivers/register
 // @desc    Register as a driver
 // @access  Private
-router.post('/register', async (req, res) => {
+router.post('/register', auth, async (req, res) => {
     try {
         const userId = req.user.userId;
         const { licenseNumber, vehicleInfo } = req.body;
@@ -58,7 +59,7 @@ router.post('/register', async (req, res) => {
 // @route   PATCH /api/drivers/status
 // @desc    Update driver online/offline status
 // @access  Private (Driver only)
-router.patch('/status', async (req, res) => {
+router.patch('/status', auth, authorize('driver'), async (req, res) => {
     try {
         const userId = req.user.userId;
         const { status } = req.body;
@@ -91,7 +92,7 @@ router.patch('/status', async (req, res) => {
 // @route   PATCH /api/drivers/location
 // @desc    Update driver location
 // @access  Private (Driver only)
-router.patch('/location', async (req, res) => {
+router.patch('/location', auth, authorize('driver'), async (req, res) => {
     try {
         const userId = req.user.userId;
         const { lat, lng } = req.body;
@@ -128,7 +129,7 @@ router.patch('/location', async (req, res) => {
 // @route   GET /api/drivers/nearby
 // @desc    Get nearby drivers
 // @access  Private
-router.get('/nearby', async (req, res) => {
+router.get('/nearby', auth, async (req, res) => {
     try {
         const { lat, lng, radius = 5000 } = req.query; // radius in meters
 

@@ -7,8 +7,9 @@ import {
     TouchableOpacity,
     ViewStyle,
     TextInputProps,
+    Platform,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/Ionicons';
+import SaforaIcon from './SaforaIcon';
 import theme from '../../utils/theme';
 
 interface InputProps extends TextInputProps {
@@ -25,16 +26,25 @@ const Input: React.FC<InputProps> = ({
     icon,
     containerStyle,
     secureTextEntry,
+    style,
     ...props
 }) => {
     const [isSecure, setIsSecure] = useState(secureTextEntry);
+
+    // Override browser autofill white background on web
+    const webInputStyle = Platform.OS === 'web' ? {
+        // @ts-ignore
+        WebkitBoxShadow: '0 0 0 30px #1A1A1A inset',
+        WebkitTextFillColor: theme.colors.text,
+        caretColor: theme.colors.text,
+    } : {};
 
     return (
         <View style={[styles.container, containerStyle]}>
             {label && <Text style={styles.label}>{label}</Text>}
             <View style={[styles.inputContainer, error && styles.inputError]}>
                 {icon && (
-                    <Icon
+                    <SaforaIcon
                         name={icon}
                         size={20}
                         color={theme.colors.textSecondary}
@@ -42,7 +52,7 @@ const Input: React.FC<InputProps> = ({
                     />
                 )}
                 <TextInput
-                    style={styles.input}
+                    style={[styles.input, webInputStyle, style]}
                     placeholderTextColor={theme.colors.placeholder}
                     secureTextEntry={isSecure}
                     {...props}
@@ -51,7 +61,7 @@ const Input: React.FC<InputProps> = ({
                     <TouchableOpacity
                         onPress={() => setIsSecure(!isSecure)}
                         style={styles.eyeIcon}>
-                        <Icon
+                        <SaforaIcon
                             name={isSecure ? 'eye-off-outline' : 'eye-outline'}
                             size={20}
                             color={theme.colors.textSecondary}
@@ -71,19 +81,18 @@ const styles = StyleSheet.create({
     label: {
         fontSize: theme.fontSize.sm,
         fontWeight: theme.fontWeight.medium,
-        color: theme.colors.text,
+        color: theme.colors.textSecondary,
         marginBottom: theme.spacing.xs,
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: theme.colors.white,
+        backgroundColor: theme.colors.card,   // DARK — was white
         borderRadius: theme.borderRadius.md,
         borderWidth: 1,
         borderColor: theme.colors.border,
         paddingHorizontal: theme.spacing.md,
         minHeight: 56,
-        ...theme.shadows.sm,
     },
     inputError: {
         borderColor: theme.colors.danger,
@@ -96,6 +105,7 @@ const styles = StyleSheet.create({
         fontSize: theme.fontSize.md,
         color: theme.colors.text,
         paddingVertical: theme.spacing.sm,
+        backgroundColor: 'transparent',
     },
     eyeIcon: {
         padding: theme.spacing.xs,

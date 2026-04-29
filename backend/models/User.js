@@ -9,8 +9,9 @@ const userSchema = new mongoose.Schema({
     },
     email: {
         type: String,
-        required: [true, 'Please provide an email'],
+        required: false, // Changed to optional for phone-first
         unique: true,
+        sparse: true, // Allow multiple nulls
         lowercase: true,
         match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email']
     },
@@ -21,8 +22,16 @@ const userSchema = new mongoose.Schema({
     },
     password: {
         type: String,
-        required: [true, 'Please provide a password'],
+        required: false, // Changed to optional for OTP flow
         minlength: 8,
+        select: false
+    },
+    otp: {
+        type: String,
+        select: false
+    },
+    otpExpires: {
+        type: Date,
         select: false
     },
     role: {
@@ -32,17 +41,31 @@ const userSchema = new mongoose.Schema({
     },
     cnic: {
         type: String,
-        required: [true, 'Please provide CNIC'],
-        unique: true
+        required: false,
+        unique: true,
+        sparse: true
     },
     gender: {
         type: String,
         enum: ['male', 'female', 'other'],
-        required: true
+        default: 'other',
+        required: false
     },
     verified: {
         type: Boolean,
         default: false
+    },
+    emailVerified: {
+        type: Boolean,
+        default: false
+    },
+    emailVerificationToken: {
+        type: String,
+        select: false
+    },
+    emailVerificationExpires: {
+        type: Date,
+        select: false
     },
     pinkPassVerified: {
         type: Boolean,
