@@ -6,7 +6,10 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Geolocation from 'react-native-geolocation-service';
+// react-native-geolocation-service is native-only — use browser API on web
+const Geolocation: any = Platform.OS !== 'web'
+    ? require('react-native-geolocation-service').default
+    : null;
 import SaforaMap from '../../components/SaforaMap';
 import theme from '../../utils/theme';
 import socketService from '../../services/socket.service';
@@ -86,21 +89,35 @@ const DriverDashboard: React.FC = () => {
     };
 
     const startGPS = async (rideId: string) => {
+        if (Platform.OS === 'web') {
+            // Browser Geolocation API
+            if (!navigator.geolocation) return;
+            watchId.current = navigator.geolocation.watchPosition(
+                (pos) => socketService.emitLocationUpdate(rideId, pos.coords.latitude, pos.coords.longitude),
+                (err) => console.log('[GPS] Web error:', err.message),
+                { enableHighAccuracy: true }
+            ) as any;
+            return;
+        }
         const allowed = await requestLocationPermission();
         if (!allowed) return;
         watchId.current = Geolocation.watchPosition(
-            (pos) => {
+            (pos: any) => {
                 const { latitude, longitude } = pos.coords;
                 socketService.emitLocationUpdate(rideId, latitude, longitude);
             },
-            (err) => console.log('[GPS] Error:', err.message),
+            (err: any) => console.log('[GPS] Error:', err.message),
             { enableHighAccuracy: true, distanceFilter: 5, interval: 4000, fastestInterval: 2000 }
         );
     };
 
     const stopGPS = () => {
         if (watchId.current !== null) {
-            Geolocation.clearWatch(watchId.current);
+            if (Platform.OS === 'web') {
+                navigator.geolocation.clearWatch(watchId.current as any);
+            } else {
+                Geolocation.clearWatch(watchId.current);
+            }
             watchId.current = null;
         }
     };

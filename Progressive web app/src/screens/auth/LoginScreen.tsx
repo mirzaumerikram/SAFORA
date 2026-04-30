@@ -11,7 +11,10 @@ import {
     ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
+// expo-firebase-recaptcha is native only — skip on web
+const FirebaseRecaptchaVerifierModal: any = Platform.OS !== 'web'
+    ? require('expo-firebase-recaptcha').FirebaseRecaptchaVerifierModal
+    : () => null;
 import { signInWithPhoneNumber } from 'firebase/auth';
 import { firebaseAuth, firebaseConfig } from '../../config/firebase';
 import { setConfirmationResult } from '../../services/otpStore';
@@ -28,7 +31,8 @@ const LoginScreen: React.FC = () => {
     const { setAuthenticated } = useAuth();
     const { t, isUrdu } = useLanguage();
 
-    const [activeTab, setActiveTab] = useState<TabType>('otp');
+    // On web, default to email login (phone OTP needs native Firebase Recaptcha)
+    const [activeTab, setActiveTab] = useState<TabType>(Platform.OS === 'web' ? 'email' : 'otp');
 
     // Phone OTP state
     const [phoneNumber, setPhoneNumber] = useState('');
