@@ -1,23 +1,25 @@
-// API Configuration — auto-detects PC vs mobile browser
-// PC browser (localhost) → uses localhost:5000
-// Phone browser (192.168.x.x) → uses the same host's port 5000
-const WIFI_IP = '192.168.43.47';
+// API Configuration
+// Production: Railway backend (live, accessible anywhere)
+// Local dev fallback: Wi-Fi IP for testing on same network
+const RAILWAY_URL = 'https://safora-production-f5ce.up.railway.app/api';
+const LOCAL_IP    = '192.168.43.47';
 
-const getApiHost = (): string => {
+const getApiBase = (): string => {
     if (typeof window !== 'undefined') {
         const h = window.location.hostname;
-        if (h === 'localhost' || h === '127.0.0.1') return 'localhost';
-        return WIFI_IP;
+        // Running locally on PC — still use Railway so admin dashboard works
+        if (h === 'localhost' || h === '127.0.0.1') return RAILWAY_URL;
+        // Running on phone browser on same Wi-Fi
+        if (h === LOCAL_IP) return `http://${LOCAL_IP}:5000/api`;
     }
-    return WIFI_IP; // native mobile
+    // React Native native app — use Railway
+    return RAILWAY_URL;
 };
 
-const API_HOST = getApiHost();
-
 export const API_CONFIG = {
-    BASE_URL: `http://${API_HOST}:5000/api`,
-    AI_SERVICE_URL: `http://${API_HOST}:5001/api`,
-    TIMEOUT: 10000,
+    BASE_URL:       getApiBase(),
+    AI_SERVICE_URL: 'http://localhost:5001/api',
+    TIMEOUT:        10000,
 };
 
 // Auth endpoints
