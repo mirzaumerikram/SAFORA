@@ -27,11 +27,12 @@ const ALLOWED_ORIGINS = [
 ];
 
 const corsOptions = {
-  origin: (origin: any, callback: any) => {
-    // Allow requests with no origin (mobile apps, Postman)
+  origin: function(origin, callback) {
+    // Allow requests with no origin (mobile apps, Postman, React Native)
     if (!origin) return callback(null, true);
     if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
-    callback(null, true); // allow all in dev — tighten in prod if needed
+    // Allow all origins in development
+    callback(null, true);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
