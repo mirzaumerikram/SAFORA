@@ -13,10 +13,17 @@ router.post('/request', auth, authorize('passenger'), async (req, res) => {
         const { pickupLocation, dropoffLocation, type } = req.body;
         const passengerId = req.user.userId; // From auth middleware
 
-        // Calculate route using Google Maps API (placeholder)
-        // TODO: Implement actual Google Maps API integration
-        const distance = 10; // km
-        const estimatedDuration = 20; // minutes
+        // Calculate real distance using Haversine formula
+        const toRad = (deg) => deg * (Math.PI / 180);
+        const R = 6371; // Earth radius in km
+        const dLat = toRad(dropoffLocation.lat - pickupLocation.lat);
+        const dLng = toRad(dropoffLocation.lng - pickupLocation.lng);
+        const a =
+            Math.sin(dLat / 2) ** 2 +
+            Math.cos(toRad(pickupLocation.lat)) * Math.cos(toRad(dropoffLocation.lat)) *
+            Math.sin(dLng / 2) ** 2;
+        const distance = parseFloat((R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))).toFixed(2));
+        const estimatedDuration = Math.max(5, Math.round(distance * 3)); // ~3 min/km average
 
         // Get price prediction from AI service (fallback to formula if service is down)
         let estimatedPrice = Math.round((distance * 35) + (estimatedDuration * 5) + 50); // base formula
@@ -167,11 +174,28 @@ router.patch('/:id/status', auth, authorize('driver'), async (req, res) => {
         const io = req.app.get('io');
         io.to(`ride-${ride._id}`).emit('ride-status-updated', { rideId: ride._id, status });
 
+        // SafetySentinel lifecycle
+        const safetySentinel = req.app.get('safetySentinel');
+        if (safetySentinel) {
+            if (status === 'started') {
+                // Build a simple straight-line route between pickup and dropoff for monitoring
+                const plannedRoute = [
+                    ride.pickupLocation.coordinates,   // [lng, lat]
+                    ride.dropoffLocation.coordinates   // [lng, lat]
+                ];
+                safetySentinel.startMonitoring(ride._id.toString(), plannedRoute);
+                console.log(`[SafetySentinel] Started monitoring ride ${ride._id}`);
+            } else if (status === 'completed' || status === 'cancelled') {
+                safetySentinel.stopMonitoring(ride._id.toString());
+            }
+        }
+
         res.json({ success: true, ride });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
+
 
 // @route   PATCH /api/rides/:id/accept
 // @desc    Driver accepts a ride
@@ -216,6 +240,68 @@ router.patch('/:id/reject', auth, authorize('driver'), async (req, res) => {
         io.to(`ride-${ride._id}`).emit('ride:no-driver', { rideId: ride._id });
 
         res.json({ success: true, message: 'Ride returned to pool' });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// @route   GET /api/rides/driver/earnings
+// @desc    Get aggregated driver earnings, stats, and recent rides
+// @access  Private (Driver)
+router.get('/driver/earnings', auth, authorize('driver'), async (req, res) => {
+    try {
+        const driverId = req.user.userId;
+        
+        // Find all completed rides for this driver
+        const rides = await Ride.find({ driver: driverId, status: 'completed' })
+            .sort({ completedAt: -1 })
+            .populate('passenger', 'name');
+
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const startOfWeek = new Date(now);
+        startOfWeek.setDate(now.getDate() - 7);
+
+        let todayEarnings = 0;
+        let weeklyEarnings = 0;
+        let totalRatingScore = 0;
+        let ratedTripsCount = 0;
+
+        rides.forEach(ride => {
+            const price = ride.estimatedPrice || 0;
+            const completedDate = ride.completedAt ? new Date(ride.completedAt) : new Date(ride.createdAt);
+
+            if (completedDate >= startOfToday) {
+                todayEarnings += price;
+            }
+            if (completedDate >= startOfWeek) {
+                weeklyEarnings += price;
+            }
+
+            if (ride.rating && ride.rating.driverRating && ride.rating.driverRating.score) {
+                totalRatingScore += ride.rating.driverRating.score;
+                ratedTripsCount++;
+            }
+        });
+
+        const averageRating = ratedTripsCount > 0 ? (totalRatingScore / ratedTripsCount).toFixed(1) : '5.0';
+
+        res.json({
+            success: true,
+            stats: {
+                todayEarnings,
+                weeklyEarnings,
+                totalTrips: rides.length,
+                averageRating,
+            },
+            recentRides: rides.slice(0, 10).map(r => ({
+                id: r._id,
+                date: r.completedAt || r.createdAt,
+                fare: r.estimatedPrice,
+                passengerName: r.passenger?.name || 'Passenger',
+                distance: r.distance
+            }))
+        });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }

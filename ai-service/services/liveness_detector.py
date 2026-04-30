@@ -1,133 +1,190 @@
 import cv2
 import numpy as np
-from tensorflow import keras
+import mediapipe as mp
 import os
+import traceback
+
+# Import DeepFace for gender classification. 
+# It will automatically download the facial recognition weights on first run.
+try:
+    from deepface import DeepFace
+    DEEPFACE_AVAILABLE = True
+except ImportError:
+    DEEPFACE_AVAILABLE = False
+    print("Warning: DeepFace not installed. Gender classification will be skipped.")
 
 class LivenessDetector:
     def __init__(self):
-        # Load Haar Cascade for face detection
-        cascade_path = os.getenv('FACE_CASCADE_PATH', 'models/haarcascade_frontalface_default.xml')
-        self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+        # Initialize MediaPipe Face Mesh
+        self.mp_face_mesh = mp.solutions.face_mesh
+        # We only need 1 face, and we want higher accuracy
+        self.face_mesh = self.mp_face_mesh.FaceMesh(
+            max_num_faces=1,
+            refine_landmarks=True,
+            min_detection_confidence=0.5,
+            min_tracking_confidence=0.5
+        )
         
-        # Load CNN model for liveness detection (to be trained)
-        model_path = os.getenv('PINK_PASS_MODEL_PATH', 'models/liveness_model.h5')
-        if os.path.exists(model_path):
-            self.liveness_model = keras.models.load_model(model_path)
-        else:
-            self.liveness_model = None
-            print("Warning: Liveness model not found. Using placeholder logic.")
-    
-    def detect_face(self, image):
+        # Left eye landmark indices in MediaPipe Face Mesh
+        self.LEFT_EYE = [362, 385, 387, 263, 373, 380]
+        # Right eye landmark indices in MediaPipe Face Mesh
+        self.RIGHT_EYE = [33, 160, 158, 133, 153, 144]
+        
+        # EAR threshold to indicate a blink (eyes closed)
+        self.EAR_THRESHOLD = 0.21
+        
+    def _euclidean_distance(self, p1, p2):
+        return np.linalg.norm(np.array(p1) - np.array(p2))
+        
+    def _calculate_ear(self, landmarks, eye_indices, frame_width, frame_height):
         """
-        Detect face in image using Haar Cascade
-        Returns: face coordinates or None
+        Calculate Eye Aspect Ratio (EAR) for a single eye
         """
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        faces = self.face_cascade.detectMultiScale(gray, 1.3, 5)
+        # Get coordinates
+        pts = []
+        for idx in eye_indices:
+            landmark = landmarks.landmark[idx]
+            x = int(landmark.x * frame_width)
+            y = int(landmark.y * frame_height)
+            pts.append((x, y))
+            
+        # Vertical distances
+        v1 = self._euclidean_distance(pts[1], pts[5])
+        v2 = self._euclidean_distance(pts[2], pts[4])
         
-        if len(faces) == 0:
-            return None
+        # Horizontal distance
+        h = self._euclidean_distance(pts[0], pts[3])
         
-        # Return the largest face
-        faces_sorted = sorted(faces, key=lambda x: x[2] * x[3], reverse=True)
-        return faces_sorted[0]
-    
-    def calculate_eye_aspect_ratio(self, eye_landmarks):
-        """
-        Calculate Eye Aspect Ratio (EAR) for blink detection
-        EAR = (||p2-p6|| + ||p3-p5||) / (2 * ||p1-p4||)
-        """
-        # Vertical eye landmarks
-        A = np.linalg.norm(eye_landmarks[1] - eye_landmarks[5])
-        B = np.linalg.norm(eye_landmarks[2] - eye_landmarks[4])
-        
-        # Horizontal eye landmark
-        C = np.linalg.norm(eye_landmarks[0] - eye_landmarks[3])
-        
-        ear = (A + B) / (2.0 * C)
+        # EAR formula
+        ear = (v1 + v2) / (2.0 * h)
         return ear
-    
-    def detect_blink(self, frames):
+
+    def detect_gender(self, frame):
         """
-        Detect blink in video frames
-        Returns: True if blink detected, False otherwise
+        Use DeepFace to classify the gender of the face in the frame.
+        Returns: True if female, False otherwise, and the confidence score.
         """
-        EAR_THRESHOLD = 0.25
-        MIN_BLINKS = 2
-        
-        blink_count = 0
-        prev_ear = 0.3
-        
-        for frame in frames:
-            face = self.detect_face(frame)
-            if face is None:
-                continue
+        if not DEEPFACE_AVAILABLE:
+            print("DeepFace not available. Bypassing gender check.")
+            return True, 1.0, "DeepFace not installed"
             
-            # Extract face region
-            (x, y, w, h) = face
-            face_region = frame[y:y+h, x:x+w]
+        try:
+            # DeepFace.analyze expects BGR image (OpenCV format)
+            # enforce_detection=False so it doesn't crash if face is slightly out of frame
+            results = DeepFace.analyze(
+                img_path=frame, 
+                actions=['gender'], 
+                enforce_detection=True,
+                silent=True
+            )
             
-            # Simplified blink detection (in production, use dlib or MediaPipe)
-            # For now, we'll use a placeholder
-            # TODO: Implement proper eye landmark detection
+            # DeepFace can return a list if multiple faces are found. Grab the first.
+            if isinstance(results, list):
+                result = results[0]
+            else:
+                result = results
+                
+            gender_dict = result.get('gender', {})
             
-        return blink_count >= MIN_BLINKS
-    
+            # DeepFace returns {'Woman': 99.9, 'Man': 0.1}
+            woman_confidence = gender_dict.get('Woman', 0.0)
+            man_confidence = gender_dict.get('Man', 0.0)
+            
+            is_female = woman_confidence > man_confidence and woman_confidence > 80.0
+            
+            return is_female, woman_confidence, "Gender verified" if is_female else "Gender mismatch"
+            
+        except Exception as e:
+            print(f"Gender classification error: {str(e)}")
+            traceback.print_exc()
+            return False, 0.0, f"Gender detection failed: {str(e)}"
+
     def verify_liveness(self, video_frames):
         """
-        Main liveness verification method
+        Main verification method that checks BOTH Liveness (blinking) and Gender.
         Args:
-            video_frames: List of image arrays (BGR format)
+            video_frames: List of image arrays (BGR format) from OpenCV
         Returns:
             dict with verification result
         """
-        if len(video_frames) < 10:
+        if not video_frames or len(video_frames) < 5:
             return {
                 'verified': False,
-                'reason': 'Insufficient frames',
+                'reason': 'Insufficient video frames extracted',
                 'confidence': 0.0
             }
+            
+        blink_detected = False
+        face_detected = False
+        ear_history = []
         
-        # Step 1: Detect face in first frame
-        first_frame = video_frames[0]
-        face = self.detect_face(first_frame)
-        
-        if face is None:
+        # 1. Check Liveness (Blink Detection) across all frames
+        for frame in video_frames:
+            # MediaPipe needs RGB
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            results = self.face_mesh.process(rgb_frame)
+            
+            if results.multi_face_landmarks:
+                face_detected = True
+                landmarks = results.multi_face_landmarks[0]
+                h, w, _ = frame.shape
+                
+                left_ear = self._calculate_ear(landmarks, self.LEFT_EYE, w, h)
+                right_ear = self._calculate_ear(landmarks, self.RIGHT_EYE, w, h)
+                
+                avg_ear = (left_ear + right_ear) / 2.0
+                ear_history.append(avg_ear)
+                
+        # Analyze EAR history to find a blink
+        # A blink is a drop in EAR followed by a rise
+        if face_detected and len(ear_history) > 3:
+            for i in range(1, len(ear_history) - 1):
+                # If current EAR is below threshold, and previous/next are higher
+                if ear_history[i] < self.EAR_THRESHOLD:
+                    if ear_history[i-1] > ear_history[i] and ear_history[i+1] >= ear_history[i]:
+                        blink_detected = True
+                        break
+                        
+        if not face_detected:
             return {
                 'verified': False,
-                'reason': 'No face detected',
-                'confidence': 0.0
+                'reason': 'No face detected in video',
+                'confidence': 0.0,
+                'face_detected': False,
+                'blink_detected': False
             }
-        
-        # Step 2: Check for blink (simplified for now)
-        # TODO: Implement proper blink detection with eye landmarks
-        blink_detected = self.detect_blink(video_frames)
-        
-        # Step 3: If model exists, use CNN for liveness classification
-        if self.liveness_model:
-            # Preprocess frame for model
-            (x, y, w, h) = face
-            face_crop = first_frame[y:y+h, x:x+w]
-            face_resized = cv2.resize(face_crop, (224, 224))
-            face_normalized = face_resized / 255.0
-            face_batch = np.expand_dims(face_normalized, axis=0)
             
-            # Predict
-            prediction = self.liveness_model.predict(face_batch)
-            confidence = float(prediction[0][0])
-            
-            is_live = confidence > 0.7
-        else:
-            # Placeholder logic
-            is_live = True
-            confidence = 0.85
+        if not blink_detected:
+             return {
+                'verified': False,
+                'reason': 'Liveness failed. No natural blink detected. Please record a real video.',
+                'confidence': 0.0,
+                'face_detected': True,
+                'blink_detected': False
+            }
+
+        # 2. Check Gender on the clearest frame (usually the middle one)
+        middle_idx = len(video_frames) // 2
+        best_frame = video_frames[middle_idx]
         
+        is_female, gender_confidence, gender_reason = self.detect_gender(best_frame)
+        
+        if not is_female:
+            return {
+                'verified': False,
+                'reason': f'Pink Pass is for females only. {gender_reason}',
+                'confidence': gender_confidence,
+                'face_detected': True,
+                'blink_detected': True
+            }
+
+        # If we made it here, it's a real live female!
         return {
-            'verified': is_live and blink_detected,
+            'verified': True,
             'face_detected': True,
-            'blink_detected': blink_detected,
-            'confidence': confidence,
-            'reason': 'Verification successful' if is_live else 'Liveness check failed'
+            'blink_detected': True,
+            'confidence': gender_confidence, # Use gender confidence as the primary confidence metric
+            'reason': 'Pink Pass Biometric Verification Successful'
         }
 
 # Singleton instance

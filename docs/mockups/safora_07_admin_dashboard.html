@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SAFORA – Admin Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #F4F6FA;
+    --white: #FFFFFF;
+    --dark: #111827;
+    --muted: #6B7280;
+    --border: #E5E7EB;
+    --yellow: #F5C518;
+    --yellow-dim: #D5A508;
+    --yellow-bg: rgba(245,197,24,0.08);
+    --green: #10B981;
+    --green-bg: rgba(16,185,129,0.08);
+    --red: #EF4444;
+    --red-bg: rgba(239,68,68,0.08);
+    --blue: #3B82F6;
+    --blue-bg: rgba(59,130,246,0.08);
+    --pink: #EC4899;
+    --sidebar-w: 220px;
+  }
+  body { background: var(--bg); font-family: 'DM Sans', sans-serif; color: var(--dark); display: flex; min-height: 100vh; }
+
+  /* SIDEBAR */
+  .sidebar { width: var(--sidebar-w); background: var(--dark); display: flex; flex-direction: column; padding: 0; flex-shrink: 0; }
+  .sidebar-logo { padding: 24px 20px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .logo-text { font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 3px; color: var(--yellow); }
+  .logo-sub { font-size: 10px; color: rgba(255,255,255,0.4); letter-spacing: 2px; text-transform: uppercase; margin-top: 2px; }
+  .sidebar-nav { flex: 1; padding: 16px 0; }
+  .nav-section { font-size: 9px; color: rgba(255,255,255,0.3); letter-spacing: 2px; text-transform: uppercase; padding: 12px 20px 6px; font-weight: 700; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 20px; font-size: 13px; color: rgba(255,255,255,0.6); cursor: pointer; border-radius: 0; transition: all 0.2s; margin: 1px 0; }
+  .nav-item:hover { color: #fff; background: rgba(255,255,255,0.05); }
+  .nav-item.active { color: var(--dark); background: var(--yellow); border-radius: 0 8px 8px 0; margin-right: 12px; font-weight: 700; }
+  .nav-item.active .nav-icon { filter: none; }
+  .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+  .nav-badge { margin-left: auto; background: var(--red); color: #fff; font-size: 9px; font-weight: 800; border-radius: 10px; padding: 2px 7px; }
+  .sidebar-bottom { padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.08); }
+  .admin-profile { display: flex; align-items: center; gap: 10px; }
+  .admin-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--yellow); display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .admin-name { font-size: 13px; color: #fff; font-weight: 600; }
+  .admin-role { font-size: 10px; color: rgba(255,255,255,0.4); }
+
+  /* MAIN */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* TOPBAR */
+  .topbar { background: var(--white); border-bottom: 1px solid var(--border); padding: 0 28px; height: 60px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .topbar-left h1 { font-size: 18px; font-weight: 700; color: var(--dark); }
+  .topbar-left p { font-size: 12px; color: var(--muted); margin-top: 1px; }
+  .topbar-right { display: flex; align-items: center; gap: 16px; }
+  .search-box { background: var(--bg); border: 1.5px solid var(--border); border-radius: 10px; padding: 8px 14px; font-size: 13px; color: var(--dark); font-family: 'DM Sans', sans-serif; width: 220px; outline: none; }
+  .search-box::placeholder { color: var(--muted); }
+  .notif-btn { width: 36px; height: 36px; background: var(--bg); border: 1.5px solid var(--border); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; position: relative; cursor: pointer; }
+  .notif-dot { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--red); border: 2px solid var(--white); }
+  .live-badge { background: var(--green-bg); border: 1.5px solid var(--green); border-radius: 8px; padding: 4px 10px; font-size: 11px; font-weight: 700; color: var(--green); display: flex; align-items: center; gap: 5px; }
+  .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: blink 1.2s ease-in-out infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* CONTENT */
+  .content { flex: 1; overflow-y: auto; padding: 24px 28px; display: flex; flex-direction: column; gap: 24px; }
+
+  /* STAT CARDS */
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .stat-card { background: var(--white); border-radius: 16px; padding: 20px; border: 1.5px solid var(--border); display: flex; flex-direction: column; gap: 12px; }
+  .stat-card-top { display: flex; align-items: center; justify-content: space-between; }
+  .stat-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+  .stat-icon.yellow { background: var(--yellow-bg); }
+  .stat-icon.green { background: var(--green-bg); }
+  .stat-icon.red { background: var(--red-bg); }
+  .stat-icon.blue { background: var(--blue-bg); }
+  .stat-trend { font-size: 11px; font-weight: 700; border-radius: 6px; padding: 3px 8px; }
+  .stat-trend.up { background: var(--green-bg); color: var(--green); }
+  .stat-trend.down { background: var(--red-bg); color: var(--red); }
+  .stat-value { font-family: 'Bebas Neue', sans-serif; font-size: 38px; letter-spacing: 1px; color: var(--dark); line-height: 1; }
+  .stat-label { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* TWO-COL */
+  .two-col { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; }
+  .panel { background: var(--white); border-radius: 16px; border: 1.5px solid var(--border); overflow: hidden; }
+  .panel-header { padding: 16px 20px; border-bottom: 1.5px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .panel-title { font-size: 14px; font-weight: 700; color: var(--dark); }
+  .panel-action { font-size: 12px; color: var(--yellow-dim); font-weight: 700; cursor: pointer; }
+  /* Map panel */
+  .map-panel { height: 280px; background: #EAEAEA; position: relative; overflow: hidden; }
+  .map-grid-bg { position: absolute; inset: 0; opacity: 0.08; background-image: linear-gradient(rgba(0,0,0,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.3) 1px, transparent 1px); background-size: 30px 30px; }
+  .map-label-overlay { position: absolute; top: 12px; left: 12px; background: rgba(255,255,255,0.92); border-radius: 8px; padding: 5px 12px; font-size: 11px; font-weight: 700; color: var(--muted); box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .map-stats-overlay { position: absolute; bottom: 12px; right: 12px; display: flex; flex-direction: column; gap: 6px; }
+  .map-stat-pill { background: rgba(255,255,255,0.95); border-radius: 8px; padding: 5px 10px; font-size: 11px; font-weight: 700; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  /* Driver pins */
+  .dpin { position: absolute; display: flex; flex-direction: column; align-items: center; }
+  .dpin-icon { width: 28px; height: 28px; border-radius: 50%; background: #fff; border: 2.5px solid var(--yellow); display: flex; align-items: center; justify-content: center; font-size: 13px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+  .dpin-icon.sos { border-color: var(--red); }
+  .user-pin { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: var(--blue); border: 2px solid #fff; box-shadow: 0 2px 6px rgba(59,130,246,0.4); }
+
+  /* TABLES */
+  .table-wrap { overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; }
+  th { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; padding: 10px 16px; text-align: left; background: var(--bg); border-bottom: 1.5px solid var(--border); }
+  td { font-size: 13px; color: var(--dark); padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  .badge { display: inline-flex; align-items: center; gap: 4px; border-radius: 6px; padding: 3px 9px; font-size: 11px; font-weight: 700; }
+  .badge.active { background: var(--green-bg); color: var(--green); }
+  .badge.pending { background: var(--yellow-bg); color: var(--yellow-dim); }
+  .badge.offline { background: var(--border); color: var(--muted); }
+  .badge.alert { background: var(--red-bg); color: var(--red); }
+  .badge.resolved { background: var(--green-bg); color: var(--green); }
+  .badge.in-progress { background: var(--blue-bg); color: var(--blue); }
+  .avatar-sm { width: 30px; height: 30px; border-radius: 50%; background: var(--yellow-bg); border: 1.5px solid var(--yellow); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .cell-user { display: flex; align-items: center; gap: 10px; }
+  .cell-name { font-size: 13px; font-weight: 600; color: var(--dark); }
+  .cell-sub { font-size: 11px; color: var(--muted); }
+  .action-btn { background: none; border: 1.5px solid var(--border); border-radius: 6px; padding: 4px 10px; font-size: 11px; font-weight: 600; cursor: pointer; color: var(--muted); font-family: 'DM Sans', sans-serif; }
+  .action-btn.approve { border-color: var(--green); color: var(--green); }
+  .action-btn.reject { border-color: var(--red); color: var(--red); }
+  .stars { color: var(--yellow-dim); font-size: 12px; }
+
+  /* THREE COL BOTTOM */
+  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-text">SAFORA</div>
+    <div class="logo-sub">Admin Control Panel</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section">Main</div>
+    <div class="nav-item active"><span class="nav-icon">📊</span> Dashboard</div>
+    <div class="nav-item"><span class="nav-icon">🗺️</span> Live Map</div>
+    <div class="nav-item"><span class="nav-icon">🚗</span> Rides</div>
+    <div class="nav-section">Users</div>
+    <div class="nav-item"><span class="nav-icon">👩</span> Passengers</div>
+    <div class="nav-item"><span class="nav-icon">🧑‍✈️</span> Drivers <span class="nav-badge">3</span></div>
+    <div class="nav-section">Safety</div>
+    <div class="nav-item"><span class="nav-icon">🆘</span> SOS Alerts <span class="nav-badge">2</span></div>
+    <div class="nav-item"><span class="nav-icon">🛡️</span> Safety Reports</div>
+    <div class="nav-section">System</div>
+    <div class="nav-item"><span class="nav-icon">💰</span> Fare Config</div>
+    <div class="nav-item"><span class="nav-icon">⚙️</span> Settings</div>
+  </nav>
+  <div class="sidebar-bottom">
+    <div class="admin-profile">
+      <div class="admin-avatar">👨‍💼</div>
+      <div>
+        <div class="admin-name">Admin</div>
+        <div class="admin-role">Super Admin · Lahore</div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN CONTENT -->
+<div class="main">
+
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <h1>Dashboard Overview</h1>
+      <p>Tuesday, 24 March 2026 · Lahore, Pakistan</p>
+    </div>
+    <div class="topbar-right">
+      <input class="search-box" placeholder="🔍  Search ride, driver, user…">
+      <div class="notif-btn">🔔<div class="notif-dot"></div></div>
+      <div class="live-badge"><div class="live-dot"></div> LIVE</div>
+    </div>
+  </header>
+
+  <!-- SCROLLABLE CONTENT -->
+  <div class="content">
+
+    <!-- STAT CARDS -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <div class="stat-icon yellow">🚗</div>
+          <span class="stat-trend up">↑ 12%</span>
+        </div>
+        <div class="stat-value">284</div>
+        <div class="stat-label">Total Rides Today</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <div class="stat-icon green">🟢</div>
+          <span class="stat-trend up">↑ 5%</span>
+        </div>
+        <div class="stat-value">47</div>
+        <div class="stat-label">Active Drivers</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <div class="stat-icon red">🆘</div>
+          <span class="stat-trend down">↑ 2</span>
+        </div>
+        <div class="stat-value">3</div>
+        <div class="stat-label">SOS Alerts Today</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <div class="stat-icon blue">👩</div>
+          <span class="stat-trend up">↑ 8%</span>
+        </div>
+        <div class="stat-value">1,284</div>
+        <div class="stat-label">Registered Passengers</div>
+      </div>
+    </div>
+
+    <!-- MAP + SOS ALERTS -->
+    <div class="two-col">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">🗺️ Live Map — Lahore</span>
+          <span class="panel-action">Open Full Map →</span>
+        </div>
+        <div class="map-panel">
+          <div class="map-grid-bg"></div>
+          <svg style="position:absolute;inset:0;width:100%;height:100%;" viewBox="0 0 640 280" xmlns="http://www.w3.org/2000/svg">
+            <path d="M0 160 Q160 140 320 155 Q480 170 640 150" stroke="rgba(245,197,24,0.2)" stroke-width="10" fill="none"/>
+            <path d="M320 0 Q330 80 320 160 Q310 240 320 280" stroke="rgba(245,197,24,0.12)" stroke-width="8" fill="none"/>
+            <path d="M0 80 Q200 70 350 90 Q500 110 640 95" stroke="rgba(245,197,24,0.08)" stroke-width="6" fill="none"/>
+            <path d="M100 280 Q180 200 240 155" stroke="rgba(59,130,246,0.4)" stroke-width="2.5" stroke-dasharray="6 4" fill="none"/>
+            <path d="M420 280 Q480 220 510 155" stroke="rgba(59,130,246,0.3)" stroke-width="2" stroke-dasharray="5 4" fill="none"/>
+          </svg>
+          <div class="map-label-overlay">📍 Lahore, Punjab</div>
+          <!-- Driver pins -->
+          <div class="dpin" style="position:absolute;top:28%;left:18%;z-index:3;"><div class="dpin-icon">🚗</div></div>
+          <div class="dpin" style="position:absolute;top:38%;left:40%;z-index:3;"><div class="dpin-icon">🏍️</div></div>
+          <div class="dpin" style="position:absolute;top:22%;left:62%;z-index:3;"><div class="dpin-icon">🚗</div></div>
+          <div class="dpin" style="position:absolute;top:50%;left:75%;z-index:3;"><div class="dpin-icon">🚗</div></div>
+          <div class="dpin" style="position:absolute;top:60%;left:28%;z-index:3;"><div class="dpin-icon sos">🆘</div></div>
+          <!-- User pins -->
+          <div class="user-pin" style="position:absolute;top:35%;left:20%;z-index:2;"></div>
+          <div class="user-pin" style="position:absolute;top:25%;left:58%;z-index:2;"></div>
+          <div class="user-pin" style="position:absolute;top:55%;left:72%;z-index:2;"></div>
+          <div class="map-stats-overlay">
+            <div class="map-stat-pill">🚗 <span style="color:#10B981;font-weight:800;">47</span> Active Drivers</div>
+            <div class="map-stat-pill">👩 <span style="color:#3B82F6;font-weight:800;">63</span> Active Rides</div>
+            <div class="map-stat-pill">🆘 <span style="color:#EF4444;font-weight:800;">1</span> SOS Active</div>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">🆘 SOS Alerts</span>
+          <span class="panel-action">View All →</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Passenger</th><th>Location</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><div class="cell-user"><div class="avatar-sm">👩</div><div><div class="cell-name">Sara Malik</div><div class="cell-sub">2 min ago</div></div></div></td>
+                <td style="font-size:12px;color:var(--muted);">Gulberg III</td>
+                <td><span class="badge alert">🔴 Active</span></td>
+              </tr>
+              <tr>
+                <td><div class="cell-user"><div class="avatar-sm">👩</div><div><div class="cell-name">Ayesha Noor</div><div class="cell-sub">18 min ago</div></div></div></td>
+                <td style="font-size:12px;color:var(--muted);">DHA Phase 5</td>
+                <td><span class="badge in-progress">🔵 Handling</span></td>
+              </tr>
+              <tr>
+                <td><div class="cell-user"><div class="avatar-sm">👩</div><div><div class="cell-name">Fatima Khan</div><div class="cell-sub">1 hr ago</div></div></div></td>
+                <td style="font-size:12px;color:var(--muted);">Model Town</td>
+                <td><span class="badge resolved">✅ Resolved</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- DRIVER VERIFICATION + RECENT RIDES -->
+    <div class="two-col">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">🧑‍✈️ Recent Rides</span>
+          <span class="panel-action">Export CSV →</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Passenger</th><th>Driver</th><th>Route</th><th>Fare</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><div class="cell-user"><div class="avatar-sm">👩</div><div><div class="cell-name">Sara Malik</div></div></div></td>
+                <td style="font-size:12px;color:var(--muted);">Ahmed Raza</td>
+                <td style="font-size:12px;color:var(--muted);">Gulberg→DHA</td>
+                <td style="font-weight:700;color:var(--yellow-dim);">Rs 185</td>
+                <td><span class="badge resolved">Done</span></td>
+              </tr>
+              <tr>
+                <td><div class="cell-user"><div class="avatar-sm">👩</div><div><div class="cell-name">Ayesha Khan</div></div></div></td>
+                <td style="font-size:12px;color:var(--muted);">Bilal Ahmad</td>
+                <td style="font-size:12px;color:var(--muted);">Johar→MM Alam</td>
+                <td style="font-weight:700;color:var(--yellow-dim);">Rs 220</td>
+                <td><span class="badge in-progress">Active</span></td>
+              </tr>
+              <tr>
+                <td><div class="cell-user"><div class="avatar-sm">👩</div><div><div class="cell-name">Zainab Ali</div></div></div></td>
+                <td style="font-size:12px;color:var(--muted);">Hassan Rauf</td>
+                <td style="font-size:12px;color:var(--muted);">Cantt→Garden</td>
+                <td style="font-weight:700;color:var(--yellow-dim);">Rs 150</td>
+                <td><span class="badge resolved">Done</span></td>
+              </tr>
+              <tr>
+                <td><div class="cell-user"><div class="avatar-sm">👩</div><div><div class="cell-name">Hina Butt</div></div></div></td>
+                <td style="font-size:12px;color:var(--muted);">Omar Malik</td>
+                <td style="font-size:12px;color:var(--muted);">Bahria→Wapda</td>
+                <td style="font-weight:700;color:var(--yellow-dim);">Rs 310</td>
+                <td><span class="badge pending">Pending</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">✅ Driver Verification Queue</span>
+          <span class="panel-action">View All →</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Driver</th><th>Rating</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><div class="cell-user"><div class="avatar-sm">👨</div><div><div class="cell-name">Ahmed Raza</div><div class="cell-sub">LEA-4521</div></div></div></td>
+                <td><span class="stars">★★★★★</span> <span style="font-size:11px;color:var(--muted);">4.9</span></td>
+                <td><span class="badge active">Verified</span></td>
+                <td><button class="action-btn">View</button></td>
+              </tr>
+              <tr>
+                <td><div class="cell-user"><div class="avatar-sm">👨</div><div><div class="cell-name">Khawar Ali</div><div class="cell-sub">LHR-7823</div></div></div></td>
+                <td><span style="color:var(--muted);font-size:11px;">No rides yet</span></td>
+                <td><span class="badge pending">Pending</span></td>
+                <td style="display:flex;gap:6px;"><button class="action-btn approve">✓</button><button class="action-btn reject">✕</button></td>
+              </tr>
+              <tr>
+                <td><div class="cell-user"><div class="avatar-sm">👨</div><div><div class="cell-name">Usman Tariq</div><div class="cell-sub">LHR-3341</div></div></div></td>
+                <td><span style="color:var(--muted);font-size:11px;">No rides yet</span></td>
+                <td><span class="badge pending">Pending</span></td>
+                <td style="display:flex;gap:6px;"><button class="action-btn approve">✓</button><button class="action-btn reject">✕</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end content -->
+</div><!-- end main -->
+
+</body>
+</html>

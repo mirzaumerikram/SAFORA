@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SAFORA – Passenger Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --black: #FFFFFF; 
+    --yellow: #F5C518; 
+    --yellow-dim: #D5A508;
+    --gray: #F8F8F8; 
+    --gray2: #EEEEEE; 
+    --white: #121212; 
+    --muted: #666; 
+    --pink: #E91E63; 
+    --map-bg: #EAEAEA;
+  }
+  body { background: #F0F0F0; font-family: 'DM Sans', sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; gap: 60px; }
+  .screen-label { color: #888; font-size: 11px; letter-spacing: 3px; text-transform: uppercase; text-align: center; }
+  .screens-row { display: flex; gap: 32px; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
+  .phone { width: 320px; height: 650px; background: var(--black); border: 8px solid #333; border-radius: 44px; overflow: hidden; position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.1); flex-shrink: 0; }
+  .phone::before { content: ''; position: absolute; top: 14px; left: 50%; transform: translateX(-50%); width: 90px; height: 6px; background: #333; border-radius: 10px; z-index: 10; }
+
+  /* MAP SCREEN */
+  .map-screen { width: 100%; height: 100%; position: relative; overflow: hidden; background: var(--map-bg); }
+  .map-bg { width: 100%; height: 60%; background: var(--map-bg); position: absolute; top: 0; left: 0; }
+  .map-grid { position: absolute; top: 0; left: 0; width: 100%; height: 60%; opacity: 0.1; background-image: linear-gradient(rgba(0,0,0,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.1) 1px, transparent 1px); background-size: 28px 28px; }
+  .map-roads { position: absolute; top: 0; left: 0; width: 100%; height: 60%; }
+  .map-pulse { position: absolute; top: 42%; left: 50%; transform: translate(-50%,-50%); }
+  .pulse-ring { width: 70px; height: 70px; border-radius: 50%; border: 2px solid var(--yellow); position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); opacity: 0.3; }
+  .pulse-ring2 { width: 46px; height: 46px; border-radius: 50%; border: 2px solid var(--yellow); position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); opacity: 0.6; }
+  .pulse-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--yellow); position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); box-shadow: 0 0 12px rgba(245,197,24,1); }
+  /* Driver dots on map */
+  .driver-pin { position: absolute; display: flex; flex-direction: column; align-items: center; }
+  .driver-pin-icon { width: 30px; height: 30px; border-radius: 50%; background: #FFF; border: 2.5px solid var(--yellow); display: flex; align-items: center; justify-content: center; font-size: 14px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+  /* Top bar */
+  .map-topbar { position: absolute; top: 0; left: 0; right: 0; z-index: 5; padding: 42px 16px 16px; display: flex; align-items: center; justify-content: space-between; background: linear-gradient(180deg, rgba(255,255,255,0.95) 0%, transparent 100%); }
+  .topbar-greet { font-size: 13px; color: var(--muted); }
+  .topbar-name { font-size: 16px; font-weight: 700; color: var(--white); }
+  .avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--yellow); display: flex; align-items: center; justify-content: center; font-size: 16px; border: 2px solid #FFF; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+  /* Bottom sheet */
+  .bottom-sheet { position: absolute; bottom: 0; left: 0; right: 0; background: var(--black); border-radius: 28px 28px 0 0; padding: 12px 20px 24px; border-top: 1px solid #F0F0F0; box-shadow: 0 -10px 30px rgba(0,0,0,0.05); }
+  .sheet-handle { width: 36px; height: 4px; background: #EEE; border-radius: 2px; margin: 0 auto 16px; }
+  .search-bar { background: var(--gray); border-radius: 14px; padding: 13px 16px; display: flex; align-items: center; gap: 10px; margin-bottom: 16px; border: 1.5px solid #F0F0F0; }
+  .search-bar span { color: var(--muted); font-size: 14px; }
+  .search-bar .search-icon { font-size: 16px; }
+  .quick-links { display: flex; gap: 8px; margin-bottom: 16px; }
+  .quick-link { flex: 1; background: var(--gray); border-radius: 12px; padding: 11px 10px; display: flex; align-items: center; gap: 8px; border: 1.5px solid #F0F0F0; }
+  .ql-icon { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .ql-icon.pink { background: rgba(233,30,99,0.1); }
+  .ql-icon.work { background: rgba(245,197,24,0.1); }
+  .ql-icon.home { background: rgba(0,184,212,0.08); }
+  .ql-label { font-size: 11px; font-weight: 600; color: var(--white); }
+  .ql-sub { font-size: 9px; color: var(--muted); }
+  /* Bottomnav */
+  .bottom-nav { display: flex; justify-content: space-around; padding-top: 12px; border-top: 1px solid #F5F5F5; }
+  .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; }
+  .nav-icon { font-size: 18px; }
+  .nav-label { font-size: 9px; color: var(--muted); font-weight: 500; }
+  .nav-item.active .nav-label { color: var(--white); font-weight: 700; }
+  .nav-item.active .nav-icon { filter: drop-shadow(0 0 4px rgba(245,197,24,0.4)); transform: scale(1.1); }
+  /* Safety badge */
+  .safety-badge {
+    position: absolute;
+    top: 96px;
+    right: 16px;
+    background: rgba(233,30,99,0.12);
+    border: 1.5px solid rgba(233,30,99,0.25);
+    border-radius: 16px;
+    padding: 8px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    z-index: 6;
+    box-shadow: 0 4px 14px rgba(233,30,99,0.15);
+    min-width: 48px;
+  }
+  .safety-badge .sb-icon { font-size: 16px; line-height: 1; display: block; text-align: center; }
+  .safety-badge .sb-label { font-size: 8px; color: var(--pink); font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; display: block; text-align: center; }
+
+  /* RIDE TYPE */
+  .ride-screen { width: 100%; height: 100%; background: var(--black); display: flex; flex-direction: column; }
+  .ride-map { height: 220px; background: var(--map-bg); position: relative; overflow: hidden; }
+  .ride-map-grid { position: absolute; inset: 0; opacity: 0.1; background-image: linear-gradient(rgba(0,0,0,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.1) 1px, transparent 1px); background-size: 28px 28px; }
+  .route-line { position: absolute; top: 50%; left: 20%; width: 60%; height: 3px; background: linear-gradient(90deg, var(--yellow), transparent); border-radius: 4px; }
+  .pin-a { position: absolute; top: 40%; left: 20%; width: 14px; height: 14px; border-radius: 50%; background: var(--yellow); box-shadow: 0 0 10px rgba(245,197,24,1); border: 2px solid #FFF; }
+  .pin-b { position: absolute; top: 35%; right: 22%; width: 14px; height: 14px; border-radius: 50%; background: var(--white); border: 3px solid var(--yellow); }
+  .ride-sheet { flex: 1; padding: 16px 20px 20px; overflow: hidden; display: flex; flex-direction: column; }
+  .section-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--yellow-dim); margin-bottom: 12px; font-weight: 700; }
+  .dest-input { background: var(--gray); border-radius: 14px; padding: 14px 16px; margin-bottom: 14px; border: 1.5px solid var(--yellow); }
+  .dest-label { font-size: 10px; color: var(--yellow-dim); font-weight: 700; letter-spacing: 1px; margin-bottom: 2px; }
+  .dest-value { font-size: 14px; color: var(--white); font-weight: 600; }
+  .ride-options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+  .ride-opt { background: var(--gray); border-radius: 14px; padding: 13px 14px; display: flex; align-items: center; justify-content: space-between; border: 1.5px solid #EAEAEA; cursor: pointer; }
+  .ride-opt.selected { border-color: var(--yellow); background: rgba(245,197,24,0.08); }
+  .ride-opt-left { display: flex; align-items: center; gap: 12px; }
+  .ride-opt-icon { width: 36px; height: 36px; border-radius: 10px; background: var(--gray2); display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .ride-opt-name { font-size: 14px; font-weight: 700; color: var(--white); }
+  .ride-opt-sub { font-size: 11px; color: var(--muted); }
+  .ride-opt-price { font-size: 15px; font-weight: 700; color: var(--white); }
+  .ride-opt-time { font-size: 10px; color: var(--muted); text-align: right; }
+  .ride-opt.pink-opt { border-color: rgba(233,30,99,0.3); background: rgba(233,30,99,0.06); }
+  .ride-opt.pink-opt .ride-opt-name { color: var(--pink); }
+  .confirm-btn { width: 100%; padding: 15px; background: var(--yellow); color: #000; font-size: 14px; font-weight: 700; border-radius: 14px; border: none; font-family: 'DM Sans', sans-serif; display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; box-shadow: 0 4px 15px rgba(245,197,24,0.3); margin-top: auto; }
+  .confirm-fare { font-size: 12px; font-weight: 600; opacity: 0.8; }
+</style>
+</head>
+<body>
+<div class="screen-label">Screen 3 — Passenger App Flow</div>
+<div class="screens-row">
+
+  <!-- Home Dashboard -->
+  <div>
+    <div class="screen-label" style="margin-bottom:12px;">3.1 Main Dashboard</div>
+    <div class="phone">
+      <div class="map-screen">
+        <div class="map-bg"></div>
+        <div class="map-grid"></div>
+
+        <!-- SVG Roads -->
+        <svg style="position:absolute;top:0;left:0;width:100%;height:60%;z-index:1;" viewBox="0 0 320 390" xmlns="http://www.w3.org/2000/svg">
+          <path d="M0 200 Q80 180 160 200 Q240 220 320 200" stroke="rgba(245,197,24,0.15)" stroke-width="8" fill="none"/>
+          <path d="M160 0 Q170 100 160 200 Q150 300 160 390" stroke="rgba(245,197,24,0.1)" stroke-width="6" fill="none"/>
+          <path d="M0 100 Q120 95 200 120 Q260 140 320 130" stroke="rgba(245,197,24,0.08)" stroke-width="5" fill="none"/>
+        </svg>
+
+        <div class="map-topbar">
+          <div>
+            <div class="topbar-greet">Good morning,</div>
+            <div class="topbar-name">Ayesha Khan 👋</div>
+          </div>
+          <div class="avatar">👩</div>
+        </div>
+
+        <!-- Driver pins on map -->
+        <div class="driver-pin" style="position:absolute;top:28%;left:25%;z-index:3;">
+          <div class="driver-pin-icon">🚗</div>
+        </div>
+        <div class="driver-pin" style="position:absolute;top:22%;left:60%;z-index:3;">
+          <div class="driver-pin-icon">🚗</div>
+        </div>
+        <div class="driver-pin" style="position:absolute;top:35%;left:70%;z-index:3;">
+          <div class="driver-pin-icon">🚗</div>
+        </div>
+
+        <div class="map-pulse" style="top:38%;left:48%;">
+          <div class="pulse-ring"></div>
+          <div class="pulse-ring2"></div>
+          <div class="pulse-dot"></div>
+        </div>
+
+        <div class="safety-badge">
+          <span class="sb-icon">🛡️</span>
+          <span class="sb-label">SAFE</span>
+        </div>
+
+        <div class="bottom-sheet">
+          <div class="sheet-handle"></div>
+          <div class="search-bar">
+            <span class="search-icon">🔍</span>
+            <span>Where to?</span>
+          </div>
+          <div class="quick-links">
+            <div class="quick-link">
+              <div class="ql-icon pink">🌸</div>
+              <div>
+                <div class="ql-label">Pink Pass</div>
+                <div class="ql-sub">Women Only</div>
+              </div>
+            </div>
+            <div class="quick-link">
+              <div class="ql-icon work">💼</div>
+              <div>
+                <div class="ql-label">Work</div>
+                <div class="ql-sub">DHA Phase 5</div>
+              </div>
+            </div>
+            <div class="quick-link">
+              <div class="ql-icon home">🏠</div>
+              <div>
+                <div class="ql-label">Home</div>
+                <div class="ql-sub">Gulberg III</div>
+              </div>
+            </div>
+          </div>
+          <div class="bottom-nav">
+            <div class="nav-item active">
+              <div class="nav-icon">🗺️</div>
+              <div class="nav-label">Ride</div>
+            </div>
+            <div class="nav-item">
+              <div class="nav-icon">📋</div>
+              <div class="nav-label">History</div>
+            </div>
+            <div class="nav-item">
+              <div class="nav-icon">🛡️</div>
+              <div class="nav-label">Safety</div>
+            </div>
+            <div class="nav-item">
+              <div class="nav-icon">☰</div>
+              <div class="nav-label">Menu</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ride Type Selection -->
+  <div>
+    <div class="screen-label" style="margin-bottom:12px;">3.2 Ride Type Selection</div>
+    <div class="phone">
+      <div class="ride-screen">
+        <div class="ride-map">
+          <div class="ride-map-grid"></div>
+          <svg style="position:absolute;inset:0;width:100%;height:100%;" viewBox="0 0 320 220">
+            <path d="M0 140 Q80 120 160 130 Q240 140 320 130" stroke="rgba(245,197,24,0.1)" stroke-width="8" fill="none"/>
+            <path d="M60 220 Q90 160 110 130" stroke="rgba(245,197,24,0.2)" stroke-width="3" fill="none" stroke-dasharray="6 4"/>
+            <circle cx="65" cy="128" r="6" fill="#F5C518"/>
+            <circle cx="230" cy="108" r="8" fill="none" stroke="#F5C518" stroke-width="2"/>
+            <circle cx="230" cy="108" r="3" fill="#F5C518"/>
+          </svg>
+          <!-- Back btn -->
+          <div style="position:absolute;top:36px;left:16px;width:34px;height:34px;background:rgba(10,10,10,0.8);border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--white);font-size:14px;z-index:5;">←</div>
+        </div>
+        <div class="ride-sheet">
+          <div class="dest-input">
+            <div class="dest-label">📍 FROM</div>
+            <div class="dest-value">Gulberg III, Lahore</div>
+          </div>
+          <div class="section-label">Choose Ride Type</div>
+          <div class="ride-options">
+            <div class="ride-opt selected">
+              <div class="ride-opt-left">
+                <div class="ride-opt-icon">🏍️</div>
+                <div>
+                  <div class="ride-opt-name">Eco Bike</div>
+                  <div class="ride-opt-sub">Fastest · 3 min away</div>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <div class="ride-opt-price">Rs 120</div>
+                <div class="ride-opt-time">~8 min</div>
+              </div>
+            </div>
+            <div class="ride-opt">
+              <div class="ride-opt-left">
+                <div class="ride-opt-icon">🚗</div>
+                <div>
+                  <div class="ride-opt-name">Comfort AC</div>
+                  <div class="ride-opt-sub">Sedan · 5 min away</div>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <div class="ride-opt-price">Rs 280</div>
+                <div class="ride-opt-time">~12 min</div>
+              </div>
+            </div>
+            <div class="ride-opt pink-opt">
+              <div class="ride-opt-left">
+                <div class="ride-opt-icon" style="background:rgba(255,107,157,0.1);">🌸</div>
+                <div>
+                  <div class="ride-opt-name">Pink · Women Only</div>
+                  <div class="ride-opt-sub">Verified Female Driver</div>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <div class="ride-opt-price" style="color:var(--pink);">Rs 250</div>
+                <div class="ride-opt-time">~10 min</div>
+              </div>
+            </div>
+          </div>
+          <button class="confirm-btn">
+            <span>Confirm Eco Bike</span>
+            <span class="confirm-fare">Est. Rs 120 · 8 min</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

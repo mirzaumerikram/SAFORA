@@ -14,12 +14,12 @@ CORS(app)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 
 # Import route blueprints
-from routes.pink_pass import pink_pass_bp
+# from routes.pink_pass import pink_pass_bp
 from routes.pricing import pricing_bp
 from routes.matching import matching_bp
 
 # Register blueprints
-app.register_blueprint(pink_pass_bp, url_prefix='/api/pink-pass')
+# app.register_blueprint(pink_pass_bp, url_prefix='/api/pink-pass')
 app.register_blueprint(pricing_bp, url_prefix='/api/pricing')
 app.register_blueprint(matching_bp, url_prefix='/api/matching')
 

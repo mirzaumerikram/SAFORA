@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SAFORA – Driver App</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --black: #FFFFFF; 
+    --yellow: #F5C518; 
+    --yellow-dim: #D5A508;
+    --gray: #F8F8F8; 
+    --gray2: #EEEEEE; 
+    --white: #121212; 
+    --muted: #666; 
+    --green: #2E7D32; 
+    --red: #C62828; 
+    --map-bg: #EAEAEA;
+  }
+  body { background: #F0F0F0; font-family: 'DM Sans', sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; gap: 60px; }
+  .screen-label { color: #888; font-size: 11px; letter-spacing: 3px; text-transform: uppercase; text-align: center; }
+  .screens-row { display: flex; gap: 32px; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
+  .phone { width: 320px; height: 650px; background: var(--black); border: 8px solid #333; border-radius: 44px; overflow: hidden; position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.1); flex-shrink: 0; }
+  .phone::before { content: ''; position: absolute; top: 14px; left: 50%; transform: translateX(-50%); width: 90px; height: 6px; background: #333; border-radius: 10px; z-index: 10; }
+
+  /* DRIVER DASHBOARD */
+  .driver-dash { width: 100%; height: 100%; background: var(--black); padding: 50px 20px 24px; display: flex; flex-direction: column; }
+  .dash-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .dash-greet small { font-size: 11px; color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase; font-weight: 700; }
+  .dash-greet h2 { font-size: 18px; font-weight: 700; color: var(--white); margin-top: 2px; }
+  .avatar-wrap { position: relative; }
+  .driver-avatar { width: 42px; height: 42px; border-radius: 50%; background: var(--yellow); display: flex; align-items: center; justify-content: center; font-size: 20px; border: 2px solid #FFF; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+  .online-dot { position: absolute; bottom: 0; right: 0; width: 12px; height: 12px; border-radius: 50%; background: #4CAF50; border: 2px solid #FFF; }
+
+  /* Toggle */
+  .toggle-section { background: var(--gray); border-radius: 18px; padding: 16px; margin-bottom: 16px; border: 1.5px solid #F0F0F0; }
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .toggle-label { font-size: 15px; font-weight: 700; color: var(--white); }
+  .toggle-status { font-size: 10px; font-weight: 800; padding: 4px 10px; border-radius: 20px; letter-spacing: 0.5px; }
+  .toggle-status.on { background: rgba(46,125,50,0.1); color: var(--green); }
+  .toggle-status.off { background: rgba(198,40,40,0.1); color: var(--red); }
+  .toggle-sub { font-size: 11px; color: var(--muted); }
+  .big-toggle { width: 60px; height: 32px; border-radius: 16px; position: relative; cursor: pointer; }
+  .big-toggle.on { background: #4CAF50; box-shadow: 0 4px 12px rgba(76,175,80,0.25); }
+  .big-toggle.off { background: #DDD; }
+  .toggle-thumb { width: 24px; height: 24px; border-radius: 50%; background: #FFF; position: absolute; top: 4px; transition: left 0.3s; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+  .big-toggle.on .toggle-thumb { left: 32px; }
+  .big-toggle.off .toggle-thumb { left: 4px; }
+
+  /* Stats */
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .stat-card { background: var(--gray); border-radius: 14px; padding: 14px 10px; text-align: center; border: 1.5px solid #F0F0F0; }
+  .stat-val { font-family: 'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: 0.5px; color: var(--yellow-dim); }
+  .stat-label { font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; font-weight: 600; }
+
+  /* Status Banner */
+  .status-banner { background: rgba(245,197,24,0.08); border: 1.5px solid rgba(245,197,24,0.2); border-radius: 14px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .status-icon { width: 36px; height: 36px; border-radius: 10px; background: #FFF; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+  .status-text { font-size: 13px; font-weight: 700; color: var(--white); }
+  .status-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* Map preview */
+  .map-preview { flex: 1; border-radius: 16px; overflow: hidden; background: var(--map-bg); position: relative; border: 1.5px solid #F0F0F0; min-height: 100px; }
+  .mp-grid { position: absolute; inset: 0; opacity: 0.1; background-image: linear-gradient(rgba(0,0,0,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.1) 1px, transparent 1px); background-size: 24px 24px; }
+  .mp-label { position: absolute; bottom: 10px; left: 10px; background: rgba(255,255,255,0.9); border-radius: 8px; padding: 4px 10px; font-size: 10px; color: var(--muted); font-weight: 700; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+  .my-loc { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 14px; height: 14px; border-radius: 50%; background: var(--yellow); box-shadow: 0 0 12px rgba(245,197,24,1); border: 2px solid #FFF; }
+
+  /* RIDE REQUEST */
+  .request-screen { width: 100%; height: 100%; position: relative; overflow: hidden; }
+  .req-map { position: absolute; inset: 0; background: var(--map-bg); }
+  .req-grid { position: absolute; inset: 0; opacity: 0.1; background-image: linear-gradient(rgba(0,0,0,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.1) 1px, transparent 1px); background-size: 28px 28px; }
+  .req-overlay { position: absolute; bottom: 0; left: 0; right: 0; background: var(--black); border-radius: 28px 28px 0 0; padding: 12px 20px 28px; border-top: 1px solid #F0F0F0; box-shadow: 0 -10px 30px rgba(0,0,0,0.05); }
+  .sheet-handle { width: 36px; height: 4px; background: #EEE; border-radius: 2px; margin: 0 auto 16px; }
+  .req-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .req-title { font-family: 'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: 1.5px; color: var(--white); }
+  .timer-badge { background: rgba(198,40,40,0.08); border: 2px solid var(--red); border-radius: 8px; padding: 4px 10px; font-size: 13px; font-weight: 700; color: var(--red); animation: pulse-red 1s ease-in-out infinite; }
+  @keyframes pulse-red { 0%,100% { box-shadow: 0 0 0 0 rgba(198,40,40,0.2); } 50% { box-shadow: 0 0 0 5px rgba(198,40,40,0); } }
+  .req-info { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .req-stat { background: var(--gray); border-radius: 12px; padding: 12px 10px; text-align: center; border: 1px solid #F5F5F5; }
+  .req-stat-val { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: var(--yellow-dim); }
+  .req-stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; font-weight: 600; }
+  .passenger-row { background: var(--gray); border-radius: 14px; padding: 13px 14px; display: flex; align-items: center; gap: 12px; margin-bottom: 14px; border: 1.5px solid #F0F0F0; }
+  .pax-avatar { width: 40px; height: 40px; border-radius: 50%; background: #FFF; display: flex; align-items: center; justify-content: center; font-size: 20px; border: 1.5px solid #EEE; }
+  .pax-name { font-size: 14px; font-weight: 700; color: var(--white); }
+  .pax-rating { font-size: 11px; color: var(--yellow-dim); font-weight: 700; }
+  .pax-dist { margin-left: auto; font-size: 12px; color: var(--muted); text-align: right; }
+  .pax-dist strong { display: block; font-size: 14px; color: var(--white); font-weight: 700; }
+  .action-row { display: flex; gap: 12px; }
+  .reject-btn { width: 52px; height: 52px; border-radius: 50%; background: rgba(198,40,40,0.08); border: 1.5px solid rgba(198,40,40,0.2); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; color: var(--red); cursor: pointer; }
+  .accept-swipe { flex: 1; height: 52px; background: #4CAF50; border-radius: 26px; display: flex; align-items: center; padding: 4px; position: relative; overflow: hidden; box-shadow: 0 4px 12px rgba(76,175,80,0.3); }
+  .swipe-thumb { width: 44px; height: 44px; border-radius: 50%; background: #FFF; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.15); color: #4CAF50; font-weight: 900; }
+  .swipe-label { flex: 1; text-align: center; font-size: 14px; font-weight: 800; color: #FFF; padding-right: 18px; letter-spacing: 0.5px; }
+
+  /* TRIP NAV */
+  .trip-screen { width: 100%; height: 100%; position: relative; overflow: hidden; }
+  .trip-map { position: absolute; inset: 0; background: var(--map-bg); }
+  .trip-grid { position: absolute; inset: 0; opacity: 0.1; background-image: linear-gradient(rgba(0,0,0,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.1) 1px, transparent 1px); background-size: 28px 28px; }
+  .trip-bar { position: absolute; top: 0; left: 0; right: 0; background: var(--black); padding: 42px 16px 16px; border-bottom: 1px solid #F0F0F0; z-index: 5; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+  .nav-instruction { display: flex; align-items: center; gap: 12px; }
+  .nav-arrow { width: 44px; height: 44px; background: var(--yellow); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; box-shadow: 0 4px 10px rgba(245,197,24,0.3); color: #000; }
+  .nav-street { font-size: 16px; font-weight: 700; color: var(--white); }
+  .nav-dist { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .trip-bottom { position: absolute; bottom: 0; left: 0; right: 0; background: var(--black); border-radius: 24px 24px 0 0; padding: 16px 20px 28px; border-top: 1px solid #F0F0F0; box-shadow: 0 -10px 30px rgba(0,0,0,0.05); }
+  .trip-stages { display: flex; align-items: center; gap: 6px; margin-bottom: 14px; }
+  .tstage { flex: 1; height: 4px; border-radius: 2px; background: #F5F5F5; }
+  .tstage.done { background: var(--yellow); }
+  .tstage.active { background: var(--yellow); }
+  .stage-labels { display: flex; justify-content: space-between; margin-bottom: 14px; }
+  .slabel { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; padding-bottom: 3px; }
+  .slabel.active { color: var(--yellow-dim); font-weight: 900; border-bottom: 2.5px solid var(--yellow); }
+  .trip-info { display: flex; gap: 10px; margin-bottom: 14px; }
+  .trip-info-card { flex: 1; background: var(--gray); border-radius: 12px; padding: 12px; text-align: center; border: 1px solid #F5F5F5; }
+  .tic-val { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: var(--white); }
+  .tic-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+  .start-ride-btn { width: 100%; padding: 15px; background: var(--yellow); color: #000; font-size: 15px; font-weight: 700; border-radius: 14px; border: none; font-family: 'DM Sans', sans-serif; box-shadow: 0 4px 15px rgba(245,197,24,0.3); cursor: pointer; }
+</style>
+</head>
+<body>
+<div class="screen-label">Screen 5 — Driver App Flow</div>
+<div class="screens-row">
+
+  <!-- Driver Dashboard -->
+  <div>
+    <div class="screen-label" style="margin-bottom:12px;">4.1 Driver Dashboard</div>
+    <div class="phone">
+      <div class="driver-dash">
+        <div class="dash-top">
+          <div class="dash-greet">
+            <small>Driver Mode</small>
+            <h2>Hello, Bilal 👋</h2>
+          </div>
+          <div class="avatar-wrap">
+            <div class="driver-avatar">👨</div>
+            <div class="online-dot"></div>
+          </div>
+        </div>
+
+        <div class="toggle-section">
+          <div class="toggle-row">
+            <div>
+              <div class="toggle-label">Status</div>
+              <div class="toggle-sub">You are currently online</div>
+            </div>
+            <div>
+              <div class="toggle-status on">● ONLINE</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;">
+            <span style="font-size:12px;color:var(--muted);">Go offline to stop receiving rides</span>
+            <div class="big-toggle on"><div class="toggle-thumb"></div></div>
+          </div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-val">Rs<br>2,450</div>
+            <div class="stat-label">Today's Earn</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val">14</div>
+            <div class="stat-label">Total Trips</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val">4.9★</div>
+            <div class="stat-label">Your Rating</div>
+          </div>
+        </div>
+
+        <div class="status-banner">
+          <div class="status-icon">🔍</div>
+          <div>
+            <div class="status-text">Searching for Passengers…</div>
+            <div class="status-sub">Lahore · Active zone</div>
+          </div>
+        </div>
+
+        <div class="map-preview">
+          <div class="mp-grid"></div>
+          <svg style="position:absolute;inset:0;width:100%;height:100%;" viewBox="0 0 280 120">
+            <path d="M0 60 Q70 50 140 60 Q210 70 280 60" stroke="rgba(0,0,0,0.05)" stroke-width="6" fill="none"/>
+            <path d="M140 0 Q145 30 140 60 Q135 90 140 120" stroke="rgba(0,0,0,0.05)" stroke-width="4" fill="none"/>
+          </svg>
+          <div class="my-loc"></div>
+          <div class="mp-label">📍 Lahore, Punjab</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ride Request -->
+  <div>
+    <div class="screen-label" style="margin-bottom:12px;">4.2 Ride Request</div>
+    <div class="phone">
+      <div class="request-screen">
+        <div class="req-map">
+          <div class="req-grid"></div>
+          <svg style="position:absolute;inset:0;width:100%;height:100%;" viewBox="0 0 320 650">
+            <path d="M0 250 Q80 235 160 248 Q240 260 320 245" stroke="rgba(245,197,24,0.12)" stroke-width="8" fill="none"/>
+            <circle cx="160" cy="200" r="6" fill="rgba(245,197,24,0.5)"/>
+            <circle cx="200" cy="240" r="4" fill="rgba(245,197,24,0.3)"/>
+          </svg>
+        </div>
+        <div class="req-overlay">
+          <div class="sheet-handle"></div>
+          <div class="req-header">
+            <div class="req-title">New Ride Request</div>
+            <div class="timer-badge">⏱ 12s</div>
+          </div>
+          <div class="req-info">
+            <div class="req-stat">
+              <div class="req-stat-val">1.2</div>
+              <div class="req-stat-label">km Away</div>
+            </div>
+            <div class="req-stat">
+              <div class="req-stat-val">Rs185</div>
+              <div class="req-stat-label">Earning</div>
+            </div>
+            <div class="req-stat">
+              <div class="req-stat-val">4.8★</div>
+              <div class="req-stat-label">Passenger</div>
+            </div>
+          </div>
+          <div class="passenger-row">
+            <div class="pax-avatar">👩</div>
+            <div>
+              <div class="pax-name">Sara Malik</div>
+              <div class="pax-rating">★★★★★ &nbsp;<span style="color:var(--muted);font-size:10px;">4.8 · 32 rides</span></div>
+            </div>
+            <div class="pax-dist">
+              <strong>DHA Ph.5</strong>
+              <span>5.8 km trip</span>
+            </div>
+          </div>
+          <!-- Route mini -->
+          <div style="background:var(--gray);border-radius:12px;padding:10px 12px;margin-bottom:14px;border:1.5px solid #F0F0F0;">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">📍 Pickup → 🏁 Dropoff</div>
+            <div style="font-size:12px;color:var(--white);font-weight:600;">Gulberg III → DHA Phase 5</div>
+          </div>
+          <div class="action-row">
+            <div class="reject-btn">✕</div>
+            <div class="accept-swipe">
+              <div class="swipe-thumb">→</div>
+              <div class="swipe-label">Swipe to Accept</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Trip Navigation -->
+  <div>
+    <div class="screen-label" style="margin-bottom:12px;">4.3 Trip Navigation</div>
+    <div class="phone">
+      <div class="trip-screen">
+        <div class="trip-map">
+          <div class="trip-grid"></div>
+          <svg style="position:absolute;inset:0;width:100%;height:100%;" viewBox="0 0 320 650">
+            <path d="M0 350 Q80 330 160 340 Q240 350 320 340" stroke="rgba(245,197,24,0.15)" stroke-width="8" fill="none"/>
+            <path d="M100 650 Q120 500 160 350 Q190 230 230 150" stroke="#F5C518" stroke-width="3" fill="none" stroke-dasharray="8 5" opacity="0.5"/>
+            <circle cx="160" cy="340" r="7" fill="var(--yellow)" opacity="0.8"/>
+            <circle cx="230" cy="150" r="8" fill="none" stroke="#F5C518" stroke-width="2.5"/>
+            <circle cx="230" cy="150" r="4" fill="#F5C518"/>
+          </svg>
+        </div>
+        <div class="trip-bar">
+          <div class="nav-instruction">
+            <div class="nav-arrow">↰</div>
+            <div>
+              <div class="nav-street">Turn left on MM Alam Rd</div>
+              <div class="nav-dist">In 200m · 3.4 km remaining</div>
+            </div>
+          </div>
+        </div>
+        <div class="trip-bottom">
+          <div class="trip-stages">
+            <div class="tstage done"></div>
+            <div class="tstage active"></div>
+            <div class="tstage"></div>
+            <div class="tstage"></div>
+          </div>
+          <div class="stage-labels">
+            <span class="slabel">Arrived</span>
+            <span class="slabel active">Onboard</span>
+            <span class="slabel">Dropping</span>
+            <span class="slabel">Done</span>
+          </div>
+          <div class="trip-info">
+            <div class="trip-info-card">
+              <div class="tic-val">8:12</div>
+              <div class="tic-label">ETA</div>
+            </div>
+            <div class="trip-info-card">
+              <div class="tic-val">3.4</div>
+              <div class="tic-label">KM Left</div>
+            </div>
+            <div class="trip-info-card">
+              <div class="tic-val" style="color:var(--yellow);">Rs185</div>
+              <div class="tic-label">Fare</div>
+            </div>
+          </div>
+          <button class="start-ride-btn" style="background:var(--gray2);color:var(--muted);cursor:default;box-shadow:none;">🧭 &nbsp;Navigating to Destination…</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

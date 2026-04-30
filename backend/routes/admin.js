@@ -162,4 +162,49 @@ router.get('/users', async (req, res) => {
     }
 });
 
+// @route   GET /api/admin/pinkpass/pending
+// @desc    Get drivers with pending Pink Pass applications
+// @access  Admin
+router.get('/pinkpass/pending', async (req, res) => {
+    try {
+        const drivers = await Driver.find({ pinkPassStatus: 'pending_review' })
+            .populate('user', 'name phone email gender')
+            .sort({ pinkPassAppliedAt: -1 });
+
+        res.json({
+            success: true,
+            count: drivers.length,
+            drivers: drivers.map(d => ({
+                _id:              d._id,
+                name:             d.user?.name  || 'Unknown',
+                phone:            d.user?.phone || '—',
+                gender:           d.user?.gender || '—',
+                licenseNumber:    d.licenseNumber,
+                vehicleType:      d.vehicleType,
+                vehicle:          d.vehicleInfo,
+                pinkPassStatus:   d.pinkPassStatus,
+                pinkPassAppliedAt: d.pinkPassAppliedAt,
+            })),
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// @route   GET /api/admin/pinkpass/stats
+// @desc    Get Pink Pass counts for dashboard badge
+// @access  Admin
+router.get('/pinkpass/stats', async (req, res) => {
+    try {
+        const [pending, approved, rejected] = await Promise.all([
+            Driver.countDocuments({ pinkPassStatus: 'pending_review' }),
+            Driver.countDocuments({ pinkPassStatus: 'approved' }),
+            Driver.countDocuments({ pinkPassStatus: 'rejected' }),
+        ]);
+        res.json({ success: true, pending, approved, rejected });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
 module.exports = router;

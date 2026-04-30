@@ -1,5 +1,5 @@
 import numpy as np
-import pickle
+import joblib
 import os
 from sklearn.linear_model import LinearRegression
 
@@ -7,12 +7,13 @@ class PricingService:
     def __init__(self):
         model_path = os.getenv('PRICE_MODEL_PATH', 'models/price_model.pkl')
         if os.path.exists(model_path):
-            with open(model_path, 'rb') as f:
-                self.model = pickle.load(f)
+            self.model = joblib.load(model_path)
+            print(f"✓ Pricing model loaded from {model_path}")
         else:
-            # Create a simple model if none exists
+            # Fallback formula if model file not yet generated
             self.model = None
-            print("Warning: Price model not found. Using fallback calculation.")
+            print("⚠ Warning: Price model not found. Using fallback formula. Run train_model.py to generate it.")
+
         
         # Pricing constants
         self.BASE_FARE = 50  # PKR

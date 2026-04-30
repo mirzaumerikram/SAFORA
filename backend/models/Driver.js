@@ -11,6 +11,11 @@ const driverSchema = new mongoose.Schema({
         required: true,
         unique: true
     },
+    cnic: {
+        type: String,
+        default: '',
+        sparse: true,
+    },
     vehicleInfo: {
         make: String,
         model: String,
@@ -63,6 +68,23 @@ const driverSchema = new mongoose.Schema({
             default: 'pending'
         },
         verifiedAt: Date
+    },
+    pinkPassStatus: {
+        type: String,
+        enum: ['none', 'pending_review', 'approved', 'rejected'],
+        default: 'none'
+    },
+    pinkPassAppliedAt: Date,
+    cnics: String,
+    totalEarnings: {
+        type: Number,
+        default: 0
+    },
+    lastOnlineAt: Date,
+    vehicleType: {
+        type: String,
+        enum: ['car', 'bike', 'rickshaw'],
+        default: 'car'
     }
 }, {
     timestamps: true

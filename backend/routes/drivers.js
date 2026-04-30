@@ -10,7 +10,7 @@ const { auth, authorize } = require('../middleware/auth');
 router.post('/register', auth, async (req, res) => {
     try {
         const userId = req.user.userId;
-        const { licenseNumber, vehicleInfo } = req.body;
+        const { licenseNumber, cnic, vehicleType, vehicleInfo } = req.body;
 
         // Check if user exists
         const user = await User.findById(userId);
@@ -28,11 +28,13 @@ router.post('/register', auth, async (req, res) => {
         const driver = new Driver({
             user: userId,
             licenseNumber,
+            cnic: cnic || '',
+            vehicleType: vehicleType || 'car',
             vehicleInfo,
             status: 'offline',
-            backgroundCheck: {
-                status: 'pending'
-            }
+            backgroundCheck: { status: 'pending' },
+            pinkPassStatus: 'none',
+            totalEarnings: 0,
         });
 
         await driver.save();
@@ -166,6 +168,109 @@ router.get('/nearby', auth, async (req, res) => {
             }))
         });
 
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// @route   GET /api/drivers/me
+// @desc    Get current driver's full profile
+// @access  Private (Driver)
+router.get('/me', auth, async (req, res) => {
+    try {
+        const driver = await Driver.findOne({ user: req.user.userId })
+            .populate('user', 'name phone email gender createdAt');
+
+        if (!driver) {
+            return res.status(404).json({ success: false, message: 'Driver profile not found. Please complete registration.' });
+        }
+
+        res.json({
+            success: true,
+            driver: {
+                id:              driver._id,
+                name:            driver.user?.name,
+                phone:           driver.user?.phone,
+                email:           driver.user?.email,
+                gender:          driver.user?.gender,
+                joinedAt:        driver.user?.createdAt,
+                licenseNumber:   driver.licenseNumber,
+                cnic:            driver.cnic,
+                vehicleType:     driver.vehicleType,
+                vehicle:         driver.vehicleInfo,
+                rating:          driver.rating,
+                totalRides:      driver.totalRides,
+                totalEarnings:   driver.totalEarnings,
+                pinkPassStatus:  driver.pinkPassStatus,
+                backgroundCheck: driver.backgroundCheck,
+                status:          driver.status,
+            },
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// @route   PATCH /api/drivers/profile
+// @desc    Update driver profile fields
+// @access  Private (Driver)
+router.patch('/profile', auth, async (req, res) => {
+    try {
+        const driver = await Driver.findOne({ user: req.user.userId });
+        if (!driver) return res.status(404).json({ message: 'Driver profile not found' });
+
+        const { vehicleColor, vehicleType } = req.body;
+        if (vehicleColor) driver.vehicleInfo.color = vehicleColor;
+        if (vehicleType)  driver.vehicleType = vehicleType;
+        await driver.save();
+
+        res.json({ success: true, message: 'Profile updated' });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// @route   GET /api/drivers/earnings
+// @desc    Get driver earnings stats + recent rides
+// @access  Private (Driver)
+router.get('/earnings', auth, async (req, res) => {
+    try {
+        const Ride = require('../models/Ride');
+        const userId = req.user.userId;
+        const driver = await Driver.findOne({ user: userId });
+        if (!driver) return res.status(404).json({ message: 'Driver not found' });
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const weekStart = new Date(today);
+        weekStart.setDate(weekStart.getDate() - 7);
+
+        const allRides = await Ride.find({ driver: driver._id, status: 'completed' })
+            .populate('passenger', 'name')
+            .sort({ completedAt: -1 })
+            .limit(20);
+
+        const todayRides  = allRides.filter(r => new Date(r.completedAt) >= today);
+        const weeklyRides = allRides.filter(r => new Date(r.completedAt) >= weekStart);
+
+        const sum = (rides) => rides.reduce((acc, r) => acc + (r.actualPrice || r.estimatedPrice || 0), 0);
+
+        res.json({
+            success: true,
+            stats: {
+                todayEarnings:   sum(todayRides),
+                weeklyEarnings:  sum(weeklyRides),
+                totalTrips:      driver.totalRides,
+                averageRating:   driver.rating?.toFixed(1) ?? '5.0',
+            },
+            recentRides: allRides.map(r => ({
+                id:            r._id,
+                date:          r.completedAt || r.createdAt,
+                fare:          r.actualPrice || r.estimatedPrice || 0,
+                passengerName: r.passenger?.name || 'Passenger',
+                distance:      r.distanceKm || 0,
+            })),
+        });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }

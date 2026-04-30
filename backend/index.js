@@ -49,9 +49,40 @@ io.on('connection', (socket) => {
   });
 
   // Driver broadcasts live GPS location during a trip → relay to passenger's ride room only
-  socket.on('driver:location-update', ({ rideId, lat, lng }) => {
+  socket.on('driver:location-update', async ({ rideId, lat, lng }) => {
     if (rideId) {
+      // 1. Relay live location to passenger
       socket.to(`ride-${rideId}`).emit('driver:location', { lat, lng });
+
+      // 2. SafetySentinel — check for route deviation / suspicious stops
+      try {
+        const alert = await safetySentinel.updateLocation(rideId, { lat, lng });
+        if (alert) {
+          // Emit deviation alert to passenger in ride room
+          io.to(`ride-${rideId}`).emit('safety:deviation-alert', {
+            rideId,
+            type: alert.type,
+            description: alert.description,
+            distance: alert.distance,
+            duration: alert.duration,
+            location: alert.location,
+            timestamp: new Date().toISOString()
+          });
+          // Also broadcast to admin dashboard
+          io.emit('safety-alert', {
+            alertId: `sentinel-${rideId}-${Date.now()}`,
+            rideId,
+            type: alert.type,
+            severity: 'critical',
+            message: alert.description,
+            location: alert.location,
+            timestamp: new Date().toISOString()
+          });
+          console.log(`[SafetySentinel] Alert emitted for ride ${rideId}: ${alert.type}`);
+        }
+      } catch (err) {
+        console.error('[SafetySentinel] Error checking location:', err.message);
+      }
     }
   });
 
@@ -59,6 +90,24 @@ io.on('connection', (socket) => {
   socket.on('sos:trigger', ({ rideId, timestamp }) => {
     io.emit('sos:active', { rideId, timestamp });
     console.log(`[SOS] Triggered for ride: ${rideId}`);
+  });
+
+  // In-app chat — passenger ↔ driver messaging
+  socket.on('chat:join', ({ rideId }) => {
+    if (rideId) socket.join(`chat-${rideId}`);
+  });
+
+  socket.on('chat:send', ({ rideId, text, sender, senderName }) => {
+    if (!rideId || !text?.trim()) return;
+    const message = {
+      id:         `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      text:       text.trim(),
+      sender,
+      senderName: senderName || sender,
+      timestamp:  new Date().toISOString(),
+    };
+    // Broadcast to both sides in the chat room (including sender for confirmation)
+    io.to(`chat-${rideId}`).emit('chat:message', message);
   });
 
   socket.on('disconnect', () => {

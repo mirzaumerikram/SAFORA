@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SAFORA – Post-Ride & Payment</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --black: #FFFFFF; 
+    --yellow: #F5C518; 
+    --yellow-dim: #D5A508;
+    --gray: #F8F8F8; 
+    --gray2: #EEEEEE; 
+    --white: #121212; 
+    --muted: #666; 
+    --green: #2E7D32; 
+    --red: #C62828; 
+  }
+  body { background: #F0F0F0; font-family: 'DM Sans', sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; gap: 60px; }
+  .screen-label { color: #888; font-size: 11px; letter-spacing: 3px; text-transform: uppercase; text-align: center; }
+  .screens-row { display: flex; gap: 32px; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
+  .phone { width: 320px; height: 650px; background: var(--black); border: 8px solid #333; border-radius: 44px; overflow: hidden; position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.1); flex-shrink: 0; }
+  .phone::before { content: ''; position: absolute; top: 14px; left: 50%; transform: translateX(-50%); width: 90px; height: 6px; background: #333; border-radius: 10px; z-index: 10; }
+
+  /* FEEDBACK */
+  .feedback-screen { width: 100%; height: 100%; background: var(--black); padding: 44px 20px 20px; display: flex; flex-direction: column; overflow: hidden; }
+  .arrived-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(76,175,80,0.1); border: 1.5px solid rgba(46,125,50,0.2); border-radius: 20px; padding: 4px 12px; margin-bottom: 14px; align-self: flex-start; }
+  .arrived-badge span { font-size: 10px; color: var(--green); font-weight: 800; letter-spacing: 0.5px; }
+  .fb-title { font-family: 'Bebas Neue', sans-serif; font-size: 32px; letter-spacing: 2px; color: var(--white); line-height: 1; margin-bottom: 6px; }
+  .fb-sub { font-size: 11px; color: var(--muted); margin-bottom: 14px; line-height: 1.5; font-weight: 500; }
+  .driver-mini { display: flex; align-items: center; gap: 12px; background: var(--gray); border-radius: 14px; padding: 10px 14px; margin-bottom: 14px; border: 1.5px solid #F0F0F0; }
+  .dm-avatar { width: 40px; height: 40px; border-radius: 50%; background: #FFF; border: 2.5px solid var(--yellow); display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+  .dm-name { font-size: 13px; font-weight: 700; color: var(--white); }
+  .dm-plate { font-size: 10px; color: var(--muted); }
+  .dm-trip { margin-left: auto; text-align: right; font-size: 10px; color: var(--muted); }
+  .dm-trip strong { display: block; font-family: 'Bebas Neue', sans-serif; font-size: 18px; color: var(--yellow-dim); letter-spacing: 0.5px; }
+  .section-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--yellow-dim); margin-bottom: 8px; font-weight: 700; }
+  .star-row { display: flex; gap: 6px; justify-content: center; margin-bottom: 14px; }
+  .star { font-size: 30px; cursor: pointer; transition: transform 0.2s; color: #DDD; }
+  .star.active { color: var(--yellow); filter: drop-shadow(0 4px 8px rgba(245,197,24,0.3)); }
+  .tags-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .tag { background: #F5F5F5; border: 1.5px solid #EEE; border-radius: 20px; padding: 6px 12px; font-size: 11px; color: var(--muted); font-weight: 600; cursor: pointer; }
+  .tag.selected { border-color: var(--yellow); background: rgba(245,197,24,0.08); color: var(--yellow-dim); }
+  .comment-box { background: var(--gray); border: 1.5px solid #F0F0F0; border-radius: 14px; padding: 10px 14px; font-size: 12px; color: var(--white); margin-bottom: 14px; font-family: 'DM Sans', sans-serif; width: 100%; resize: none; outline: none; height: 52px; }
+  .submit-btn { width: 100%; padding: 13px; background: var(--yellow); color: #000; font-size: 14px; font-weight: 700; border-radius: 14px; border: none; font-family: 'DM Sans', sans-serif; box-shadow: 0 4px 15px rgba(245,197,24,0.3); cursor: pointer; }
+  .skip-btn { width: 100%; padding: 8px; background: transparent; border: none; color: var(--muted); font-size: 11px; font-family: 'DM Sans', sans-serif; margin-top: 6px; cursor: pointer; font-weight: 600; }
+
+  /* PAYMENT / FARE BREAKDOWN */
+  .payment-screen { width: 100%; height: 100%; background: var(--black); padding: 44px 18px 20px; display: flex; flex-direction: column; overflow: hidden; }
+  .pay-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .pay-title { font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 2px; color: var(--white); line-height: 1; }
+  .receipt-badge { background: rgba(245,197,24,0.08); border: 1.5px solid rgba(245,197,24,0.2); border-radius: 8px; padding: 3px 9px; font-size: 10px; color: var(--yellow-dim); font-weight: 700; }
+  .total-card { background: rgba(245,197,24,0.06); border: 1.5px solid rgba(245,197,24,0.15); border-radius: 16px; padding: 14px 10px; text-align: center; margin-bottom: 12px; }
+  .total-label { font-size: 10px; color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 4px; font-weight: 700; }
+  .total-amount { font-family: 'Bebas Neue', sans-serif; font-size: 44px; letter-spacing: 2px; color: var(--yellow-dim); }
+  .total-sub { font-size: 10px; color: var(--muted); margin-top: 3px; font-weight: 500; }
+  .fare-breakdown { background: var(--gray); border-radius: 14px; padding: 10px 14px; margin-bottom: 12px; border: 1.5px solid #F0F0F0; }
+  .fare-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1.5px solid #F5F5F5; }
+  .fare-row:last-child { border-bottom: none; }
+  .fare-item { font-size: 12px; color: var(--muted); font-weight: 500; }
+  .fare-item.total { color: var(--white); font-weight: 800; font-size: 13px; }
+  .fare-val { font-size: 12px; color: var(--white); font-weight: 600; }
+  .fare-val.total { color: var(--yellow-dim); font-size: 14px; font-weight: 800; }
+  .fare-val.discount { color: var(--green); }
+  .payment-methods { margin-bottom: 12px; }
+  .pm-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--yellow-dim); margin-bottom: 8px; font-weight: 700; }
+  .cash-confirm { background: rgba(46,125,50,0.08); border: 1.5px solid rgba(46,125,50,0.2); border-radius: 12px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; }
+  .cash-icon { font-size: 22px; }
+  .cash-text { font-size: 13px; font-weight: 700; color: var(--green); }
+  .cash-sub { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .pay-btn { width: 100%; padding: 13px; background: #4CAF50; color: #FFF; font-size: 14px; font-weight: 800; border-radius: 14px; border: none; font-family: 'DM Sans', sans-serif; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: auto; box-shadow: 0 4px 12px rgba(76,175,80,0.3); cursor: pointer; }
+  .divider { height: 1.5px; background: #F5F5F5; margin: 3px 0; }
+</style>
+</head>
+<body>
+<div class="screen-label">Screen 6 — Post-Ride Experience</div>
+<div class="screens-row">
+
+  <!-- Feedback -->
+  <div>
+    <div class="screen-label" style="margin-bottom:12px;">5.1 Feedback Screen</div>
+    <div class="phone">
+      <div class="feedback-screen">
+        <div class="arrived-badge"><span>✓ &nbsp;ARRIVED SAFELY</span></div>
+        <div class="fb-title">Rate Your<br>Ride</div>
+        <div class="fb-sub">Help us keep SAFORA safe for everyone. Your feedback matters.</div>
+
+        <div class="driver-mini">
+          <div class="dm-avatar">👨</div>
+          <div>
+            <div class="dm-name">Ahmed Raza</div>
+            <div class="dm-plate">LEA-4521 · Eco Bike</div>
+          </div>
+          <div class="dm-trip">
+            <strong>5.8km</strong>
+            <span>18 min</span>
+          </div>
+        </div>
+
+        <div class="section-label">Overall Rating</div>
+        <div class="star-row">
+          <div class="star active">★</div>
+          <div class="star active">★</div>
+          <div class="star active">★</div>
+          <div class="star active">★</div>
+          <div class="star" style="color:#2a2a2a;">★</div>
+        </div>
+
+        <div class="section-label">Quick Tags</div>
+        <div class="tags-row">
+          <div class="tag selected">Professional</div>
+          <div class="tag selected">Safe Driving</div>
+          <div class="tag">Clean Vehicle</div>
+          <div class="tag">On Time</div>
+          <div class="tag">Polite</div>
+        </div>
+
+        <textarea class="comment-box" placeholder="Tell us more about your experience…"></textarea>
+
+        <button class="submit-btn">Submit Feedback →</button>
+        <button class="skip-btn">Skip for now</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Payment / Fare Breakdown -->
+  <div>
+    <div class="screen-label" style="margin-bottom:12px;">Fare Breakdown</div>
+    <div class="phone">
+      <div class="payment-screen">
+        <div class="pay-header">
+          <div class="pay-title">Payment<br>Summary</div>
+          <div class="receipt-badge">🧾 Receipt</div>
+        </div>
+
+        <div class="total-card">
+          <div class="total-label">Total Amount Paid</div>
+          <div class="total-amount">Rs 185</div>
+          <div class="total-sub">Trip ID #SF-2024-00842 · Cash Payment</div>
+        </div>
+
+        <div class="section-label">Fare Breakdown</div>
+        <div class="fare-breakdown">
+          <div class="fare-row">
+            <div class="fare-item">Base Fare (5.8 km)</div>
+            <div class="fare-val">Rs 140</div>
+          </div>
+          <div class="fare-row">
+            <div class="fare-item">Time Charge (18 min)</div>
+            <div class="fare-val">Rs 54</div>
+          </div>
+          <div class="fare-row">
+            <div class="fare-item">🛡️ SAFORA Safety Fee</div>
+            <div class="fare-val">Rs 9</div>
+          </div>
+          <div class="fare-row">
+            <div class="fare-item">Promo Code SAFE10</div>
+            <div class="fare-val discount">−Rs 18</div>
+          </div>
+          <div class="divider"></div>
+          <div class="fare-row">
+            <div class="fare-item total">Total</div>
+            <div class="fare-val total">Rs 185</div>
+          </div>
+        </div>
+
+        <div class="payment-methods">
+          <div class="pm-label">Payment Method</div>
+          <div class="cash-confirm">
+            <div class="cash-icon">💵</div>
+            <div>
+              <div class="cash-text">Cash Payment</div>
+              <div class="cash-sub">Paid directly to driver</div>
+            </div>
+          </div>
+        </div>
+
+        <button class="pay-btn">✓ &nbsp; Ride Completed · Cash Paid</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
