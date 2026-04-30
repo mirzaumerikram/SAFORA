@@ -12,6 +12,12 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 const ALLOWED_ORIGINS = [
+  // Production domains
+  'https://safora.me',
+  'https://www.safora.me',
+  'https://safora-app-two.vercel.app',
+  'https://safora-nu.vercel.app',
+  // Local development
   'http://localhost:3000',
   'http://localhost:3001',
   'http://localhost:8081',
@@ -20,12 +26,25 @@ const ALLOWED_ORIGINS = [
   'http://localhost:19006',
 ];
 
+const corsOptions = {
+  origin: (origin: any, callback: any) => {
+    // Allow requests with no origin (mobile apps, Postman)
+    if (!origin) return callback(null, true);
+    if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+    callback(null, true); // allow all in dev — tighten in prod if needed
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+
 const io = new Server(server, {
   cors: { origin: ALLOWED_ORIGINS, methods: ['GET', 'POST'] }
 });
 
 // Middleware
-app.use(cors({ origin: ALLOWED_ORIGINS }));
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // handle preflight for all routes
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
