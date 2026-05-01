@@ -33,14 +33,18 @@ const ALLOWED_ORIGINS = [
 const corsOptions = {
   origin: function(origin, callback) {
     // Allow requests with no origin (mobile apps, Postman, React Native)
-    if (!origin) return callback(null, true);
-    if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
-    // Allow all origins in development
-    callback(null, true);
+    if (!origin) return callback(null, origin || '*');
+    // Allow specific origins or in development
+    if (ALLOWED_ORIGINS.includes(origin) || process.env.NODE_ENV === 'development') {
+      return callback(null, origin);
+    }
+    // Reject unknown origins in production
+    callback(new Error(`CORS not allowed for origin: ${origin}`));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['X-Total-Count', 'X-Page-Count'],
 };
 
 const io = new Server(server, {
