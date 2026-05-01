@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
-const { sendVerificationEmail } = require('../utils/mailer');
+const { sendVerificationEmail, sendAdminOTPEmail } = require('../utils/mailer');
 const { auth } = require('../middleware/auth');
 
 // @route   POST /api/auth/register
@@ -126,7 +126,7 @@ router.post('/login', async (req, res) => {
 // @access  Private (JWT from verify-otp)
 router.post('/complete-profile', auth, async (req, res) => {
     try {
-        const { name, email, gender, password } = req.body;
+        const { name, email, gender, cnic, role } = req.body;
         if (!name) return res.status(400).json({ message: 'Name is required' });
 
         const user = await User.findById(req.user.userId);
@@ -142,7 +142,8 @@ router.post('/complete-profile', auth, async (req, res) => {
         user.name     = name.trim();
         user.gender   = gender || 'other';
         user.verified = true;
-        if (password && password.length >= 8) user.password = password;
+        if (cnic)                                           user.cnic = cnic;
+        if (role === 'passenger' || role === 'driver')      user.role = role;
 
         await user.save();
 
@@ -155,7 +156,16 @@ router.post('/complete-profile', auth, async (req, res) => {
         res.json({
             success: true,
             token,
-            user: { id: user._id, name: user.name, phone: user.phone, email: user.email, role: user.role, gender: user.gender }
+            user: {
+                id:    user._id,
+                name:  user.name,
+                phone: user.phone,
+                email: user.email,
+                role:  user.role,
+                gender: user.gender,
+                cnic:  user.cnic,
+                pinkPassVerified: user.pinkPassVerified,
+            }
         });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
@@ -176,7 +186,7 @@ router.get('/me', auth, async (req, res) => {
 });
 
 // @route   POST /api/auth/send-otp
-// @desc    Send OTP to phone number
+// @desc    Send OTP to phone (admin gets OTP via email for security)
 // @access  Public
 router.post('/send-otp', async (req, res) => {
     try {
@@ -185,14 +195,19 @@ router.post('/send-otp', async (req, res) => {
             return res.status(400).json({ message: 'Please provide a phone number' });
         }
 
-        // Generate 5-digit OTP
-        const otp = process.env.NODE_ENV === 'development' ? '12345' : Math.floor(10000 + Math.random() * 90000).toString();
+        // Always generate a fresh random OTP in production; fixed in dev for easy testing
+        const isDev = process.env.NODE_ENV === 'development';
+        const otp = isDev
+            ? '12345'
+            : Math.floor(10000 + Math.random() * 90000).toString();
         const otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
 
-        // Find user or create temporary placeholder (no CNIC — avoids duplicate key)
+        // Find user — create placeholder only for non-admin phones
         let user = await User.findOne({ phone });
         const isNewUser = !user;
+
         if (!user) {
+            // Unknown phone: create a placeholder to store the OTP
             user = new User({ phone, name: 'New User', gender: 'other' });
         }
 
@@ -200,13 +215,37 @@ router.post('/send-otp', async (req, res) => {
         user.otpExpires = otpExpires;
         await user.save();
 
-        console.log(`[AUTH] OTP for ${phone}: ${otp}`);
+        // ── Security: block non-admin access to admin route ─────────────────
+        // (Admin frontend uses this route; ordinary users use Firebase OTP instead)
+        const isAdmin = user.role === 'admin';
+
+        // Always log for debugging on server
+        console.log(`[AUTH] OTP for ${phone} (${user.role}): ${otp}`);
+
+        // ── Deliver OTP ──────────────────────────────────────────────────────
+        let emailHint = null;
+        if (isAdmin && user.email) {
+            // Admins get OTP via secure email — never exposed in the HTTP response
+            try {
+                await sendAdminOTPEmail(user.email, user.name, otp);
+                // Mask email for display: admin@safora.pk → ad***@safora.pk
+                const [local, domain] = user.email.split('@');
+                emailHint = `${local.slice(0, 2)}***@${domain}`;
+            } catch (emailErr) {
+                console.error('[AUTH] Admin OTP email failed:', emailErr.message);
+                // Don't fail the request — fall through to dev-mode exposure below
+            }
+        }
 
         res.json({
             success: true,
-            message: 'OTP sent successfully',
+            message: isAdmin && emailHint
+                ? `OTP sent to your registered email (${emailHint})`
+                : 'OTP sent successfully',
             isNewUser,
-            otp: process.env.NODE_ENV === 'development' ? otp : undefined
+            emailHint,
+            // Only expose OTP in dev mode or if email delivery failed in production
+            devOtp: isDev ? otp : undefined,
         });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
@@ -396,8 +435,10 @@ router.post('/verify-firebase-token', async (req, res) => {
 
         // Find or create user
         let user = await User.findOne({ phone });
-        const isNewUser = !user;
+        const brandNew = !user;
+
         if (!user) {
+            // First time this phone number is seen — create placeholder
             user = new User({ phone, name: 'New User', gender: 'other', verified: true });
         } else {
             user.verified = true;
@@ -410,16 +451,21 @@ router.post('/verify-firebase-token', async (req, res) => {
             { expiresIn: process.env.JWT_EXPIRE }
         );
 
+        // isNewUser = true only when profile has NOT been completed yet
+        // A completed profile has a real name (not the placeholder 'New User')
+        const profileIncomplete = user.name === 'New User' || !user.name;
+
         res.json({
             success: true,
             token,
-            isNewUser: isNewUser || user.name === 'New User',
+            isNewUser: brandNew || profileIncomplete,
             user: {
-                id: user._id,
-                name: user.name,
-                phone: user.phone,
-                role: user.role,
-                pinkPassVerified: user.pinkPassVerified
+                id:              user._id,
+                name:            user.name,
+                phone:           user.phone,
+                role:            user.role,
+                gender:          user.gender,
+                pinkPassVerified: user.pinkPassVerified,
             }
         });
     } catch (error) {

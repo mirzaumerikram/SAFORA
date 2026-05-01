@@ -73,4 +73,67 @@ const sendVerificationEmail = async (toEmail, name, token) => {
     });
 };
 
-module.exports = { sendVerificationEmail };
+// ─── Admin OTP Email ──────────────────────────────────────────────────────────
+
+const sendAdminOTPEmail = async (toEmail, name, otp) => {
+    const html = `
+    <!DOCTYPE html>
+    <html>
+    <body style="margin:0;padding:0;background:#0a0e1a;font-family:Arial,sans-serif;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0e1a;padding:40px 20px;">
+        <tr><td align="center">
+          <table width="480" cellpadding="0" cellspacing="0"
+                 style="background:#141a28;border-radius:18px;overflow:hidden;max-width:480px;width:100%;
+                        border:1px solid #1f2937;">
+            <tr>
+              <td style="background:#F5C518;padding:24px 32px;text-align:center;">
+                <h1 style="margin:0;color:#000;font-size:26px;font-weight:900;letter-spacing:4px;">SAFORA</h1>
+                <p style="margin:4px 0 0;color:#000;font-size:11px;letter-spacing:2px;opacity:0.65;">
+                  ADMIN CONTROL PANEL
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:36px 32px;text-align:center;">
+                <p style="color:#8b949e;font-size:14px;margin:0 0 8px;">Hello, ${name || 'Admin'}</p>
+                <h2 style="color:#f0f6fc;font-size:18px;font-weight:700;margin:0 0 28px;">
+                  Your Admin Login Code
+                </h2>
+                <div style="background:#0a0e1a;border:2px solid #F5C518;border-radius:16px;
+                            padding:24px;margin:0 0 28px;display:inline-block;min-width:180px;">
+                  <span style="font-size:40px;font-weight:900;color:#F5C518;letter-spacing:10px;">
+                    ${otp}
+                  </span>
+                </div>
+                <p style="color:#8b949e;font-size:13px;line-height:1.6;margin:0 0 8px;">
+                  This code expires in <strong style="color:#f0f6fc;">10 minutes</strong>.
+                </p>
+                <p style="color:#484f58;font-size:12px;margin:0;">
+                  If you did not request this code, your admin panel may be under attack.<br/>
+                  Contact your security team immediately.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="background:#0d1117;padding:14px 32px;text-align:center;border-top:1px solid #1f2937;">
+                <p style="color:#484f58;font-size:11px;margin:0;">
+                  🔒 SAFORA Admin — Authorised Personnel Only
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td></tr>
+      </table>
+    </body>
+    </html>`;
+
+    const transporter = createTransporter();
+    await transporter.sendMail({
+        from:    `SAFORA Admin Panel <${process.env.GMAIL_USER}>`,
+        to:      toEmail,
+        subject: `🔐 Admin Login Code: ${otp}`,
+        html,
+    });
+};
+
+module.exports = { sendVerificationEmail, sendAdminOTPEmail };
