@@ -250,13 +250,12 @@ router.post('/send-otp', otpSendLimiter, async (req, res) => {
             // Fire-and-forget: send email in background, don't wait for it
             sendAdminOTPEmail(user.email, user.name, otp)
                 .then(() => {
-                    console.log(`[AUTH] Admin OTP email sent to ${user.email}`);
-                    // Mark that email was successfully sent so devOtp stays hidden
+                    console.log(`[AUTH] ✅ Admin OTP email sent to ${user.email}`);
                     user.emailOtpSent = true;
                 })
                 .catch(err => {
-                    console.error('[AUTH] Admin OTP email failed:', err.message);
-                    // Email failed but request already responded — admin can use devOtp if shown
+                    console.error(`[AUTH] ❌ Admin OTP email failed: ${err.message}`);
+                    // Email failed but request already responded
                 });
 
             // Assume email will work (it usually does) so mask email for display
@@ -270,7 +269,7 @@ router.post('/send-otp', otpSendLimiter, async (req, res) => {
         // devOtp is exposed ONLY when:
         //   - Running in development mode (local testing), OR
         //   - Email backend/Gmail is unavailable (fallback so admin can still login)
-        // Once email is working reliably, this becomes truly secure.
+        // In production with working email, this stays hidden (truly secure).
         const emailWorking = isAdmin && !!emailHint;
         res.json({
             success: true,

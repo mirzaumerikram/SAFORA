@@ -1,12 +1,20 @@
 const nodemailer = require('nodemailer');
 
-const createTransporter = () => nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_APP_PASSWORD,
-    },
-});
+const createTransporter = () => {
+    const user = process.env.GMAIL_USER;
+    const pass = process.env.GMAIL_APP_PASSWORD;
+    
+    if (!user || !pass) {
+        console.error('[MAILER] ❌ Gmail credentials missing!');
+        console.error('[MAILER]    GMAIL_USER:', user ? '✓' : '✗ NOT SET');
+        console.error('[MAILER]    GMAIL_APP_PASSWORD:', pass ? '✓' : '✗ NOT SET');
+    }
+    
+    return nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user, pass },
+    });
+};
 
 const sendVerificationEmail = async (toEmail, name, token) => {
     const verifyUrl = `${process.env.APP_BASE_URL}/api/auth/verify-email/${token}`;
@@ -127,13 +135,27 @@ const sendAdminOTPEmail = async (toEmail, name, otp) => {
     </body>
     </html>`;
 
-    const transporter = createTransporter();
-    await transporter.sendMail({
-        from:    `SAFORA Admin Panel <${process.env.GMAIL_USER}>`,
-        to:      toEmail,
-        subject: `🔐 Admin Login Code: ${otp}`,
-        html,
-    });
+    try {
+        const transporter = createTransporter();
+        console.log(`[MAILER] 📧 Sending OTP to ${toEmail}...`);
+        
+        await transporter.sendMail({
+            from:    `SAFORA Admin Panel <${process.env.GMAIL_USER}>`,
+            to:      toEmail,
+            subject: `🔐 Admin Login Code: ${otp}`,
+            html,
+        });
+        
+        console.log(`[MAILER] ✅ OTP email sent successfully to ${toEmail}`);
+    } catch (error) {
+        console.error(`[MAILER] ❌ Failed to send OTP email to ${toEmail}`);
+        console.error(`[MAILER]    Error: ${error.message}`);
+        console.error(`[MAILER]    Code: ${error.code}`);
+        if (error.response) {
+            console.error(`[MAILER]    Response: ${error.response}`);
+        }
+        throw error; // Re-throw so caller knows it failed
+    }
 };
 
 module.exports = { sendVerificationEmail, sendAdminOTPEmail };
