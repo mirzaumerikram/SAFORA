@@ -318,6 +318,8 @@ const ProfileScreen: React.FC = () => {
                             </Text>
                         </TouchableOpacity>
                     </View>
+                </View>
+
                 {/* Theme toggle */}
                 <View style={s.fieldBlock}>
                     <Text style={s.fieldLabel}>{t.appearance || 'APPEARANCE'}</Text>
