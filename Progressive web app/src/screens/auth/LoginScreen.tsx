@@ -110,8 +110,8 @@ const LoginScreen: React.FC = () => {
                     <Text style={[styles.backBtnText, { color: theme.colors.text }]}>←</Text>
                 </TouchableOpacity>
 
-                <View style={[styles.badge, { backgroundColor: isDriver ? 'rgba(236,72,153,0.15)' : (theme.dark ? 'rgba(245,197,24,0.15)' : 'rgba(245,197,24,0.1)') }]}>
-                    <Text style={[styles.badgeText, { color: isDriver ? theme.colors.secondary : theme.colors.primary }]}>
+                <View style={[styles.badge, { backgroundColor: theme.dark ? 'rgba(245,197,24,0.15)' : 'rgba(245,197,24,0.1)' }]}>
+                    <Text style={[styles.badgeText, { color: theme.colors.primary }]}>
                         {isDriver ? (t.driverLogin || '🚗 DRIVER LOGIN') : (t.passengerLogin || '🛡️ PASSENGER LOGIN')}
                     </Text>
                 </View>
@@ -218,7 +218,7 @@ const LoginScreen: React.FC = () => {
                     <View style={styles.registerRow}>
                         <Text style={[styles.registerText, { color: theme.colors.textSecondary }]}>{t.noAccount} </Text>
                         <TouchableOpacity onPress={() => navigation.navigate('Register', { selectedRole })}>
-                            <Text style={[styles.registerLink, { color: isDriver ? theme.colors.secondary : theme.colors.primary }]}>{t.registerLink}</Text>
+                            <Text style={[styles.registerLink, { color: theme.colors.primary }]}>{t.registerLink}</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
