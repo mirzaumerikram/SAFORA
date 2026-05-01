@@ -211,3 +211,18 @@
   padding-top: 16px;
   border-top: 1px solid #f0f0f0;
 }
+
+.lc-email-sent {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #f0fdf4;
+  border: 1.5px solid #86efac;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 4px;
+}
+.lc-email-icon { font-size: 28px; margin-top: 2px; }
+.lc-email-sent strong { font-size: 14px; color: #166534; display: block; margin-bottom: 4px; }
+.lc-email-sent p { font-size: 13px; color: #166534; margin: 0; }
+.lc-spam-note { color: #6b7280 !important; font-size: 11px !important; margin-top: 4px !important; }

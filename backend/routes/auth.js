@@ -242,31 +242,30 @@ router.post('/send-otp', otpSendLimiter, async (req, res) => {
         // Always log for debugging on server
         console.log(`[AUTH] OTP for ${phone} (${user.role}): ${otp} | email: ${user.email || 'MISSING'}`);
 
-        // ── Respond immediately — never block on email ───────────────────────
-        // OTP is always returned for admin accounts so the panel always works.
-        // Email is sent as a background task; if it fails the admin still has
-        // the OTP visible on screen.
-        let emailHint = null;
-
-        if (isAdmin && user.email) {
-            const [local, domain] = user.email.split('@');
-            emailHint = `${local.slice(0, 2)}***@${domain}`;
-
-            // Fire-and-forget: do NOT await — response must not wait for SMTP
-            sendAdminOTPEmail(user.email, user.name, otp)
-                .then(() => console.log(`[AUTH] ✅ OTP email sent to ${user.email}`))
-                .catch(err => console.error(`[AUTH] ❌ Email failed (non-fatal): ${err.message}`));
+        // ── Send OTP via email ────────────────────────────────────────────────
+        if (!isAdmin) {
+            // Non-admins don't use this route (they use Firebase OTP)
+            return res.status(403).json({ message: 'This login method is for admin accounts only.' });
         }
 
-        // Return the OTP directly so admin login always works instantly
+        if (!user.email) {
+            return res.status(400).json({ message: 'Admin account has no email configured. Contact support.' });
+        }
+
+        const [local, domain] = user.email.split('@');
+        const emailHint = `${local.slice(0, 2)}***@${domain}`;
+
+        // Fire-and-forget — respond immediately, email sends in background
+        sendAdminOTPEmail(user.email, user.name, otp)
+            .then(() => console.log(`[AUTH] ✅ OTP email delivered to ${user.email}`))
+            .catch(err => console.error(`[AUTH] ❌ OTP email failed: ${err.message}`));
+
         res.json({
             success:   true,
-            message:   emailHint
-                ? `OTP sent to your phone screen and to ${emailHint}`
-                : 'OTP ready',
+            message:   `OTP sent to ${emailHint}`,
             isNewUser,
             emailHint,
-            devOtp:    isAdmin ? otp : (isDev ? otp : undefined),
+            // devOtp is NEVER sent — admin must check email
         });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });

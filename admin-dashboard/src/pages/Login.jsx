@@ -5,73 +5,48 @@ import './Login.css';
 export default function Login() {
   const { sendOtp, verifyOtp } = useAuth();
 
-  const [step,      setStep]      = useState('phone'); // 'phone' | 'otp'
+  const [step,      setStep]      = useState('phone');
   const [phone,     setPhone]     = useState('');
   const [otp,       setOtp]       = useState('');
-  const [emailHint, setEmailHint] = useState('');   // e.g. "ad***@safora.pk"
-  const [devOtp,    setDevOtp]    = useState('');   // only in development
+  const [emailHint, setEmailHint] = useState('');
   const [error,     setError]     = useState('');
   const [loading,   setLoading]   = useState(false);
-  const [attempts,  setAttempts]  = useState(0);    // simple brute-force guard
 
-  // ── Step 1: Send OTP ────────────────────────────────────────────────────────
+  // ── Step 1: Request OTP ─────────────────────────────────────────────────────
   const handleSendOtp = async (e) => {
     e.preventDefault();
     setError('');
     const cleaned = phone.replace(/\s/g, '');
-    if (!cleaned) return setError('Enter your registered admin phone number');
+    if (!cleaned) return setError('Please enter your phone number.');
 
     setLoading(true);
     try {
       const res = await sendOtp(cleaned);
-      if (res.emailHint) setEmailHint(res.emailHint);
-      if (res.devOtp)    setDevOtp(res.devOtp);
-      // Always move to OTP step — email errors are non-fatal, code is on screen
+      setEmailHint(res.emailHint || '');
       setStep('otp');
     } catch (err) {
-      setError('Could not reach the server. Please try again.');
+      setError(err.message || 'Failed to send OTP. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  // ── Step 2: Verify OTP ──────────────────────────────────────────────────────
+  // ── Step 2: Verify OTP from email ──────────────────────────────────────────
   const handleVerify = async (e) => {
     e.preventDefault();
     setError('');
-    if (otp.length < 5) return setError('Enter the full 5-digit code');
-
-    if (attempts >= 5) {
-      setError('Too many failed attempts. Please request a new OTP.');
-      return;
-    }
+    if (otp.length < 5) return setError('Enter the 5-digit code from your email.');
 
     setLoading(true);
     try {
       await verifyOtp(phone.replace(/\s/g, ''), otp.trim());
-      // AuthContext.verifyOtp sets admin state → App re-renders to Dashboard
     } catch (err) {
-      setAttempts(a => a + 1);
       setError(err.message || 'Incorrect code. Please try again.');
       setOtp('');
     } finally {
       setLoading(false);
     }
   };
-
-  // ── Helpers ─────────────────────────────────────────────────────────────────
-  const handleBack = () => {
-    setStep('phone');
-    setError('');
-    setOtp('');
-    setEmailHint('');
-    setDevOtp('');
-    setAttempts(0);
-  };
-
-  const otpDeliveryMsg = emailHint
-    ? `A secure code was sent to ${emailHint}`
-    : `A verification code was sent to ${phone}`;
 
   return (
     <div className="login-root">
@@ -88,13 +63,9 @@ export default function Login() {
 
         <div className="login-tagline">
           <h1>Safety First.<br />Always.</h1>
-          <p>
-            Monitor rides, approve drivers, manage SOS alerts and keep every
-            passenger safe — all from one place.
-          </p>
+          <p>Monitor rides, approve drivers, manage SOS alerts and keep every passenger safe — all from one place.</p>
         </div>
 
-        {/* Security badges */}
         <div className="login-security-badges">
           <div className="sec-badge">🔐 2-Factor Authentication</div>
           <div className="sec-badge">📧 OTP via Secure Email</div>
@@ -102,18 +73,9 @@ export default function Login() {
         </div>
 
         <div className="login-stats">
-          <div className="ls-item">
-            <span className="ls-num">284</span>
-            <span className="ls-label">Rides Today</span>
-          </div>
-          <div className="ls-item">
-            <span className="ls-num">47</span>
-            <span className="ls-label">Active Drivers</span>
-          </div>
-          <div className="ls-item">
-            <span className="ls-num">1,284</span>
-            <span className="ls-label">Passengers</span>
-          </div>
+          <div className="ls-item"><span className="ls-num">284</span><span className="ls-label">Rides Today</span></div>
+          <div className="ls-item"><span className="ls-num">47</span><span className="ls-label">Active Drivers</span></div>
+          <div className="ls-item"><span className="ls-num">1,284</span><span className="ls-label">Passengers</span></div>
         </div>
       </div>
 
@@ -127,62 +89,42 @@ export default function Login() {
             <p>Authorised personnel only</p>
           </div>
 
-          {/* ── Phone step ── */}
+          {/* ── Step 1: Enter phone ── */}
           {step === 'phone' && (
             <form onSubmit={handleSendOtp} className="lc-form">
               <label>Phone Number</label>
-              <p className="lc-field-hint">
-                Enter your registered admin phone number
-              </p>
               <input
                 type="tel"
-                placeholder="+92 300 000 0000"
+                placeholder="+92 3XX XXXXXXX"
                 value={phone}
                 onChange={e => setPhone(e.target.value)}
                 autoFocus
                 disabled={loading}
               />
               {error && <div className="lc-error">⚠ {error}</div>}
-              <button type="submit" className="lc-btn" disabled={loading}>
-                {loading ? (
-                  <span className="lc-spinner">Sending secure code…</span>
-                ) : (
-                  'Send OTP →'
-                )}
+              <button type="submit" className="lc-btn" disabled={loading || !phone.trim()}>
+                {loading ? <span className="lc-spinner">Sending OTP to email…</span> : 'Send OTP →'}
               </button>
-              <div className="lc-note">
-                🔒 OTP is sent to your registered email address
-              </div>
+              <div className="lc-note">🔒 OTP will be sent to your registered email address</div>
             </form>
           )}
 
-          {/* ── OTP step ── */}
+          {/* ── Step 2: Enter OTP from email ── */}
           {step === 'otp' && (
             <form onSubmit={handleVerify} className="lc-form">
-              <label>Verification Code</label>
+              <label>Enter OTP from Email</label>
 
-              {/* Delivery hint */}
-              <div className="lc-delivery-hint">
-                <span className="lc-delivery-icon">
-                  {emailHint ? '📧' : '📱'}
-                </span>
-                <span>{otpDeliveryMsg}</span>
+              {/* Email instruction */}
+              <div className="lc-email-sent">
+                <div className="lc-email-icon">📬</div>
+                <div>
+                  <strong>Check your email inbox</strong>
+                  {emailHint && <p>OTP sent to <strong>{emailHint}</strong></p>}
+                  <p className="lc-spam-note">Not in inbox? Check spam folder.</p>
+                </div>
               </div>
 
-              {/* Dev OTP banner — only visible in development */}
-              {devOtp && (
-                <div
-                  className="lc-dev-banner"
-                  onClick={() => setOtp(devOtp)}
-                  title="Click to autofill (development only)"
-                >
-                  <span className="lc-dev-label">DEV MODE</span>
-                  <strong className="lc-dev-code">{devOtp}</strong>
-                  <span className="lc-tap">tap to fill</span>
-                </div>
-              )}
-
-              {/* OTP digit input */}
+              {/* OTP input */}
               <input
                 type="text"
                 inputMode="numeric"
@@ -195,12 +137,6 @@ export default function Login() {
                 className="lc-otp-input"
               />
 
-              {attempts > 0 && (
-                <div className="lc-attempts">
-                  {5 - attempts} attempt{5 - attempts !== 1 ? 's' : ''} remaining
-                </div>
-              )}
-
               {error && <div className="lc-error">⚠ {error}</div>}
 
               <button
@@ -208,28 +144,16 @@ export default function Login() {
                 className="lc-btn"
                 disabled={loading || otp.length < 5}
               >
-                {loading ? (
-                  <span className="lc-spinner">Verifying…</span>
-                ) : (
-                  'Sign In to Admin Panel →'
-                )}
+                {loading ? <span className="lc-spinner">Verifying…</span> : 'Sign In to Admin Panel →'}
               </button>
 
-              <button
-                type="button"
-                className="lc-back"
-                onClick={handleBack}
-                disabled={loading}
-              >
+              <button type="button" className="lc-back" onClick={() => { setStep('phone'); setError(''); setOtp(''); }}>
                 ← Change number
               </button>
             </form>
           )}
 
-          <div className="lc-note lc-note-bottom">
-            🔒 Access restricted to admin accounts only
-          </div>
-
+          <div className="lc-note lc-note-bottom">🔒 Access restricted to admin accounts only</div>
         </div>
       </div>
     </div>
