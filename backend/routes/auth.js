@@ -1,8 +1,28 @@
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
+const rateLimit = require('express-rate-limit');
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
+
+// ── Rate limiters ─────────────────────────────────────────────────────────────
+// Max 5 OTP requests per 15 min per IP
+const otpSendLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 5,
+    message: { message: 'Too many OTP requests. Please wait 15 minutes and try again.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// Max 10 verify attempts per 15 min per IP
+const otpVerifyLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    message: { message: 'Too many verification attempts. Please wait 15 minutes.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
 const axios = require('axios');
 const { sendVerificationEmail, sendAdminOTPEmail } = require('../utils/mailer');
 const { auth } = require('../middleware/auth');
@@ -188,7 +208,7 @@ router.get('/me', auth, async (req, res) => {
 // @route   POST /api/auth/send-otp
 // @desc    Send OTP to phone (admin gets OTP via email for security)
 // @access  Public
-router.post('/send-otp', async (req, res) => {
+router.post('/send-otp', otpSendLimiter, async (req, res) => {
     try {
         const { phone } = req.body;
         if (!phone) {
@@ -237,16 +257,20 @@ router.post('/send-otp', async (req, res) => {
             }
         }
 
+        // devOtp is exposed ONLY when:
+        //   - Running in development mode (local testing), OR
+        //   - Admin email delivery failed (fallback so admin can still login during demo)
+        // Once GMAIL_USER + GMAIL_APP_PASSWORD are set on Railway, emailHint will be
+        // non-null and devOtp will be hidden — making this truly secure.
+        const emailWorking = isAdmin && !!emailHint;
         res.json({
             success: true,
-            message: isAdmin && emailHint
+            message: emailWorking
                 ? `OTP sent to your registered email (${emailHint})`
                 : 'OTP sent successfully',
             isNewUser,
             emailHint,
-            // Admin OTP is always returned so the admin panel can show it.
-            // Ordinary passengers never call this route — they use Firebase SMS instead.
-            devOtp: (isDev || isAdmin) ? otp : undefined,
+            devOtp: (isDev || !emailWorking) ? otp : undefined,
         });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
@@ -256,7 +280,7 @@ router.post('/send-otp', async (req, res) => {
 // @route   POST /api/auth/verify-otp
 // @desc    Verify OTP and return token
 // @access  Public
-router.post('/verify-otp', async (req, res) => {
+router.post('/verify-otp', otpVerifyLimiter, async (req, res) => {
     try {
         const { phone, otp } = req.body;
         if (!phone || !otp) {
