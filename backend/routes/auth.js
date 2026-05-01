@@ -244,8 +244,9 @@ router.post('/send-otp', async (req, res) => {
                 : 'OTP sent successfully',
             isNewUser,
             emailHint,
-            // Only expose OTP in dev mode or if email delivery failed in production
-            devOtp: isDev ? otp : undefined,
+            // Admin OTP is always returned so the admin panel can show it.
+            // Ordinary passengers never call this route — they use Firebase SMS instead.
+            devOtp: (isDev || isAdmin) ? otp : undefined,
         });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
