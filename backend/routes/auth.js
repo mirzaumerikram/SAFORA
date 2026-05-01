@@ -249,7 +249,7 @@ router.post('/send-otp', otpSendLimiter, async (req, res) => {
         if (isAdmin && user.email) {
             try {
                 // Send email synchronously so we can catch and log actual errors
-                console.log(`[AUTH] 📧 Sending OTP to ${user.email}...`);
+                console.log(`[AUTH] 📧 Attempting to send OTP to ${user.email}...`);
                 await sendAdminOTPEmail(user.email, user.name, otp);
                 console.log(`[AUTH] ✅ OTP email sent successfully to ${user.email}`);
                 
@@ -257,30 +257,48 @@ router.post('/send-otp', otpSendLimiter, async (req, res) => {
                 const [local, domain] = user.email.split('@');
                 emailHint = `${local.slice(0, 2)}***@${domain}`;
             } catch (err) {
-                console.error(`[AUTH] ❌ Email send failed: ${err.message}`);
+                console.error(`[AUTH] ❌ CRITICAL: Email send failed: ${err.message}`);
+                console.error(`[AUTH]    Error code: ${err.code}`);
+                console.error(`[AUTH]    Error command: ${err.command}`);
+                console.error(`[AUTH]    Full error:`, err);
                 emailError = err.message;
-                // Don't expose full error to client for security
+                
+                // In production, email MUST work. Don't fall back to devOtp.
+                // This forces admin to fix the email configuration.
+                if (process.env.NODE_ENV !== 'development') {
+                    return res.status(500).json({
+                        success: false,
+                        message: `Email delivery failed: ${emailError}. Please contact support.`,
+                        emailError: emailError,
+                        debug: {
+                            timestamp: new Date().toISOString(),
+                            phone: phone,
+                            email: user.email,
+                            gmailUser: process.env.GMAIL_USER || 'NOT SET',
+                        }
+                    });
+                }
             }
         } else if (isAdmin && !user.email) {
-            console.warn(`[AUTH] ⚠️  Admin user missing email! Phone: ${phone}, ID: ${user._id}`);
+            console.warn(`[AUTH] ⚠️  CRITICAL: Admin user missing email! Phone: ${phone}, ID: ${user._id}`);
+            return res.status(400).json({
+                success: false,
+                message: 'Admin account missing email. Cannot send OTP.',
+                emailError: 'No email configured for admin'
+            });
         }
 
-        // devOtp is exposed ONLY when:
-        //   - Running in development mode, OR
-        //   - Email delivery failed (fallback so admin can still login)
-        // In production with working email, this stays hidden.
-        const shouldShowDevOtp = isDev || !emailHint;
+        // In production with email working, devOtp is NEVER shown (truly secure)
+        const shouldShowDevOtp = isDev && !emailHint;
         
         res.json({
             success: true,
             message: emailHint
                 ? `OTP sent to your registered email (${emailHint})`
-                : emailError
-                  ? `OTP setup failed: ${emailError}. Please try again.`
-                  : 'OTP sent successfully',
+                : 'OTP sent successfully',
             isNewUser,
             emailHint,
-            emailError: isDev ? emailError : undefined, // Expose error in dev mode for debugging
+            emailError: emailError ? `Email error: ${emailError}` : undefined,
             devOtp: shouldShowDevOtp ? otp : undefined,
         });
     } catch (error) {
