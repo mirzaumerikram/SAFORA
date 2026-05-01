@@ -243,42 +243,45 @@ router.post('/send-otp', otpSendLimiter, async (req, res) => {
         console.log(`[AUTH] OTP for ${phone} (${user.role}): ${otp} | email: ${user.email || 'MISSING'}`);
 
         // ── Deliver OTP ──────────────────────────────────────────────────────
-        // Send email in background (non-blocking) so response returns instantly
-        // instead of waiting for Gmail SMTP
         let emailHint = null;
+        let emailError = null;
+        
         if (isAdmin && user.email) {
-            // Fire-and-forget: send email in background, don't wait for it
-            sendAdminOTPEmail(user.email, user.name, otp)
-                .then(() => {
-                    console.log(`[AUTH] ✅ Admin OTP email sent to ${user.email}`);
-                    user.emailOtpSent = true;
-                })
-                .catch(err => {
-                    console.error(`[AUTH] ❌ Admin OTP email failed: ${err.message}`);
-                    // Email failed but request already responded
-                });
-
-            // Assume email will work (it usually does) so mask email for display
-            // admin@safora.pk → ad***@safora.pk
-            const [local, domain] = user.email.split('@');
-            emailHint = `${local.slice(0, 2)}***@${domain}`;
+            try {
+                // Send email synchronously so we can catch and log actual errors
+                console.log(`[AUTH] 📧 Sending OTP to ${user.email}...`);
+                await sendAdminOTPEmail(user.email, user.name, otp);
+                console.log(`[AUTH] ✅ OTP email sent successfully to ${user.email}`);
+                
+                // Mask email for display: admin@safora.pk → ad***@safora.pk
+                const [local, domain] = user.email.split('@');
+                emailHint = `${local.slice(0, 2)}***@${domain}`;
+            } catch (err) {
+                console.error(`[AUTH] ❌ Email send failed: ${err.message}`);
+                emailError = err.message;
+                // Don't expose full error to client for security
+            }
         } else if (isAdmin && !user.email) {
             console.warn(`[AUTH] ⚠️  Admin user missing email! Phone: ${phone}, ID: ${user._id}`);
         }
 
         // devOtp is exposed ONLY when:
-        //   - Running in development mode (local testing), OR
-        //   - Email backend/Gmail is unavailable (fallback so admin can still login)
-        // In production with working email, this stays hidden (truly secure).
-        const emailWorking = isAdmin && !!emailHint;
+        //   - Running in development mode, OR
+        //   - Email delivery failed (fallback so admin can still login)
+        // In production with working email, this stays hidden.
+        const shouldShowDevOtp = isDev || !emailHint;
+        
         res.json({
             success: true,
-            message: emailWorking
+            message: emailHint
                 ? `OTP sent to your registered email (${emailHint})`
-                : 'OTP sent successfully',
+                : emailError
+                  ? `OTP setup failed: ${emailError}. Please try again.`
+                  : 'OTP sent successfully',
             isNewUser,
             emailHint,
-            devOtp: (isDev || !emailWorking) ? otp : undefined,
+            emailError: isDev ? emailError : undefined, // Expose error in dev mode for debugging
+            devOtp: shouldShowDevOtp ? otp : undefined,
         });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });

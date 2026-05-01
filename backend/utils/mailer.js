@@ -11,8 +11,13 @@ const createTransporter = () => {
     }
     
     return nodemailer.createTransport({
-        service: 'gmail',
-        auth: { user, pass },
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true, // Use TLS
+        auth: {
+            user: user,
+            pass: pass,
+        },
     });
 };
 
@@ -135,25 +140,22 @@ const sendAdminOTPEmail = async (toEmail, name, otp) => {
     </body>
     </html>`;
 
+    const transporter = createTransporter();
+    
     try {
-        const transporter = createTransporter();
-        console.log(`[MAILER] 📧 Sending OTP to ${toEmail}...`);
-        
-        await transporter.sendMail({
+        const info = await transporter.sendMail({
             from:    `SAFORA Admin Panel <${process.env.GMAIL_USER}>`,
             to:      toEmail,
             subject: `🔐 Admin Login Code: ${otp}`,
             html,
         });
         
-        console.log(`[MAILER] ✅ OTP email sent successfully to ${toEmail}`);
+        console.log(`[MAILER] ✅ Email sent: ${info.messageId}`);
+        return info;
     } catch (error) {
-        console.error(`[MAILER] ❌ Failed to send OTP email to ${toEmail}`);
-        console.error(`[MAILER]    Error: ${error.message}`);
+        console.error(`[MAILER] ❌ Send error: ${error.message}`);
         console.error(`[MAILER]    Code: ${error.code}`);
-        if (error.response) {
-            console.error(`[MAILER]    Response: ${error.response}`);
-        }
+        console.error(`[MAILER]    Cmd: ${error.command}`);
         throw error; // Re-throw so caller knows it failed
     }
 };
