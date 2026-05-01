@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity, ScrollView,
     TextInput, ActivityIndicator, Platform, Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import theme from '../../utils/theme';
+import { useAppTheme } from '../../context/ThemeContext';
+import { AppTheme } from '../../utils/theme';
 import apiService from '../../services/api';
 import { STORAGE_KEYS } from '../../utils/constants';
 
@@ -14,6 +15,7 @@ type Step = 1 | 2;
 interface FormData {
     licenseNumber: string;
     cnic: string;
+    fullName: string;
     vehicleType: 'car' | 'bike' | 'rickshaw';
     vehicleMake: string;
     vehicleModel: string;
@@ -30,11 +32,15 @@ const VEHICLE_TYPES = [
 
 const DriverOnboardingScreen: React.FC = () => {
     const navigation = useNavigation<any>();
+    const theme = useAppTheme();
+    const s = useMemo(() => makeStyles(theme), [theme]);
+
     const [step, setStep] = useState<Step>(1);
     const [loading, setLoading] = useState(false);
     const [form, setForm] = useState<FormData>({
         licenseNumber: '',
         cnic: '',
+        fullName: '',
         vehicleType: 'car',
         vehicleMake: '',
         vehicleModel: '',
@@ -48,10 +54,13 @@ const DriverOnboardingScreen: React.FC = () => {
 
     const validateStep1 = () => {
         if (!form.licenseNumber.trim()) {
-            Alert.alert('Missing Field', 'Please enter your license number.'); return false;
+            Alert.alert('Missing Field', 'Please enter your driving license number.'); return false;
         }
         if (!/^\d{13}$/.test(form.cnic.replace(/-/g, ''))) {
-            Alert.alert('Invalid CNIC', 'CNIC must be 13 digits (e.g. 3520112345671).'); return false;
+            Alert.alert('Invalid CNIC', 'CNIC must be 13 digits (e.g. 35201-1234567-1).'); return false;
+        }
+        if (!form.fullName.trim()) {
+            Alert.alert('Missing Field', 'Please enter your full name as on CNIC.'); return false;
         }
         return true;
     };
@@ -80,6 +89,7 @@ const DriverOnboardingScreen: React.FC = () => {
             await apiService.post('/drivers/register', {
                 licenseNumber: form.licenseNumber,
                 cnic: form.cnic.replace(/-/g, ''),
+                fullName: form.fullName,
                 vehicleType: form.vehicleType,
                 vehicleInfo: {
                     make:        form.vehicleMake,
@@ -90,13 +100,11 @@ const DriverOnboardingScreen: React.FC = () => {
                 },
             });
 
-            // Save updated user data with driver flag
             await AsyncStorage.setItem(
                 STORAGE_KEYS.USER_DATA,
                 JSON.stringify({ ...user, driverRegistered: true, role: 'driver' })
             );
 
-            // Navigate to driver main app
             navigation.reset({ index: 0, routes: [{ name: 'DriverApp' }] });
         } catch (e: any) {
             Alert.alert('Registration Failed', e.message || 'Could not register. Try again.');
@@ -106,90 +114,112 @@ const DriverOnboardingScreen: React.FC = () => {
     };
 
     return (
-        <View style={styles.container}>
+        <View style={s.container}>
             {/* Header */}
-            <View style={styles.header}>
-                {step === 2 && (
-                    <TouchableOpacity onPress={() => setStep(1)} style={styles.backBtn}>
-                        <Text style={styles.backText}>←</Text>
-                    </TouchableOpacity>
-                )}
-                <View style={styles.headerCenter}>
-                    <Text style={styles.headerTitle}>DRIVER SETUP</Text>
-                    <Text style={styles.headerSub}>Step {step} of 2</Text>
+            <View style={s.header}>
+                <TouchableOpacity
+                    onPress={() => (step === 2 ? setStep(1) : navigation.goBack())}
+                    style={s.backBtn}
+                >
+                    <Text style={s.backText}>←</Text>
+                </TouchableOpacity>
+                <View style={{ flex: 1 }} />
+                <View style={s.stepBadge}>
+                    <Text style={s.stepBadgeText}>STEP {step} OF 2</Text>
                 </View>
-                <View style={{ width: 40 }} />
             </View>
 
-            {/* Progress bar */}
-            <View style={styles.progressBar}>
-                <View style={[styles.progressFill, { width: step === 1 ? '50%' : '100%' }]} />
+            {/* Progress track */}
+            <View style={s.progressTrack}>
+                <View style={[s.progressFill, { width: step === 1 ? '50%' : '100%' }]} />
             </View>
 
             <ScrollView
-                contentContainerStyle={styles.scroll}
+                contentContainerStyle={s.scroll}
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
             >
                 {step === 1 ? (
                     <>
-                        <Text style={styles.stepTitle}>Personal Documents</Text>
-                        <Text style={styles.stepSub}>
-                            Your details are verified once by our team. They are never shared with passengers.
+                        {/* Step 1 heading */}
+                        <Text style={s.screenTitle}>LICENSE &{'\n'}IDENTITY</Text>
+                        <Text style={s.screenSub}>
+                            We verify all drivers to keep SAFORA safe for everyone.
                         </Text>
 
-                        <Text style={styles.label}>DRIVER LICENSE NUMBER</Text>
+                        {/* Driving License Number */}
+                        <Text style={s.sectionLabel}>DRIVING LICENSE NUMBER</Text>
                         <TextInput
-                            style={styles.input}
-                            placeholder="e.g. LHR-123456"
+                            style={s.input}
+                            placeholder="DL-XXXX-XXXXXX"
                             placeholderTextColor={theme.colors.placeholder}
                             value={form.licenseNumber}
                             onChangeText={v => set('licenseNumber', v)}
                             autoCapitalize="characters"
                         />
 
-                        <Text style={styles.label}>CNIC NUMBER</Text>
+                        {/* CNIC Number */}
+                        <Text style={s.sectionLabel}>CNIC NUMBER</Text>
                         <TextInput
-                            style={styles.input}
-                            placeholder="3520112345671 (13 digits)"
+                            style={s.input}
+                            placeholder="XXXXX-XXXXXXX-X"
                             placeholderTextColor={theme.colors.placeholder}
                             value={form.cnic}
                             onChangeText={v => set('cnic', v)}
                             keyboardType="numeric"
-                            maxLength={13}
+                            maxLength={15}
                         />
-                        <Text style={styles.hint}>Used for identity verification only. Admin-reviewed.</Text>
 
+                        {/* Full Name */}
+                        <Text style={s.sectionLabel}>FULL NAME (AS ON CNIC)</Text>
+                        <TextInput
+                            style={s.input}
+                            placeholder="Muhammad Bilal Ahmad"
+                            placeholderTextColor={theme.colors.placeholder}
+                            value={form.fullName}
+                            onChangeText={v => set('fullName', v)}
+                            autoCapitalize="words"
+                        />
+
+                        {/* Info notice */}
+                        <View style={s.infoCard}>
+                            <Text style={s.infoCardText}>
+                                🔒  Your information is encrypted and only used for verification purposes.
+                            </Text>
+                        </View>
+
+                        {/* Continue */}
                         <TouchableOpacity
-                            style={styles.primaryBtn}
+                            style={s.primaryBtn}
                             onPress={() => validateStep1() && setStep(2)}
                         >
-                            <Text style={styles.primaryBtnText}>Continue →</Text>
+                            <Text style={s.primaryBtnText}>Continue →</Text>
                         </TouchableOpacity>
                     </>
                 ) : (
                     <>
-                        <Text style={styles.stepTitle}>Vehicle Information</Text>
-                        <Text style={styles.stepSub}>
+                        {/* Step 2 heading */}
+                        <Text style={s.screenTitle}>VEHICLE{'\n'}INFORMATION</Text>
+                        <Text style={s.screenSub}>
                             Enter your registered vehicle details. Registration plate must match your vehicle.
                         </Text>
 
                         {/* Vehicle type selector */}
-                        <Text style={styles.label}>VEHICLE TYPE</Text>
-                        <View style={styles.typeRow}>
+                        <Text style={s.sectionLabel}>VEHICLE TYPE</Text>
+                        <View style={s.typeRow}>
                             {VEHICLE_TYPES.map(t => (
                                 <TouchableOpacity
                                     key={t.key}
                                     style={[
-                                        styles.typeBtn,
-                                        form.vehicleType === t.key && styles.typeBtnActive,
+                                        s.typeBtn,
+                                        form.vehicleType === t.key && s.typeBtnActive,
                                     ]}
                                     onPress={() => set('vehicleType', t.key)}
                                 >
-                                    <Text style={styles.typeIcon}>{t.icon}</Text>
+                                    <Text style={s.typeIcon}>{t.icon}</Text>
                                     <Text style={[
-                                        styles.typeLabel,
-                                        form.vehicleType === t.key && styles.typeLabelActive,
+                                        s.typeLabel,
+                                        form.vehicleType === t.key && s.typeLabelActive,
                                     ]}>
                                         {t.label}
                                     </Text>
@@ -197,21 +227,22 @@ const DriverOnboardingScreen: React.FC = () => {
                             ))}
                         </View>
 
-                        <View style={styles.row}>
-                            <View style={styles.halfField}>
-                                <Text style={styles.label}>MAKE</Text>
+                        {/* Make + Model */}
+                        <View style={s.row}>
+                            <View style={s.halfField}>
+                                <Text style={s.sectionLabel}>MAKE</Text>
                                 <TextInput
-                                    style={styles.input}
+                                    style={s.input}
                                     placeholder="Toyota"
                                     placeholderTextColor={theme.colors.placeholder}
                                     value={form.vehicleMake}
                                     onChangeText={v => set('vehicleMake', v)}
                                 />
                             </View>
-                            <View style={styles.halfField}>
-                                <Text style={styles.label}>MODEL</Text>
+                            <View style={s.halfField}>
+                                <Text style={s.sectionLabel}>MODEL</Text>
                                 <TextInput
-                                    style={styles.input}
+                                    style={s.input}
                                     placeholder="Corolla"
                                     placeholderTextColor={theme.colors.placeholder}
                                     value={form.vehicleModel}
@@ -220,11 +251,12 @@ const DriverOnboardingScreen: React.FC = () => {
                             </View>
                         </View>
 
-                        <View style={styles.row}>
-                            <View style={styles.halfField}>
-                                <Text style={styles.label}>YEAR</Text>
+                        {/* Year + Color */}
+                        <View style={s.row}>
+                            <View style={s.halfField}>
+                                <Text style={s.sectionLabel}>YEAR</Text>
                                 <TextInput
-                                    style={styles.input}
+                                    style={s.input}
                                     placeholder="2020"
                                     placeholderTextColor={theme.colors.placeholder}
                                     value={form.vehicleYear}
@@ -233,10 +265,10 @@ const DriverOnboardingScreen: React.FC = () => {
                                     maxLength={4}
                                 />
                             </View>
-                            <View style={styles.halfField}>
-                                <Text style={styles.label}>COLOR</Text>
+                            <View style={s.halfField}>
+                                <Text style={s.sectionLabel}>COLOR</Text>
                                 <TextInput
-                                    style={styles.input}
+                                    style={s.input}
                                     placeholder="White"
                                     placeholderTextColor={theme.colors.placeholder}
                                     value={form.vehicleColor}
@@ -245,9 +277,10 @@ const DriverOnboardingScreen: React.FC = () => {
                             </View>
                         </View>
 
-                        <Text style={styles.label}>REGISTRATION PLATE</Text>
+                        {/* Plate */}
+                        <Text style={s.sectionLabel}>REGISTRATION PLATE</Text>
                         <TextInput
-                            style={styles.input}
+                            style={s.input}
                             placeholder="LEA-1234"
                             placeholderTextColor={theme.colors.placeholder}
                             value={form.vehiclePlate}
@@ -255,20 +288,22 @@ const DriverOnboardingScreen: React.FC = () => {
                             autoCapitalize="characters"
                         />
 
-                        <View style={styles.infoBox}>
-                            <Text style={styles.infoBoxText}>
-                                Your registration will be reviewed by SAFORA within 24 hours. You will be notified once approved.
+                        {/* Info notice */}
+                        <View style={s.infoCard}>
+                            <Text style={s.infoCardText}>
+                                🔒  Your registration will be reviewed by SAFORA within 24 hours. You will be notified once approved.
                             </Text>
                         </View>
 
+                        {/* Submit */}
                         <TouchableOpacity
-                            style={[styles.primaryBtn, loading && { opacity: 0.6 }]}
+                            style={[s.primaryBtn, loading && { opacity: 0.6 }]}
                             onPress={handleSubmit}
                             disabled={loading}
                         >
                             {loading
                                 ? <ActivityIndicator color={theme.colors.black} />
-                                : <Text style={styles.primaryBtnText}>Submit Registration</Text>
+                                : <Text style={s.primaryBtnText}>Submit Registration →</Text>
                             }
                         </TouchableOpacity>
                     </>
@@ -278,56 +313,174 @@ const DriverOnboardingScreen: React.FC = () => {
     );
 };
 
-const styles = StyleSheet.create({
-    container:      { flex: 1, backgroundColor: theme.colors.background },
-    header:         {
-        paddingTop: Platform.OS === 'ios' ? 54 : 44,
-        paddingHorizontal: 20, paddingBottom: 12,
-        flexDirection: 'row', alignItems: 'center',
+const makeStyles = (t: AppTheme) => StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: t.colors.background,
     },
-    backBtn:        {
-        width: 40, height: 40, borderRadius: 12,
-        backgroundColor: theme.colors.card, alignItems: 'center', justifyContent: 'center',
+
+    /* ── Header ── */
+    header: {
+        paddingTop: Platform.OS === 'ios' ? 56 : 46,
+        paddingHorizontal: 20,
+        paddingBottom: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
     },
-    backText:       { color: theme.colors.text, fontSize: 20 },
-    headerCenter:   { flex: 1, alignItems: 'center' },
-    headerTitle:    { fontSize: 14, fontWeight: '900', color: theme.colors.text, letterSpacing: 2 },
-    headerSub:      { fontSize: 11, color: theme.colors.textSecondary, marginTop: 2 },
-    progressBar:    { height: 3, backgroundColor: '#1E1E1E', marginHorizontal: 20 },
-    progressFill:   { height: 3, backgroundColor: theme.colors.primary, borderRadius: 2 },
-    scroll:         { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 60 },
-    stepTitle:      { fontSize: 22, fontWeight: '900', color: theme.colors.text, marginBottom: 8 },
-    stepSub:        { fontSize: 13, color: theme.colors.textSecondary, lineHeight: 20, marginBottom: 28 },
-    label:          { fontSize: 10, fontWeight: '800', color: theme.colors.textSecondary, letterSpacing: 1.5, marginBottom: 8, marginTop: 16 },
-    input:          {
-        backgroundColor: theme.colors.card, borderRadius: 14,
-        paddingHorizontal: 16, paddingVertical: 14,
-        color: theme.colors.text, fontSize: 15,
-        borderWidth: 1, borderColor: '#1E1E1E',
+    backBtn: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        backgroundColor: t.colors.card,
+        borderWidth: 1,
+        borderColor: t.colors.border,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
-    hint:           { fontSize: 11, color: theme.colors.textSecondary, marginTop: 6, marginLeft: 4 },
-    row:            { flexDirection: 'row', gap: 12 },
-    halfField:      { flex: 1 },
-    typeRow:        { flexDirection: 'row', gap: 10 },
-    typeBtn:        {
-        flex: 1, paddingVertical: 14, borderRadius: 14,
-        backgroundColor: theme.colors.card, alignItems: 'center',
-        borderWidth: 1, borderColor: '#1E1E1E',
+    backText: {
+        color: t.colors.text,
+        fontSize: 20,
     },
-    typeBtnActive:  { borderColor: theme.colors.primary, backgroundColor: 'rgba(245,197,24,0.08)' },
-    typeIcon:       { fontSize: 22, marginBottom: 4 },
-    typeLabel:      { fontSize: 11, fontWeight: '700', color: theme.colors.textSecondary },
-    typeLabelActive:{ color: theme.colors.primary },
-    infoBox:        {
-        backgroundColor: 'rgba(245,197,24,0.06)', borderRadius: 14,
-        padding: 14, marginTop: 20, borderWidth: 1, borderColor: 'rgba(245,197,24,0.15)',
+    stepBadge: {
+        backgroundColor: t.colors.primary,
+        borderRadius: 20,
+        paddingHorizontal: 12,
+        paddingVertical: 5,
     },
-    infoBoxText:    { fontSize: 12, color: theme.colors.textSecondary, lineHeight: 18 },
-    primaryBtn:     {
-        backgroundColor: theme.colors.primary, borderRadius: 16,
-        paddingVertical: 17, alignItems: 'center', marginTop: 24,
+    stepBadgeText: {
+        color: t.colors.black,
+        fontSize: 10,
+        fontWeight: '900',
+        letterSpacing: 1.5,
     },
-    primaryBtnText: { color: theme.colors.black, fontWeight: '900', fontSize: 15, letterSpacing: 0.5 },
+
+    /* ── Progress ── */
+    progressTrack: {
+        height: 3,
+        backgroundColor: t.colors.border,
+        marginHorizontal: 20,
+        borderRadius: 2,
+    },
+    progressFill: {
+        height: 3,
+        backgroundColor: t.colors.primary,
+        borderRadius: 2,
+    },
+
+    /* ── Scroll content ── */
+    scroll: {
+        paddingHorizontal: 20,
+        paddingTop: 28,
+        paddingBottom: 60,
+    },
+
+    /* ── Titles ── */
+    screenTitle: {
+        fontSize: 32,
+        fontWeight: '900',
+        color: t.colors.text,
+        letterSpacing: 1,
+        lineHeight: 38,
+        marginBottom: 10,
+    },
+    screenSub: {
+        fontSize: 13,
+        color: t.colors.textSecondary,
+        lineHeight: 20,
+        marginBottom: 32,
+    },
+
+    /* ── Section labels (yellow) ── */
+    sectionLabel: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: t.colors.primary,
+        letterSpacing: 1.5,
+        marginBottom: 8,
+        marginTop: 20,
+    },
+
+    /* ── Inputs ── */
+    input: {
+        backgroundColor: t.colors.inputBg,
+        borderRadius: 14,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        color: t.colors.text,
+        fontSize: 15,
+        borderWidth: 1,
+        borderColor: t.colors.border,
+    },
+
+    /* ── Info card ── */
+    infoCard: {
+        backgroundColor: 'rgba(245,197,24,0.08)',
+        borderRadius: 14,
+        padding: 14,
+        marginTop: 24,
+        borderWidth: 1,
+        borderColor: 'rgba(245,197,24,0.25)',
+    },
+    infoCardText: {
+        fontSize: 12,
+        color: t.colors.text,
+        lineHeight: 19,
+    },
+
+    /* ── Primary button ── */
+    primaryBtn: {
+        backgroundColor: t.colors.primary,
+        borderRadius: 16,
+        paddingVertical: 17,
+        alignItems: 'center',
+        marginTop: 28,
+    },
+    primaryBtnText: {
+        color: t.colors.black,
+        fontWeight: '900',
+        fontSize: 15,
+        letterSpacing: 0.5,
+    },
+
+    /* ── Vehicle type pills ── */
+    typeRow: {
+        flexDirection: 'row',
+        gap: 10,
+    },
+    typeBtn: {
+        flex: 1,
+        paddingVertical: 14,
+        borderRadius: 14,
+        backgroundColor: t.colors.inputBg,
+        alignItems: 'center',
+        borderWidth: 1.5,
+        borderColor: t.colors.border,
+    },
+    typeBtnActive: {
+        borderColor: t.colors.primary,
+        backgroundColor: 'rgba(245,197,24,0.08)',
+    },
+    typeIcon: {
+        fontSize: 22,
+        marginBottom: 4,
+    },
+    typeLabel: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: t.colors.textSecondary,
+    },
+    typeLabelActive: {
+        color: t.colors.primary,
+    },
+
+    /* ── Two-column rows ── */
+    row: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    halfField: {
+        flex: 1,
+    },
 });
 
 export default DriverOnboardingScreen;

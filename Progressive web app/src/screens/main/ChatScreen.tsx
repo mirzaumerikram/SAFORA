@@ -1,13 +1,17 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity, TextInput,
     FlatList, KeyboardAvoidingView, Platform, ActivityIndicator,
+    ScrollView,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import theme from '../../utils/theme';
+import { useAppTheme } from '../../context/ThemeContext';
+import { AppTheme } from '../../utils/theme';
 import socketService from '../../services/socket.service';
 import { STORAGE_KEYS } from '../../utils/constants';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Message {
     id: string;
@@ -17,21 +21,32 @@ interface Message {
     timestamp: string;
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
 const formatTime = (iso: string) => {
     const d = new Date(iso);
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
+const QUICK_REPLIES = ["I'm here 📍", "On my way", "2 more min"];
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
 const ChatScreen: React.FC = () => {
-    const navigation  = useNavigation<any>();
-    const route       = useRoute<any>();
+    const navigation = useNavigation<any>();
+    const route      = useRoute<any>();
     const { rideId, senderRole, driverName } = route.params || {};
+
+    const theme = useAppTheme();
+    const s     = useMemo(() => makeStyles(theme), [theme]);
 
     const flatRef                     = useRef<FlatList>(null);
     const [messages, setMessages]     = useState<Message[]>([]);
     const [text, setText]             = useState('');
     const [userName, setUserName]     = useState('');
     const [connecting, setConnecting] = useState(true);
+
+    // ── Socket / storage setup ────────────────────────────────────────────────
 
     useEffect(() => {
         let mounted = true;
@@ -59,34 +74,44 @@ const ChatScreen: React.FC = () => {
         };
     }, [rideId, senderRole]);
 
-    const handleSend = useCallback(() => {
-        const trimmed = text.trim();
+    // ── Send ──────────────────────────────────────────────────────────────────
+
+    const handleSend = useCallback((override?: string) => {
+        const trimmed = (override ?? text).trim();
         if (!trimmed) return;
-        setText('');
+        if (!override) setText('');
         socketService.sendChatMessage(rideId, trimmed, senderRole, userName);
     }, [text, rideId, senderRole, userName]);
 
+    const handleQuickReply = useCallback((reply: string) => {
+        handleSend(reply);
+    }, [handleSend]);
+
+    // ── Render message ────────────────────────────────────────────────────────
+
     const renderMessage = ({ item }: { item: Message }) => {
         const isMe = item.sender === senderRole;
+
         return (
-            <View style={[styles.bubbleRow, isMe ? styles.bubbleRowRight : styles.bubbleRowLeft]}>
+            <View style={[s.bubbleRow, isMe ? s.bubbleRowRight : s.bubbleRowLeft]}>
                 {!isMe && (
-                    <View style={styles.avatarSmall}>
-                        <Text style={styles.avatarSmallText}>
+                    <View style={s.driverAvatar}>
+                        <Text style={s.driverAvatarText}>
                             {(driverName || item.senderName || 'D').charAt(0).toUpperCase()}
                         </Text>
                     </View>
                 )}
-                <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleThem]}>
+
+                <View style={[s.bubble, isMe ? s.bubbleMe : s.bubbleThem]}>
                     {!isMe && (
-                        <Text style={styles.bubbleSenderName}>
+                        <Text style={s.bubbleSenderName}>
                             {driverName || item.senderName}
                         </Text>
                     )}
-                    <Text style={[styles.bubbleText, isMe && styles.bubbleTextMe]}>
+                    <Text style={[s.bubbleText, isMe && s.bubbleTextMe]}>
                         {item.text}
                     </Text>
-                    <Text style={[styles.bubbleTime, isMe && styles.bubbleTimeMe]}>
+                    <Text style={[s.bubbleTime, isMe && s.bubbleTimeMe]}>
                         {formatTime(item.timestamp)}
                     </Text>
                 </View>
@@ -94,31 +119,56 @@ const ChatScreen: React.FC = () => {
         );
     };
 
+    // ── Display name helpers ──────────────────────────────────────────────────
+
+    const headerName   = senderRole === 'passenger' ? (driverName || 'Ahmed Raza') : 'Passenger';
+    const headerInitial = headerName.charAt(0).toUpperCase();
+
+    // ─── Render ───────────────────────────────────────────────────────────────
+
     return (
         <KeyboardAvoidingView
-            style={styles.container}
+            style={s.container}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
         >
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <Text style={styles.backText}>←</Text>
+            {/* ── Header ─────────────────────────────────────────────────── */}
+            <View style={s.header}>
+                {/* Back */}
+                <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
+                    <Text style={s.backText}>←</Text>
                 </TouchableOpacity>
-                <View style={styles.headerCenter}>
-                    <Text style={styles.headerTitle}>
-                        {senderRole === 'passenger' ? (driverName || 'Driver') : 'Passenger'}
-                    </Text>
-                    <View style={styles.livePill}>
-                        <View style={[styles.liveDot, !connecting && styles.liveDotOn]} />
-                        <Text style={styles.liveText}>{connecting ? 'Connecting...' : 'Live'}</Text>
+
+                {/* Center: avatar + name + status */}
+                <View style={s.headerCenter}>
+                    <View style={s.headerAvatarWrap}>
+                        <View style={s.headerAvatar}>
+                            <Text style={s.headerAvatarText}>{headerInitial}</Text>
+                        </View>
+
+                        <View style={s.headerInfo}>
+                            <Text style={s.headerName}>{headerName}</Text>
+                            <View style={s.headerStatusRow}>
+                                <View style={s.greenDot} />
+                                <Text style={s.headerStatus}>
+                                    {connecting ? 'Connecting...' : 'Online · Arriving soon'}
+                                </Text>
+                            </View>
+                        </View>
                     </View>
                 </View>
-                <View style={{ width: 40 }} />
+
+                {/* Phone button */}
+                <TouchableOpacity style={s.phoneBtn}>
+                    <Text style={s.phoneIcon}>📞</Text>
+                </TouchableOpacity>
             </View>
 
+            {/* ── Messages ───────────────────────────────────────────────── */}
             {connecting ? (
-                <View style={styles.centered}>
-                    <ActivityIndicator color={theme.colors.primary} />
-                    <Text style={styles.connectingText}>Connecting to chat...</Text>
+                <View style={s.centered}>
+                    <ActivityIndicator color={theme.colors.primary} size="large" />
+                    <Text style={s.connectingText}>Connecting to chat...</Text>
                 </View>
             ) : (
                 <FlatList
@@ -126,108 +176,358 @@ const ChatScreen: React.FC = () => {
                     data={messages}
                     keyExtractor={item => item.id}
                     renderItem={renderMessage}
-                    contentContainerStyle={styles.messageList}
+                    contentContainerStyle={s.messageList}
                     showsVerticalScrollIndicator={false}
                     onLayout={() => flatRef.current?.scrollToEnd({ animated: false })}
                     ListEmptyComponent={
-                        <View style={styles.emptyChat}>
-                            <Text style={styles.emptyChatIcon}>💬</Text>
-                            <Text style={styles.emptyChatText}>No messages yet</Text>
-                            <Text style={styles.emptyChatSub}>Say hello to start the conversation</Text>
+                        <View style={s.emptyChat}>
+                            <Text style={s.emptyChatIcon}>💬</Text>
+                            <Text style={s.emptyChatText}>No messages yet</Text>
+                            <Text style={s.emptyChatSub}>Say hello to start the conversation</Text>
                         </View>
                     }
                 />
             )}
 
-            <View style={styles.inputBar}>
-                <TextInput
-                    style={styles.input}
-                    placeholder="Type a message..."
-                    placeholderTextColor={theme.colors.placeholder}
-                    value={text}
-                    onChangeText={setText}
-                    multiline
-                    maxLength={500}
-                    returnKeyType="send"
-                    onSubmitEditing={handleSend}
-                    blurOnSubmit={false}
-                />
-                <TouchableOpacity
-                    style={[styles.sendBtn, !text.trim() && styles.sendBtnDisabled]}
-                    onPress={handleSend}
-                    disabled={!text.trim()}
+            {/* ── Bottom area ────────────────────────────────────────────── */}
+            <View style={s.bottomArea}>
+                {/* Quick replies */}
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={s.quickRepliesContent}
+                    style={s.quickRepliesRow}
                 >
-                    <Text style={styles.sendIcon}>↑</Text>
-                </TouchableOpacity>
+                    {QUICK_REPLIES.map(reply => (
+                        <TouchableOpacity
+                            key={reply}
+                            style={s.quickChip}
+                            onPress={() => handleQuickReply(reply)}
+                            activeOpacity={0.7}
+                        >
+                            <Text style={s.quickChipText}>{reply}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+
+                {/* Input row */}
+                <View style={s.inputBar}>
+                    <TextInput
+                        style={s.input}
+                        placeholder="Type a message..."
+                        placeholderTextColor={theme.colors.placeholder}
+                        value={text}
+                        onChangeText={setText}
+                        multiline
+                        maxLength={500}
+                        returnKeyType="send"
+                        onSubmitEditing={() => handleSend()}
+                        blurOnSubmit={false}
+                    />
+                    <TouchableOpacity
+                        style={[s.sendBtn, !text.trim() && s.sendBtnDisabled]}
+                        onPress={() => handleSend()}
+                        disabled={!text.trim()}
+                        activeOpacity={0.8}
+                    >
+                        <Text style={s.sendIcon}>➤</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
         </KeyboardAvoidingView>
     );
 };
 
-const styles = StyleSheet.create({
-    container:       { flex: 1, backgroundColor: theme.colors.background },
-    centered:        { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
-    connectingText:  { color: theme.colors.textSecondary, fontSize: 13 },
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
+const makeStyles = (t: AppTheme) => StyleSheet.create({
+
+    // ── Root ──────────────────────────────────────────────────────────────────
+    container: {
+        flex: 1,
+        backgroundColor: t.colors.background,
+    },
+
+    centered: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 12,
+    },
+    connectingText: {
+        color: t.colors.textSecondary,
+        fontSize: t.fontSize.xs,
+        fontFamily: t.fonts.body,
+    },
+
+    // ── Header ────────────────────────────────────────────────────────────────
     header: {
         paddingTop: Platform.OS === 'ios' ? 54 : 44,
-        paddingHorizontal: 20, paddingBottom: 14,
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        borderBottomWidth: 1, borderBottomColor: '#1A1A1A',
+        paddingHorizontal: 16,
+        paddingBottom: 14,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: t.colors.background,
+        borderBottomWidth: 1,
+        borderBottomColor: t.colors.border,
     },
-    backBtn:       { width: 40, height: 40, borderRadius: 12, backgroundColor: theme.colors.card, alignItems: 'center', justifyContent: 'center' },
-    backText:      { color: theme.colors.text, fontSize: 20 },
-    headerCenter:  { alignItems: 'center' },
-    headerTitle:   { fontSize: 15, fontWeight: '900', color: theme.colors.text },
-    livePill:      { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 },
-    liveDot:       { width: 6, height: 6, borderRadius: 3, backgroundColor: '#555' },
-    liveDotOn:     { backgroundColor: theme.colors.success },
-    liveText:      { fontSize: 10, color: theme.colors.textSecondary },
 
-    messageList:   { padding: 16, paddingBottom: 8, flexGrow: 1 },
-
-    bubbleRow:      { flexDirection: 'row', marginBottom: 12, alignItems: 'flex-end' },
-    bubbleRowRight: { justifyContent: 'flex-end' },
-    bubbleRowLeft:  { justifyContent: 'flex-start' },
-
-    avatarSmall:    {
-        width: 30, height: 30, borderRadius: 15,
-        backgroundColor: '#2A2A2A',
-        alignItems: 'center', justifyContent: 'center',
-        marginRight: 8, marginBottom: 2,
+    backBtn: {
+        width: 40,
+        height: 40,
+        borderRadius: t.borderRadius.sm,
+        backgroundColor: t.colors.cardSecondary,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
-    avatarSmallText: { fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary },
-
-    bubble:        { maxWidth: '72%', borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10 },
-    bubbleMe:      { backgroundColor: theme.colors.primary, borderBottomRightRadius: 4 },
-    bubbleThem:    { backgroundColor: theme.colors.card, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: '#2A2A2A' },
-
-    bubbleSenderName: { fontSize: 10, fontWeight: '700', color: theme.colors.textSecondary, marginBottom: 3 },
-    bubbleText:    { fontSize: 14, color: theme.colors.text, lineHeight: 20 },
-    bubbleTextMe:  { color: theme.colors.black },
-    bubbleTime:    { fontSize: 9, color: theme.colors.textSecondary, marginTop: 4, textAlign: 'right' },
-    bubbleTimeMe:  { color: 'rgba(0,0,0,0.45)' },
-
-    emptyChat:     { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
-    emptyChatIcon: { fontSize: 48, marginBottom: 12 },
-    emptyChatText: { fontSize: 16, fontWeight: '700', color: theme.colors.text, marginBottom: 6 },
-    emptyChatSub:  { fontSize: 12, color: theme.colors.textSecondary },
-
-    inputBar:      {
-        flexDirection: 'row', alignItems: 'flex-end', gap: 10,
-        paddingHorizontal: 16, paddingVertical: 12,
-        borderTopWidth: 1, borderTopColor: '#1A1A1A',
-        backgroundColor: theme.colors.background,
+    backText: {
+        fontSize: 20,
+        color: t.colors.text,
+        lineHeight: 24,
     },
-    input:         {
-        flex: 1, backgroundColor: theme.colors.card,
-        borderRadius: 22, paddingHorizontal: 16, paddingVertical: 10,
-        color: theme.colors.text, fontSize: 14, maxHeight: 100,
-        borderWidth: 1, borderColor: '#2A2A2A',
+
+    headerCenter: {
+        flex: 1,
+        alignItems: 'center',
     },
-    sendBtn:       { width: 42, height: 42, borderRadius: 21, backgroundColor: theme.colors.primary, alignItems: 'center', justifyContent: 'center' },
-    sendBtnDisabled: { backgroundColor: '#2A2A2A' },
-    sendIcon:      { fontSize: 18, color: theme.colors.black, fontWeight: '900' },
+    headerAvatarWrap: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
+    headerAvatar: {
+        width: 42,
+        height: 42,
+        borderRadius: 21,
+        backgroundColor: '#F5C518',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    headerAvatarText: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#000000',
+    },
+    headerInfo: {
+        alignItems: 'flex-start',
+    },
+    headerName: {
+        fontSize: t.fontSize.sm,
+        fontWeight: t.fontWeight.bold,
+        color: t.colors.text,
+        fontFamily: t.fonts.bodyBold,
+    },
+    headerStatusRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
+        marginTop: 2,
+    },
+    greenDot: {
+        width: 7,
+        height: 7,
+        borderRadius: 3.5,
+        backgroundColor: '#22C55E',
+    },
+    headerStatus: {
+        fontSize: 11,
+        color: '#22C55E',
+        fontFamily: t.fonts.body,
+    },
+
+    phoneBtn: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: '#FDEAF3',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    phoneIcon: {
+        fontSize: 16,
+    },
+
+    // ── Message list ──────────────────────────────────────────────────────────
+    messageList: {
+        padding: 16,
+        paddingBottom: 12,
+        flexGrow: 1,
+    },
+
+    bubbleRow: {
+        flexDirection: 'row',
+        marginBottom: 14,
+        alignItems: 'flex-end',
+    },
+    bubbleRowRight: {
+        justifyContent: 'flex-end',
+    },
+    bubbleRowLeft: {
+        justifyContent: 'flex-start',
+    },
+
+    // Driver avatar (small, beside bubble)
+    driverAvatar: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: '#F5C518',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 8,
+        marginBottom: 2,
+    },
+    driverAvatarText: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: '#000000',
+    },
+
+    // Bubbles
+    bubble: {
+        maxWidth: '72%',
+        borderRadius: 18,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+    },
+    // Passenger bubble — yellow
+    bubbleMe: {
+        backgroundColor: '#F5C518',
+        borderBottomRightRadius: 4,
+    },
+    // Driver bubble — gray
+    bubbleThem: {
+        backgroundColor: t.colors.cardSecondary,
+        borderBottomLeftRadius: 4,
+        borderWidth: 1,
+        borderColor: t.colors.border,
+    },
+
+    bubbleSenderName: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: t.colors.textSecondary,
+        marginBottom: 3,
+        fontFamily: t.fonts.bodyBold,
+    },
+    bubbleText: {
+        fontSize: t.fontSize.sm,
+        color: t.colors.text,
+        lineHeight: 20,
+        fontFamily: t.fonts.body,
+    },
+    bubbleTextMe: {
+        color: '#FFFFFF',
+        fontFamily: t.fonts.body,
+    },
+    bubbleTime: {
+        fontSize: 9,
+        color: t.colors.textSecondary,
+        marginTop: 4,
+        textAlign: 'right',
+        fontFamily: t.fonts.body,
+    },
+    bubbleTimeMe: {
+        color: 'rgba(255,255,255,0.65)',
+    },
+
+    // ── Empty state ───────────────────────────────────────────────────────────
+    emptyChat: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingTop: 80,
+    },
+    emptyChatIcon: {
+        fontSize: 48,
+        marginBottom: 12,
+    },
+    emptyChatText: {
+        fontSize: t.fontSize.md,
+        fontWeight: '700',
+        color: t.colors.text,
+        marginBottom: 6,
+        fontFamily: t.fonts.bodyBold,
+    },
+    emptyChatSub: {
+        fontSize: t.fontSize.xs,
+        color: t.colors.textSecondary,
+        fontFamily: t.fonts.body,
+    },
+
+    // ── Bottom area ───────────────────────────────────────────────────────────
+    bottomArea: {
+        backgroundColor: t.colors.background,
+        borderTopWidth: 1,
+        borderTopColor: t.colors.border,
+        paddingBottom: Platform.OS === 'ios' ? 24 : 8,
+    },
+
+    // Quick reply chips
+    quickRepliesRow: {
+        paddingTop: 10,
+        paddingBottom: 8,
+    },
+    quickRepliesContent: {
+        paddingHorizontal: 16,
+        gap: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    quickChip: {
+        paddingHorizontal: 14,
+        paddingVertical: 7,
+        borderRadius: t.borderRadius.full,
+        backgroundColor: t.colors.cardSecondary,
+        borderWidth: 1,
+        borderColor: t.colors.border,
+    },
+    quickChipText: {
+        fontSize: t.fontSize.xs,
+        color: t.colors.text,
+        fontFamily: t.fonts.body,
+        fontWeight: t.fontWeight.medium,
+    },
+
+    // Input row
+    inputBar: {
+        flexDirection: 'row',
+        alignItems: 'flex-end',
+        gap: 10,
+        paddingHorizontal: 16,
+        paddingTop: 6,
+        paddingBottom: 4,
+    },
+    input: {
+        flex: 1,
+        backgroundColor: t.colors.inputBg,
+        borderRadius: 22,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        color: t.colors.text,
+        fontSize: t.fontSize.sm,
+        maxHeight: 100,
+        borderWidth: 1,
+        borderColor: t.colors.border,
+        fontFamily: t.fonts.body,
+    },
+    sendBtn: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: '#F5C518',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    sendBtnDisabled: {
+        backgroundColor: t.colors.cardSecondary,
+    },
+    sendIcon: {
+        fontSize: 16,
+        color: '#000000',
+        fontWeight: '900',
+    },
 });
 
 export default ChatScreen;

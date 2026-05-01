@@ -1,242 +1,460 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
-    View, Text, StyleSheet, TouchableOpacity,
-    ScrollView, Dimensions, ActivityIndicator,
-    TextInput, Alert,
+    View,
+    Text,
+    StyleSheet,
+    TouchableOpacity,
+    ScrollView,
+    Dimensions,
+    ActivityIndicator,
+    Platform,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import theme from '../../utils/theme';
+import { useAppTheme } from '../../context/ThemeContext';
+import { AppTheme } from '../../utils/theme';
+import SaforaMap from '../../components/SaforaMap';
+import SaforaAlert from '../../utils/alert';
 import apiService from '../../services/api';
 
-const { width } = Dimensions.get('window');
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
+// ---------------------------------------------------------------------------
+// Ride type data
+// ---------------------------------------------------------------------------
 const rideTypes = [
-    { id: 'eco',     name: 'Eco Bike',   price: 120, time: '3 min', icon: '🏍️', desc: 'Fastest for city traffic' },
-    { id: 'standard',name: 'Comfort AC', price: 450, time: '5 min', icon: '🚗', desc: 'Sleek dark sedans' },
-    { id: 'pink-pass',name: 'Pink Pass', price: 500, time: '6 min', icon: '🎀', desc: 'Female drivers only', promo: true },
+    {
+        id: 'eco',
+        name: 'Eco Bike',
+        icon: '🏍️',
+        price: 120,
+        desc: 'Fastest · 3 min away',
+        badge: '+6 min',
+        pink: false,
+    },
+    {
+        id: 'standard',
+        name: 'Comfort AC',
+        icon: '🚗',
+        price: 280,
+        desc: 'Sedan · 5 min away',
+        badge: '-2 min',
+        pink: false,
+    },
+    {
+        id: 'pink-pass',
+        name: 'Pink',
+        icon: '🎀',
+        price: 250,
+        desc: 'Women-Only · Verified Female Driver',
+        badge: '+10 min',
+        pink: true,
+    },
 ];
 
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 const RideSelectionScreen: React.FC = () => {
     const navigation = useNavigation<any>();
     const route = useRoute<any>();
 
-    const [pickup, setPickup]   = useState(route.params?.pickup  || '');
-    const [dropoff, setDropoff] = useState(route.params?.dropoff || '');
-    const [selected, setSelected] = useState('standard');
-    const [booking, setBooking]   = useState(false);
+    const [pickup]  = useState<string>(route.params?.pickup  || 'Gulberg II');
+    const [dropoff] = useState<string>(route.params?.dropoff || 'DHA Phase 5');
+    const [selected, setSelected] = useState<string>('eco');
+    const [booking,  setBooking]  = useState<boolean>(false);
+
+    const theme = useAppTheme();
+    const s = useMemo(() => makeStyles(theme), [theme]);
 
     const selectedRide = rideTypes.find(r => r.id === selected)!;
 
+    // -----------------------------------------------------------------------
+    // Confirm handler
+    // -----------------------------------------------------------------------
     const handleConfirm = async () => {
-        if (!pickup.trim() || !dropoff.trim()) {
-            Alert.alert('Missing Info', 'Please enter pickup and dropoff locations');
-            return;
-        }
         setBooking(true);
         try {
-            const response: any = await apiService.post('/rides/request', {
-                pickupLocation:  { address: pickup.trim(),  lat: 32.4945, lng: 74.5229 },
-                dropoffLocation: { address: dropoff.trim(), lat: 32.5100, lng: 74.5350 },
+            await apiService.post('/rides/book', {
+                pickupLocation:  { address: pickup,  lat: 31.5204, lng: 74.3587 },
+                dropoffLocation: { address: dropoff, lat: 31.4504, lng: 74.2667 },
                 type: selected,
             });
 
-            // Navigate to payment selection before tracking
-            navigation.navigate('Payment', {
-                rideId:         response.ride?.id,
-                estimatedPrice: response.ride?.estimatedPrice || selectedRide.price,
-                pickup:         pickup.trim(),
-                dropoff:        dropoff.trim(),
-                rideType:       selected,
-                rideName:       selectedRide.name,
+            navigation.navigate('Searching', {
+                pickup,
+                dropoff,
+                distance: '8.2 km',
             });
         } catch (err: any) {
-            if (err.message?.includes('Network') || err.message?.includes('timeout')) {
-                // Backend unreachable — go to payment with static price for demo
-                navigation.navigate('Payment', {
-                    rideId: null,
-                    estimatedPrice: selectedRide.price,
-                    pickup: pickup.trim(),
-                    dropoff: dropoff.trim(),
-                    rideType: selected,
-                    rideName: selectedRide.name,
+            // Network / backend unreachable — still proceed for demo
+            if (
+                err.message?.includes('Network') ||
+                err.message?.includes('timeout') ||
+                err.message?.includes('fetch')
+            ) {
+                navigation.navigate('Searching', {
+                    pickup,
+                    dropoff,
+                    distance: '8.2 km',
                 });
             } else {
-                Alert.alert('Booking Failed', err.message || 'Please try again');
+                SaforaAlert('Booking Failed', err.message || 'Please try again.');
             }
         } finally {
             setBooking(false);
         }
     };
 
+    // -----------------------------------------------------------------------
+    // Render
+    // -----------------------------------------------------------------------
     return (
-        <View style={styles.container}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <Text style={styles.backText}>←</Text>
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>BOOK A RIDE</Text>
-                <View style={{ width: 40 }} />
-            </View>
+        <View style={s.root}>
+            {/* ── MAP (top ~45%) ─────────────────────────────────────── */}
+            <View style={s.mapWrapper}>
+                <SaforaMap type="home" />
 
-            {/* Location Inputs */}
-            <View style={styles.locationCard}>
-                <View style={styles.locationRow}>
-                    <View style={styles.dotStart} />
-                    <TextInput
-                        style={styles.locationInput}
-                        placeholder="Pickup location"
-                        placeholderTextColor={theme.colors.placeholder}
-                        value={pickup}
-                        onChangeText={setPickup}
-                    />
-                </View>
-                <View style={styles.locationDivider} />
-                <View style={styles.locationRow}>
-                    <View style={styles.dotEnd} />
-                    <TextInput
-                        style={styles.locationInput}
-                        placeholder="Dropoff destination"
-                        placeholderTextColor={theme.colors.placeholder}
-                        value={dropoff}
-                        onChangeText={setDropoff}
-                    />
-                </View>
-            </View>
-
-            <Text style={styles.sectionTitle}>AVAILABLE OPTIONS</Text>
-
-            <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-                {rideTypes.map((ride) => (
-                    <TouchableOpacity
-                        key={ride.id}
-                        style={[styles.rideCard, selected === ride.id && styles.rideCardActive]}
-                        onPress={() => setSelected(ride.id)}
-                    >
-                        <View style={[styles.iconBg, ride.id === 'pink-pass' && styles.pinkBg]}>
-                            <Text style={styles.rideEmoji}>{ride.icon}</Text>
-                        </View>
-                        <View style={styles.rideInfo}>
-                            <View style={styles.rideRow}>
-                                <Text style={styles.rideName}>{ride.name}</Text>
-                                {ride.promo && (
-                                    <View style={styles.promoBadge}>
-                                        <Text style={styles.promoText}>WOMEN ONLY</Text>
-                                    </View>
-                                )}
-                            </View>
-                            <Text style={styles.rideDesc}>{ride.desc}</Text>
-                            <Text style={styles.rideTime}>{ride.time} away</Text>
-                        </View>
-                        <View style={styles.priceInfo}>
-                            <Text style={[styles.price, selected === ride.id && styles.priceActive]}>
-                                RS {ride.price}
-                            </Text>
-                            {selected === ride.id && (
-                                <View style={styles.selectedDot} />
-                            )}
-                        </View>
-                    </TouchableOpacity>
-                ))}
-            </ScrollView>
-
-            <View style={styles.footer}>
-                <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>Estimated Fare</Text>
-                    <Text style={styles.summaryPrice}>RS {selectedRide.price}</Text>
-                </View>
+                {/* Back button floating over map */}
                 <TouchableOpacity
-                    style={[styles.confirmBtn, selected === 'pink-pass' && styles.pinkBtn, booking && { opacity: 0.7 }]}
-                    onPress={handleConfirm}
-                    disabled={booking}
+                    style={s.backBtn}
+                    onPress={() => navigation.goBack()}
+                    activeOpacity={0.85}
                 >
-                    {booking
-                        ? <ActivityIndicator color={theme.colors.black} />
-                        : <Text style={styles.confirmText}>Choose Payment →</Text>
-                    }
+                    <Text style={s.backArrow}>←</Text>
                 </TouchableOpacity>
+            </View>
+
+            {/* ── BOTTOM PANEL ────────────────────────────────────────── */}
+            <View style={s.panel}>
+                {/* Route summary card */}
+                <View style={s.routeCard}>
+                    <View style={s.routeRow}>
+                        <View style={s.yellowDot} />
+                        <View style={s.routeTextCol}>
+                            <Text style={s.routeFrom}>{pickup}</Text>
+                            <View style={s.routeLine} />
+                            <Text style={s.routeTo}>{dropoff}</Text>
+                        </View>
+                    </View>
+                </View>
+
+                {/* Section label */}
+                <Text style={s.sectionLabel}>CHOOSE RIDE TYPE</Text>
+
+                {/* Ride type list */}
+                <ScrollView
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={s.rideList}
+                >
+                    {rideTypes.map((ride) => {
+                        const isSelected = selected === ride.id;
+                        const isPink = ride.pink;
+
+                        return (
+                            <TouchableOpacity
+                                key={ride.id}
+                                style={[
+                                    s.rideCard,
+                                    isSelected && (isPink ? s.rideCardPinkActive : s.rideCardActive),
+                                    !isSelected && s.rideCardInactive,
+                                ]}
+                                onPress={() => setSelected(ride.id)}
+                                activeOpacity={0.8}
+                            >
+                                {/* Icon */}
+                                <View style={[s.iconBox, isPink && s.iconBoxPink]}>
+                                    <Text style={s.rideIcon}>{ride.icon}</Text>
+                                </View>
+
+                                {/* Info */}
+                                <View style={s.rideInfo}>
+                                    <Text style={[s.rideName, isPink && s.rideNamePink]}>
+                                        {ride.name}
+                                    </Text>
+                                    <Text style={s.rideDesc}>{ride.desc}</Text>
+                                </View>
+
+                                {/* Price + badge */}
+                                <View style={s.priceCol}>
+                                    <Text style={[s.priceText, isSelected && !isPink && s.priceTextActive, isPink && s.priceTextPink]}>
+                                        Rs {ride.price}
+                                    </Text>
+                                    <View style={[s.badge, isPink && s.badgePink]}>
+                                        <Text style={[s.badgeText, isPink && s.badgeTextPink]}>
+                                            {ride.badge}
+                                        </Text>
+                                    </View>
+                                </View>
+                            </TouchableOpacity>
+                        );
+                    })}
+                </ScrollView>
+
+                {/* Confirm button */}
+                <View style={s.footer}>
+                    <TouchableOpacity
+                        style={[
+                            s.confirmBtn,
+                            selectedRide?.pink && s.confirmBtnPink,
+                            booking && s.confirmBtnDisabled,
+                        ]}
+                        onPress={handleConfirm}
+                        disabled={booking}
+                        activeOpacity={0.88}
+                    >
+                        {booking ? (
+                            <ActivityIndicator color={theme.colors.black} />
+                        ) : (
+                            <Text style={s.confirmText}>
+                                Confirm {selectedRide?.name}{'  '}Rs {selectedRide?.price}
+                            </Text>
+                        )}
+                    </TouchableOpacity>
+                </View>
             </View>
         </View>
     );
 };
 
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: theme.colors.background },
-    header: {
-        paddingTop: 52, paddingHorizontal: 20,
-        flexDirection: 'row', alignItems: 'center',
-        justifyContent: 'space-between', marginBottom: 16,
-    },
-    backBtn: {
-        width: 40, height: 40, borderRadius: 12,
-        backgroundColor: theme.colors.card,
-        alignItems: 'center', justifyContent: 'center',
-    },
-    backText: { color: theme.colors.text, fontSize: 20 },
-    headerTitle: { fontSize: 15, fontWeight: '900', color: theme.colors.text, letterSpacing: 2 },
-    locationCard: {
-        marginHorizontal: 20, backgroundColor: theme.colors.card,
-        borderRadius: 16, padding: 16, marginBottom: 20,
-        borderWidth: 1.5, borderColor: '#222',
-    },
-    locationRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    dotStart: { width: 10, height: 10, borderRadius: 5, borderWidth: 2, borderColor: theme.colors.primary },
-    dotEnd:   { width: 10, height: 10, borderRadius: 2, backgroundColor: theme.colors.primary },
-    locationInput: {
-        flex: 1, color: theme.colors.text, fontSize: 14,
-        fontWeight: '500', paddingVertical: 4,
-    },
-    locationDivider: { height: 1, backgroundColor: '#222', marginVertical: 10, marginLeft: 22 },
-    sectionTitle: {
-        fontSize: 11, fontWeight: '900', color: theme.colors.textSecondary,
-        letterSpacing: 2, paddingHorizontal: 20, marginBottom: 10,
-    },
-    scroll: { paddingHorizontal: 20, paddingBottom: 16 },
-    rideCard: {
-        flexDirection: 'row', alignItems: 'center', gap: 14,
-        backgroundColor: theme.colors.card, borderRadius: 16,
-        padding: 14, marginBottom: 10,
-        borderWidth: 1.5, borderColor: 'transparent',
-    },
-    rideCardActive: { borderColor: theme.colors.primary, backgroundColor: 'rgba(245,197,24,0.05)' },
-    iconBg: {
-        width: 48, height: 48, borderRadius: 14,
-        backgroundColor: '#222', alignItems: 'center', justifyContent: 'center',
-    },
-    pinkBg: { backgroundColor: 'rgba(255,105,180,0.15)' },
-    rideEmoji: { fontSize: 22 },
-    rideInfo: { flex: 1 },
-    rideRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
-    rideName: { fontSize: 14, fontWeight: '700', color: theme.colors.text },
-    promoBadge: {
-        backgroundColor: 'rgba(255,105,180,0.2)', borderRadius: 6,
-        paddingHorizontal: 6, paddingVertical: 2,
-    },
-    promoText: { fontSize: 9, fontWeight: '700', color: '#FF69B4' },
-    rideDesc: { fontSize: 11, color: theme.colors.textSecondary, marginBottom: 2 },
-    rideTime: { fontSize: 11, color: theme.colors.primary, fontWeight: '600' },
-    priceInfo: { alignItems: 'flex-end', gap: 4 },
-    price: { fontSize: 15, fontWeight: '800', color: theme.colors.textSecondary },
-    priceActive: { color: theme.colors.primary },
-    selectedDot: {
-        width: 8, height: 8, borderRadius: 4, backgroundColor: theme.colors.primary,
-    },
-    footer: {
-        padding: 20, paddingBottom: 32,
-        borderTopWidth: 1, borderTopColor: '#1a1a1a',
-        backgroundColor: theme.colors.background,
-    },
-    summaryRow: {
-        flexDirection: 'row', justifyContent: 'space-between',
-        alignItems: 'center', marginBottom: 14,
-    },
-    summaryLabel: { fontSize: 13, color: theme.colors.textSecondary },
-    summaryPrice: { fontSize: 18, fontWeight: '900', color: theme.colors.primary },
-    confirmBtn: {
-        backgroundColor: theme.colors.primary, borderRadius: 14,
-        paddingVertical: 16, alignItems: 'center',
-    },
-    pinkBtn: { backgroundColor: '#FF69B4' },
-    confirmText: { color: theme.colors.black, fontSize: 15, fontWeight: '700' },
-});
+// ---------------------------------------------------------------------------
+// Styles factory
+// ---------------------------------------------------------------------------
+const makeStyles = (t: AppTheme) => {
+    const MAP_HEIGHT = SCREEN_HEIGHT * 0.45;
+    const PANEL_RADIUS = 24;
+    const PINK = '#FF69B4';
+    const PINK_BG = 'rgba(255,105,180,0.12)';
+    const PINK_BORDER = 'rgba(255,105,180,0.55)';
+
+    return StyleSheet.create({
+        // Root
+        root: {
+            flex: 1,
+            backgroundColor: t.colors.background,
+        },
+
+        // Map section
+        mapWrapper: {
+            height: MAP_HEIGHT,
+            overflow: 'hidden',
+        },
+
+        // Back button
+        backBtn: {
+            position: 'absolute',
+            top: Platform.OS === 'ios' ? 56 : 44,
+            left: 16,
+            width: 42,
+            height: 42,
+            borderRadius: 14,
+            backgroundColor: t.colors.white,
+            alignItems: 'center',
+            justifyContent: 'center',
+            // shadow
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 3 },
+            shadowOpacity: 0.18,
+            shadowRadius: 8,
+            elevation: 6,
+        },
+        backArrow: {
+            fontSize: 20,
+            color: t.colors.black,
+            lineHeight: 22,
+        },
+
+        // Bottom panel
+        panel: {
+            flex: 1,
+            backgroundColor: t.colors.card,
+            borderTopLeftRadius: PANEL_RADIUS,
+            borderTopRightRadius: PANEL_RADIUS,
+            marginTop: -PANEL_RADIUS,
+            paddingTop: 20,
+            paddingHorizontal: 16,
+            // shadow upward
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: -4 },
+            shadowOpacity: 0.08,
+            shadowRadius: 12,
+            elevation: 10,
+        },
+
+        // Route summary card
+        routeCard: {
+            backgroundColor: t.colors.cardSecondary,
+            borderRadius: t.borderRadius.md,
+            padding: 14,
+            marginBottom: 16,
+            borderWidth: 1,
+            borderColor: t.colors.border,
+        },
+        routeRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
+        },
+        yellowDot: {
+            width: 12,
+            height: 12,
+            borderRadius: 6,
+            backgroundColor: t.colors.primary,
+            marginTop: 2,
+            alignSelf: 'flex-start',
+        },
+        routeTextCol: {
+            flex: 1,
+        },
+        routeFrom: {
+            fontSize: t.fontSize.sm,
+            fontWeight: t.fontWeight.bold,
+            color: t.colors.text,
+            marginBottom: 4,
+        },
+        routeLine: {
+            height: 1,
+            backgroundColor: t.colors.divider,
+            marginVertical: 5,
+        },
+        routeTo: {
+            fontSize: t.fontSize.sm,
+            fontWeight: t.fontWeight.medium,
+            color: t.colors.textSecondary,
+        },
+
+        // Section label
+        sectionLabel: {
+            fontSize: 11,
+            fontWeight: t.fontWeight.heavy,
+            color: t.colors.textSecondary,
+            letterSpacing: 2,
+            marginBottom: 10,
+        },
+
+        // Ride list
+        rideList: {
+            paddingBottom: 8,
+            gap: 10,
+        },
+
+        // Ride card base
+        rideCard: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            borderRadius: t.borderRadius.md,
+            padding: 13,
+            borderWidth: 1.5,
+            gap: 12,
+        },
+        rideCardInactive: {
+            backgroundColor: t.colors.cardSecondary,
+            borderColor: t.colors.border,
+        },
+        rideCardActive: {
+            backgroundColor: 'rgba(245,197,24,0.06)',
+            borderColor: t.colors.primary,
+        },
+        rideCardPinkActive: {
+            backgroundColor: PINK_BG,
+            borderColor: PINK_BORDER,
+        },
+
+        // Icon box
+        iconBox: {
+            width: 48,
+            height: 48,
+            borderRadius: 14,
+            backgroundColor: t.dark ? '#2A2A2A' : '#F0F0F0',
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
+        iconBoxPink: {
+            backgroundColor: PINK_BG,
+        },
+        rideIcon: {
+            fontSize: 22,
+        },
+
+        // Ride info
+        rideInfo: {
+            flex: 1,
+        },
+        rideName: {
+            fontSize: t.fontSize.sm,
+            fontWeight: t.fontWeight.bold,
+            color: t.colors.text,
+            marginBottom: 3,
+        },
+        rideNamePink: {
+            color: PINK,
+        },
+        rideDesc: {
+            fontSize: 11,
+            color: t.colors.textSecondary,
+            lineHeight: 15,
+        },
+
+        // Price column
+        priceCol: {
+            alignItems: 'flex-end',
+            gap: 5,
+        },
+        priceText: {
+            fontSize: 15,
+            fontWeight: t.fontWeight.heavy,
+            color: t.colors.textSecondary,
+        },
+        priceTextActive: {
+            color: t.colors.primary,
+        },
+        priceTextPink: {
+            color: PINK,
+        },
+
+        // Badge
+        badge: {
+            backgroundColor: t.dark ? '#2A2A2A' : '#EFEFEF',
+            borderRadius: 6,
+            paddingHorizontal: 7,
+            paddingVertical: 2,
+        },
+        badgePink: {
+            backgroundColor: PINK_BG,
+        },
+        badgeText: {
+            fontSize: 10,
+            fontWeight: t.fontWeight.bold,
+            color: t.colors.textSecondary,
+        },
+        badgeTextPink: {
+            color: PINK,
+        },
+
+        // Footer + confirm button
+        footer: {
+            paddingTop: 10,
+            paddingBottom: Platform.OS === 'ios' ? 30 : 20,
+        },
+        confirmBtn: {
+            backgroundColor: t.colors.primary,
+            borderRadius: t.borderRadius.md,
+            paddingVertical: 16,
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
+        confirmBtnPink: {
+            backgroundColor: PINK,
+        },
+        confirmBtnDisabled: {
+            opacity: 0.65,
+        },
+        confirmText: {
+            color: t.colors.black,
+            fontSize: t.fontSize.sm,
+            fontWeight: t.fontWeight.bold,
+            letterSpacing: 0.3,
+        },
+    });
+};
 
 export default RideSelectionScreen;

@@ -11,17 +11,20 @@ import AdminDashboard from '../screens/admin/AdminDashboard';
 import DriverOnboardingScreen from '../screens/driver/DriverOnboardingScreen';
 import PinkPassDriverScreen from '../screens/driver/PinkPassDriverScreen';
 import PinkPassLivenessScreen from '../screens/driver/PinkPassLivenessScreen';
+import RideRequestScreen from '../screens/driver/RideRequestScreen';
+import TripNavScreen from '../screens/driver/TripNavScreen';
 import ChatScreen from '../screens/main/ChatScreen';
 
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { LanguageProvider } from '../context/LanguageContext';
-import theme from '../utils/theme';
+import { ThemeProvider } from '../context/ThemeContext';
 import { STORAGE_KEYS } from '../utils/constants';
 
 const RootStack = createStackNavigator();
 
 const RootNavigator: React.FC = () => {
     const { isAuthenticated, isLoading, userRole } = useAuth();
+    const { theme } = useAppTheme();
     const [driverRegistered, setDriverRegistered]  = useState<boolean | null>(null);
     const [checkingDriver, setCheckingDriver]       = useState(false);
 
@@ -40,7 +43,7 @@ const RootNavigator: React.FC = () => {
 
     if (isLoading || checkingDriver) {
         return (
-            <View style={styles.loadingContainer}>
+            <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
                 <ActivityIndicator size="large" color={theme.colors.primary} />
             </View>
         );
@@ -101,6 +104,8 @@ const DriverStack = createStackNavigator();
 const DriverAppNavigator: React.FC = () => (
     <DriverStack.Navigator screenOptions={{ headerShown: false }}>
         <DriverStack.Screen name="DriverTabs"       component={DriverNavigator} />
+        <DriverStack.Screen name="RideRequest"      component={RideRequestScreen} />
+        <DriverStack.Screen name="TripNav"          component={TripNavScreen} />
         <DriverStack.Screen name="PinkPassDriver"   component={PinkPassDriverScreen} />
         <DriverStack.Screen name="PinkPassLiveness" component={PinkPassLivenessScreen} />
         <DriverStack.Screen name="Chat"             component={ChatScreen} />
@@ -109,11 +114,13 @@ const DriverAppNavigator: React.FC = () => (
 
 const AppNavigator: React.FC = () => {
     return (
-        <LanguageProvider>
-            <AuthProvider>
-                <RootNavigator />
-            </AuthProvider>
-        </LanguageProvider>
+        <ThemeProvider>
+            <LanguageProvider>
+                <AuthProvider>
+                    <RootNavigator />
+                </AuthProvider>
+            </LanguageProvider>
+        </ThemeProvider>
     );
 };
 
@@ -122,7 +129,6 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: theme.colors.background,
     },
 });
 

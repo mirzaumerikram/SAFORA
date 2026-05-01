@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity,
     ActivityIndicator, Alert, ScrollView,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import theme from '../../utils/theme';
+import { useAppTheme } from '../../context/ThemeContext';
+import { AppTheme } from '../../utils/theme';
 import apiService from '../../services/api';
 
 type PayMethod = 'cash' | 'card';
@@ -14,8 +15,18 @@ const PaymentScreen: React.FC = () => {
     const route = useRoute<any>();
     const { rideId, estimatedPrice, pickup, dropoff, rideType, rideName } = route.params || {};
 
+    const theme = useAppTheme();
+    const s = useMemo(() => makeStyles(theme), [theme]);
+
     const [method, setMethod] = useState<PayMethod>('cash');
     const [loading, setLoading] = useState(false);
+
+    // Fare breakdown derived from estimatedPrice (fallback to design values)
+    const total = estimatedPrice || 185;
+    const baseFare = 140;
+    const timeCharge = 54;
+    const safetyFee = 9;
+    const promoDiscount = 18;
 
     const handleConfirm = async () => {
         setLoading(true);
@@ -47,102 +58,90 @@ const PaymentScreen: React.FC = () => {
     };
 
     return (
-        <View style={styles.container}>
+        <View style={s.container}>
             {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <Text style={styles.backText}>←</Text>
+            <View style={s.header}>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
+                    <Text style={s.backText}>←</Text>
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>PAYMENT</Text>
+                <Text style={s.headerTitle}>PAYMENT SUMMARY</Text>
                 <View style={{ width: 40 }} />
             </View>
 
-            <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-                {/* Ride Summary */}
-                <View style={styles.summaryCard}>
-                    <Text style={styles.summaryTitle}>Ride Summary</Text>
-                    <View style={styles.routeRow}>
-                        <View style={styles.dotFrom} />
-                        <Text style={styles.routeText} numberOfLines={1}>{pickup || 'Pickup'}</Text>
+            <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+
+                {/* Large Amount Hero */}
+                <View style={s.heroBlock}>
+                    <Text style={s.heroAmount}>RS {total}</Text>
+                    <Text style={s.tripMeta}>
+                        Trip #{rideId ? `SF-${rideId}` : 'SF-2024-00843'} · Cash Payment
+                    </Text>
+                </View>
+
+                {/* Fare Breakdown */}
+                <Text style={s.sectionLabel}>FARE BREAKDOWN</Text>
+                <View style={s.breakdownCard}>
+                    <View style={s.breakRow}>
+                        <Text style={s.breakLabel}>Base Fare (5.8 km)</Text>
+                        <Text style={s.breakValue}>Rs {baseFare}</Text>
                     </View>
-                    <View style={styles.routeLine} />
-                    <View style={styles.routeRow}>
-                        <View style={styles.dotTo} />
-                        <Text style={styles.routeText} numberOfLines={1}>{dropoff || 'Dropoff'}</Text>
+                    <View style={s.breakRow}>
+                        <Text style={s.breakLabel}>Time Charge (18 min)</Text>
+                        <Text style={s.breakValue}>Rs {timeCharge}</Text>
                     </View>
-                    <View style={styles.divider} />
-                    <View style={styles.fareRow}>
-                        <Text style={styles.fareLabel}>{rideName || 'Ride'}</Text>
-                        <Text style={styles.fareAmt}>RS {estimatedPrice || '—'}</Text>
+                    <View style={s.breakRow}>
+                        <Text style={s.breakLabel}>🛡️ SAFORA Safety Fee</Text>
+                        <Text style={s.breakValue}>Rs {safetyFee}</Text>
+                    </View>
+                    <View style={s.breakRow}>
+                        <Text style={s.promoLabel}>Promo Code SAF10</Text>
+                        <Text style={s.promoValue}>-Rs {promoDiscount}</Text>
+                    </View>
+                    <View style={s.breakDivider} />
+                    <View style={s.breakRow}>
+                        <Text style={s.totalLabel}>Total</Text>
+                        <Text style={s.totalValue}>Rs {total}</Text>
                     </View>
                 </View>
 
-                {/* Payment Methods */}
-                <Text style={styles.sectionLabel}>SELECT PAYMENT METHOD</Text>
-
-                <TouchableOpacity
-                    style={[styles.methodCard, method === 'cash' && styles.methodActive]}
-                    onPress={() => setMethod('cash')}
-                >
-                    <View style={styles.methodLeft}>
-                        <View style={[styles.methodIcon, { backgroundColor: '#1a2a1a' }]}>
-                            <Text style={styles.methodEmoji}>💵</Text>
+                {/* Payment Method */}
+                <Text style={s.sectionLabel}>PAYMENT METHOD</Text>
+                <View style={s.payMethodCard}>
+                    <View style={s.payMethodLeft}>
+                        <View style={s.payIconBg}>
+                            <Text style={s.payEmoji}>💵</Text>
                         </View>
                         <View>
-                            <Text style={styles.methodName}>Cash</Text>
-                            <Text style={styles.methodDesc}>Pay the driver directly</Text>
+                            <Text style={s.payMethodName}>Cash Payment</Text>
+                            <Text style={s.payMethodSub}>Paid directly to driver</Text>
                         </View>
                     </View>
-                    <View style={[styles.radio, method === 'cash' && styles.radioActive]}>
-                        {method === 'cash' && <View style={styles.radioDot} />}
+                    <View style={s.paidBadge}>
+                        <Text style={s.paidBadgeText}>PAID</Text>
                     </View>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    style={[styles.methodCard, method === 'card' && styles.methodActive]}
-                    onPress={() => setMethod('card')}
-                >
-                    <View style={styles.methodLeft}>
-                        <View style={[styles.methodIcon, { backgroundColor: '#1a1a2a' }]}>
-                            <Text style={styles.methodEmoji}>💳</Text>
-                        </View>
-                        <View>
-                            <Text style={styles.methodName}>Card (Stripe)</Text>
-                            <Text style={styles.methodDesc}>Secure online payment</Text>
-                        </View>
-                    </View>
-                    <View style={[styles.radio, method === 'card' && styles.radioActive]}>
-                        {method === 'card' && <View style={styles.radioDot} />}
-                    </View>
-                </TouchableOpacity>
+                </View>
 
                 {method === 'card' && (
-                    <View style={styles.cardNote}>
-                        <Text style={styles.cardNoteText}>
+                    <View style={s.cardNote}>
+                        <Text style={s.cardNoteText}>
                             💡 Test card: 4242 4242 4242 4242 · Any future date · Any CVV
                         </Text>
                     </View>
                 )}
 
-                <View style={{ height: 20 }} />
+                <View style={{ height: 24 }} />
             </ScrollView>
 
             {/* Confirm Button */}
-            <View style={styles.footer}>
-                <View style={styles.totalRow}>
-                    <Text style={styles.totalLabel}>Total</Text>
-                    <Text style={styles.totalAmt}>RS {estimatedPrice || '—'}</Text>
-                </View>
+            <View style={s.footer}>
                 <TouchableOpacity
-                    style={[styles.confirmBtn, loading && { opacity: 0.6 }]}
+                    style={[s.confirmBtn, loading && { opacity: 0.6 }]}
                     onPress={handleConfirm}
                     disabled={loading}
                 >
                     {loading
                         ? <ActivityIndicator color={theme.colors.black} />
-                        : <Text style={styles.confirmText}>
-                            {method === 'cash' ? '🚗 Confirm & Find Driver' : '💳 Pay RS ' + estimatedPrice}
-                          </Text>
+                        : <Text style={s.confirmText}>✓  Ride Completed - Cash Paid</Text>
                     }
                 </TouchableOpacity>
             </View>
@@ -150,85 +149,211 @@ const PaymentScreen: React.FC = () => {
     );
 };
 
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: theme.colors.background },
+const makeStyles = (t: AppTheme) => StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: t.colors.background,
+    },
     header: {
-        paddingTop: 52, paddingHorizontal: 20,
-        flexDirection: 'row', alignItems: 'center',
-        justifyContent: 'space-between', marginBottom: 20,
+        paddingTop: 52,
+        paddingHorizontal: 20,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 8,
     },
     backBtn: {
-        width: 40, height: 40, borderRadius: 12,
-        backgroundColor: theme.colors.card,
-        alignItems: 'center', justifyContent: 'center',
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        backgroundColor: t.colors.card,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: t.colors.border,
     },
-    backText: { color: theme.colors.text, fontSize: 20 },
-    headerTitle: { fontSize: 15, fontWeight: '900', color: theme.colors.text, letterSpacing: 2 },
-    scroll: { paddingHorizontal: 20 },
-    summaryCard: {
-        backgroundColor: theme.colors.card, borderRadius: 16,
-        padding: 18, marginBottom: 24,
-        borderWidth: 1.5, borderColor: '#222',
+    backText: {
+        color: t.colors.text,
+        fontSize: 20,
     },
-    summaryTitle: {
-        fontSize: 11, fontWeight: '900', color: theme.colors.textSecondary,
-        letterSpacing: 2, marginBottom: 14,
+    headerTitle: {
+        fontSize: 15,
+        fontWeight: '900',
+        color: t.colors.text,
+        letterSpacing: 2,
     },
-    routeRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    dotFrom: { width: 10, height: 10, borderRadius: 5, borderWidth: 2, borderColor: theme.colors.primary },
-    dotTo:   { width: 10, height: 10, borderRadius: 2, backgroundColor: theme.colors.primary },
-    routeLine: { width: 1.5, height: 14, backgroundColor: '#333', marginLeft: 4, marginVertical: 3 },
-    routeText: { flex: 1, fontSize: 13, color: theme.colors.text, fontWeight: '500' },
-    divider: { height: 1, backgroundColor: '#222', marginVertical: 14 },
-    fareRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    fareLabel: { fontSize: 13, color: theme.colors.textSecondary },
-    fareAmt:   { fontSize: 18, fontWeight: '900', color: theme.colors.primary },
+    scroll: {
+        paddingHorizontal: 20,
+        paddingTop: 12,
+    },
+
+    // Hero amount block
+    heroBlock: {
+        alignItems: 'center',
+        paddingVertical: 28,
+        marginBottom: 8,
+    },
+    heroAmount: {
+        fontSize: 64,
+        fontWeight: '900',
+        color: t.colors.primary,
+        letterSpacing: 1,
+        lineHeight: 68,
+    },
+    tripMeta: {
+        fontSize: 12,
+        color: t.colors.textSecondary,
+        marginTop: 6,
+        letterSpacing: 0.3,
+    },
+
+    // Section label
     sectionLabel: {
-        fontSize: 11, fontWeight: '900', color: theme.colors.textSecondary,
-        letterSpacing: 2, marginBottom: 12,
+        fontSize: 11,
+        fontWeight: '900',
+        color: t.colors.textSecondary,
+        letterSpacing: 2,
+        marginBottom: 12,
+        marginTop: 4,
     },
-    methodCard: {
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        backgroundColor: theme.colors.card, borderRadius: 16, padding: 16,
-        marginBottom: 10, borderWidth: 1.5, borderColor: 'transparent',
+
+    // Fare breakdown card
+    breakdownCard: {
+        backgroundColor: t.dark ? t.colors.card : '#F7F7F7',
+        borderRadius: 16,
+        padding: 18,
+        marginBottom: 24,
+        borderWidth: 1,
+        borderColor: t.colors.border,
     },
-    methodActive: { borderColor: theme.colors.primary, backgroundColor: 'rgba(245,197,24,0.05)' },
-    methodLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-    methodIcon: {
-        width: 44, height: 44, borderRadius: 12,
-        alignItems: 'center', justifyContent: 'center',
+    breakRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
     },
-    methodEmoji: { fontSize: 20 },
-    methodName: { fontSize: 14, fontWeight: '700', color: theme.colors.text, marginBottom: 2 },
-    methodDesc: { fontSize: 11, color: theme.colors.textSecondary },
-    radio: {
-        width: 20, height: 20, borderRadius: 10,
-        borderWidth: 2, borderColor: '#444',
-        alignItems: 'center', justifyContent: 'center',
+    breakLabel: {
+        fontSize: 13,
+        color: t.colors.textSecondary,
+        flex: 1,
     },
-    radioActive: { borderColor: theme.colors.primary },
-    radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: theme.colors.primary },
+    breakValue: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: t.colors.text,
+    },
+    promoLabel: {
+        fontSize: 13,
+        color: t.colors.success,
+        fontWeight: '600',
+        flex: 1,
+    },
+    promoValue: {
+        fontSize: 13,
+        fontWeight: '900',
+        color: t.colors.success,
+    },
+    breakDivider: {
+        height: 1,
+        backgroundColor: t.colors.divider,
+        marginVertical: 10,
+    },
+    totalLabel: {
+        fontSize: 14,
+        fontWeight: '900',
+        color: t.colors.text,
+        flex: 1,
+    },
+    totalValue: {
+        fontSize: 16,
+        fontWeight: '900',
+        color: t.colors.text,
+    },
+
+    // Payment method card
+    payMethodCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: t.colors.card,
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 10,
+        borderWidth: 1.5,
+        borderColor: t.colors.border,
+    },
+    payMethodLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 14,
+    },
+    payIconBg: {
+        width: 44,
+        height: 44,
+        borderRadius: 12,
+        backgroundColor: t.dark ? '#1a2a1a' : '#EEFAEE',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    payEmoji: {
+        fontSize: 20,
+    },
+    payMethodName: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: t.colors.text,
+        marginBottom: 2,
+    },
+    payMethodSub: {
+        fontSize: 11,
+        color: t.colors.textSecondary,
+    },
+    paidBadge: {
+        backgroundColor: t.colors.success,
+        borderRadius: 8,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+    },
+    paidBadgeText: {
+        fontSize: 11,
+        fontWeight: '900',
+        color: '#FFFFFF',
+        letterSpacing: 1,
+    },
+
+    // Card test note
     cardNote: {
-        backgroundColor: 'rgba(245,197,24,0.08)', borderRadius: 10,
-        padding: 12, marginTop: 4,
+        backgroundColor: 'rgba(245,197,24,0.08)',
+        borderRadius: 10,
+        padding: 12,
+        marginTop: 4,
     },
-    cardNoteText: { fontSize: 12, color: theme.colors.primary, lineHeight: 18 },
+    cardNoteText: {
+        fontSize: 12,
+        color: t.colors.primary,
+        lineHeight: 18,
+    },
+
+    // Footer
     footer: {
-        padding: 20, paddingBottom: 32,
-        borderTopWidth: 1, borderTopColor: '#1a1a1a',
-        backgroundColor: theme.colors.background,
+        padding: 20,
+        paddingBottom: 36,
+        borderTopWidth: 1,
+        borderTopColor: t.colors.divider,
+        backgroundColor: t.colors.background,
     },
-    totalRow: {
-        flexDirection: 'row', justifyContent: 'space-between',
-        alignItems: 'center', marginBottom: 14,
-    },
-    totalLabel: { fontSize: 13, color: theme.colors.textSecondary },
-    totalAmt:   { fontSize: 20, fontWeight: '900', color: theme.colors.primary },
     confirmBtn: {
-        backgroundColor: theme.colors.primary, borderRadius: 14,
-        paddingVertical: 16, alignItems: 'center',
+        backgroundColor: t.colors.success,
+        borderRadius: 14,
+        paddingVertical: 17,
+        alignItems: 'center',
     },
-    confirmText: { color: theme.colors.black, fontSize: 15, fontWeight: '700' },
+    confirmText: {
+        color: '#FFFFFF',
+        fontSize: 15,
+        fontWeight: '700',
+        letterSpacing: 0.3,
+    },
 });
 
 export default PaymentScreen;

@@ -1,62 +1,57 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Image, Animated, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Animated, StatusBar } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import theme from '../../utils/theme';
-
-const { width, height } = Dimensions.get('window');
+import { useAppTheme } from '../../context/ThemeContext';
 
 const SplashScreen: React.FC = () => {
     const navigation = useNavigation<any>();
+    const { theme } = useAppTheme();
     const fadeAnim = new Animated.Value(0);
-    const scaleAnim = new Animated.Value(0.8);
+    const scaleAnim = new Animated.Value(0.9);
 
     useEffect(() => {
         Animated.parallel([
             Animated.timing(fadeAnim, {
                 toValue: 1,
-                duration: 1200,
+                duration: 1000,
                 useNativeDriver: true,
             }),
             Animated.spring(scaleAnim, {
                 toValue: 1,
-                friction: 4,
+                friction: 8,
                 useNativeDriver: true,
             }),
         ]).start();
 
         const timer = setTimeout(() => {
             navigation.replace('LanguageRole');
-        }, 3000);
+        }, 2500);
 
         return () => clearTimeout(timer);
     }, []);
 
     return (
-        <View style={styles.container}>
-            {/* Background Radial Glow Effect */}
-            <View style={styles.glowContainer}>
-                <View style={styles.glow} />
-            </View>
-
+        <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+            <StatusBar barStyle={theme.dark ? 'light-content' : 'dark-content'} />
+            
             <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
                 {/* Logo Icon */}
-                <View style={styles.iconContainer}>
-                    <View style={styles.shieldBackground} />
-                    <Text style={styles.iconText}>🛡️</Text>
+                <View style={[styles.logoContainer, { backgroundColor: theme.colors.primary }]}>
+                    <Text style={styles.logoIcon}>🛡️</Text>
                 </View>
 
-                {/* Main Logo Text */}
-                <Text style={styles.logoText}>SAFORA</Text>
+                {/* Brand Name */}
+                <Text style={[styles.brandName, { color: theme.colors.text }]}>SAFORA</Text>
                 
                 {/* Tagline */}
-                <Text style={styles.tagline}>SAFETY FIRST FOR ALL</Text>
+                <Text style={[styles.tagline, { color: theme.colors.primary }]}>SAFETY FIRST FOR ALL</Text>
             </Animated.View>
 
-            {/* Bottom Loader */}
-            <View style={styles.loaderContainer}>
-                <View style={[styles.dot, styles.activeDot]} />
-                <View style={styles.dot} />
-                <View style={styles.dot} />
+            {/* Loading Indicator Dots */}
+            <View style={styles.loader}>
+                <View style={[styles.dot, { backgroundColor: theme.colors.primary, width: 20 }]} />
+                <View style={[styles.dot, { backgroundColor: theme.colors.cardSecondary }]} />
+                <View style={[styles.dot, { backgroundColor: theme.colors.cardSecondary }]} />
             </View>
         </View>
     );
@@ -65,80 +60,49 @@ const SplashScreen: React.FC = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: theme.colors.background,
         alignItems: 'center',
         justifyContent: 'center',
-    },
-    glowContainer: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    glow: {
-        width: width * 0.8,
-        height: width * 0.8,
-        backgroundColor: theme.colors.primary,
-        borderRadius: width * 0.4,
-        opacity: 0.12,
     },
     content: {
         alignItems: 'center',
     },
-    iconContainer: {
-        width: 90,
-        height: 90,
-        backgroundColor: theme.colors.primary,
-        borderRadius: 28,
+    logoContainer: {
+        width: 100,
+        height: 100,
+        borderRadius: 30,
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 24,
-        shadowColor: theme.colors.primary,
+        marginBottom: 20,
+        shadowColor: '#000',
         shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.4,
+        shadowOpacity: 0.15,
         shadowRadius: 20,
-        elevation: 10,
+        elevation: 8,
     },
-    shieldBackground: {
-        position: 'absolute',
-        width: '100%',
-        height: '100%',
+    logoIcon: {
+        fontSize: 48,
     },
-    iconText: {
-        fontSize: 40,
-    },
-    logoText: {
-        fontSize: 56,
-        color: theme.colors.text,
+    brandName: {
+        fontSize: 48,
         fontWeight: '900',
-        letterSpacing: 8,
-        // In a real app, we'd use Bebas Neue font family here
+        letterSpacing: 6,
     },
     tagline: {
-        color: theme.colors.primary,
         fontSize: 12,
+        fontWeight: '700',
         letterSpacing: 4,
-        fontWeight: '600',
-        marginTop: 6,
+        marginTop: 8,
     },
-    loaderContainer: {
+    loader: {
         position: 'absolute',
-        bottom: 60,
+        bottom: 50,
         flexDirection: 'row',
-        gap: 6,
+        gap: 8,
     },
     dot: {
-        width: 6,
-        height: 6,
-        borderRadius: 3,
-        backgroundColor: theme.colors.cardSecondary,
-    },
-    activeDot: {
-        width: 20,
-        backgroundColor: theme.colors.primary,
+        width: 8,
+        height: 8,
+        borderRadius: 4,
     },
 });
 

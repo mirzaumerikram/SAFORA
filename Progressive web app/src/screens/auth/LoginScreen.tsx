@@ -9,16 +9,16 @@ import {
     TextInput,
     ScrollView,
     ActivityIndicator,
+    StatusBar,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-// expo-firebase-recaptcha is native only — skip on web
+import { useNavigation, useRoute } from '@react-navigation/native';
 const FirebaseRecaptchaVerifierModal: any = Platform.OS !== 'web'
     ? require('expo-firebase-recaptcha').FirebaseRecaptchaVerifierModal
     : () => null;
 import { signInWithPhoneNumber } from 'firebase/auth';
 import { firebaseAuth, firebaseConfig } from '../../config/firebase';
 import { setConfirmationResult } from '../../services/otpStore';
-import theme from '../../utils/theme';
+import { useAppTheme } from '../../context/ThemeContext';
 import authService from '../../services/auth.service';
 import SaforaAlert from '../../utils/alert';
 import { useAuth } from '../../context/AuthContext';
@@ -28,24 +28,25 @@ type TabType = 'otp' | 'email';
 
 const LoginScreen: React.FC = () => {
     const navigation = useNavigation<any>();
+    const route = useRoute<any>();
+    const { theme } = useAppTheme();
     const { setAuthenticated } = useAuth();
     const { t, isUrdu } = useLanguage();
 
-    // On web, default to email login (phone OTP needs native Firebase Recaptcha)
-    const [activeTab, setActiveTab] = useState<TabType>(Platform.OS === 'web' ? 'email' : 'otp');
+    // Read the role passed from LanguageRoleScreen
+    const selectedRole: 'passenger' | 'driver' = route.params?.selectedRole || 'passenger';
+    const isDriver = selectedRole === 'driver';
 
-    // Phone OTP state
+    const [activeTab, setActiveTab] = useState<TabType>(Platform.OS === 'web' ? 'email' : 'otp');
     const [phoneNumber, setPhoneNumber] = useState('');
     const [otpLoading, setOtpLoading] = useState(false);
     const recaptchaVerifier = useRef<FirebaseRecaptchaVerifierModal>(null);
 
-    // Email/Password state
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [emailLoading, setEmailLoading] = useState(false);
 
-    // --- Phone OTP Flow (Firebase) ---
     const handleGetOTP = async () => {
         const clean = phoneNumber.replace(/\s/g, '');
         if (!clean || clean.length < 9) {
@@ -69,14 +70,9 @@ const LoginScreen: React.FC = () => {
         }
     };
 
-    // --- Email/Password Flow ---
     const handleEmailLogin = async () => {
-        if (!email.trim()) {
-            SaforaAlert('Error', 'Please enter your email address');
-            return;
-        }
-        if (!password) {
-            SaforaAlert('Error', 'Please enter your password');
+        if (!email.trim() || !password) {
+            SaforaAlert('Error', 'Please fill in all fields');
             return;
         }
         setEmailLoading(true);
@@ -96,63 +92,67 @@ const LoginScreen: React.FC = () => {
 
     return (
         <KeyboardAvoidingView
-            style={styles.container}
+            style={[styles.container, { backgroundColor: theme.colors.background }]}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-            <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+            <StatusBar barStyle={theme.dark ? 'light-content' : 'dark-content'} />
+            <FirebaseRecaptchaVerifierModal
+                ref={recaptchaVerifier}
+                firebaseConfig={firebaseConfig}
+                attemptInvisibleVerification={true}
+            />
 
-                {/* Firebase reCAPTCHA — invisible, required for phone auth */}
-                <FirebaseRecaptchaVerifierModal
-                    ref={recaptchaVerifier}
-                    firebaseConfig={firebaseConfig}
-                    attemptInvisibleVerification={true}
-                />
-
-                {/* Back Button */}
-                <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-                    <Text style={styles.backBtnText}>←</Text>
+            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                <TouchableOpacity 
+                    style={[styles.backBtn, { backgroundColor: theme.colors.card }]} 
+                    onPress={() => navigation.goBack()}
+                >
+                    <Text style={[styles.backBtnText, { color: theme.colors.text }]}>←</Text>
                 </TouchableOpacity>
 
-                {/* Badge */}
-                <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{t.passengerLogin}</Text>
+                <View style={[styles.badge, { backgroundColor: isDriver ? 'rgba(236,72,153,0.15)' : (theme.dark ? 'rgba(245,197,24,0.15)' : 'rgba(245,197,24,0.1)') }]}>
+                    <Text style={[styles.badgeText, { color: isDriver ? theme.colors.secondary : theme.colors.primary }]}>
+                        {isDriver ? (t.driverLogin || '🚗 DRIVER LOGIN') : (t.passengerLogin || '🛡️ PASSENGER LOGIN')}
+                    </Text>
                 </View>
 
-                <Text style={[styles.title, isUrdu && styles.rtlTitle]}>{t.welcomeBack}</Text>
-                <Text style={[styles.subtitle, isUrdu && styles.rtl]}>{t.signInSub}</Text>
+                <Text style={[styles.title, { color: theme.colors.text }, isUrdu && styles.rtlTitle]}>
+                    {t.welcomeBack}
+                </Text>
+                <Text style={[styles.subtitle, { color: theme.colors.textSecondary }, isUrdu && styles.rtl]}>
+                    {t.signInSub}
+                </Text>
 
-                {/* Tab Switcher */}
-                <View style={styles.tabSwitcher}>
+                <View style={[styles.tabSwitcher, { backgroundColor: theme.colors.card }]}>
                     <TouchableOpacity
-                        style={[styles.tab, activeTab === 'otp' && styles.tabActive]}
+                        style={[styles.tab, activeTab === 'otp' && { backgroundColor: theme.colors.primary }]}
                         onPress={() => setActiveTab('otp')}
                     >
-                        <Text style={[styles.tabText, activeTab === 'otp' && styles.tabTextActive]}>
+                        <Text style={[styles.tabText, { color: activeTab === 'otp' ? '#000' : theme.colors.textSecondary }]}>
                             {t.phoneOtpTab}
                         </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                        style={[styles.tab, activeTab === 'email' && styles.tabActive]}
+                        style={[styles.tab, activeTab === 'email' && { backgroundColor: theme.colors.primary }]}
                         onPress={() => setActiveTab('email')}
                     >
-                        <Text style={[styles.tabText, activeTab === 'email' && styles.tabTextActive]}>
+                        <Text style={[styles.tabText, { color: activeTab === 'email' ? '#000' : theme.colors.textSecondary }]}>
                             {t.emailTab}
                         </Text>
                     </TouchableOpacity>
                 </View>
 
-                {/* ── Phone OTP Tab ── */}
-                {activeTab === 'otp' && (
+                {activeTab === 'otp' ? (
                     <View>
                         <View style={styles.inputGroup}>
-                            <Text style={styles.inputLabel}>{t.phoneNumberLabel}</Text>
+                            <Text style={[styles.inputLabel, { color: theme.colors.primary }]}>{t.phoneNumberLabel}</Text>
                             <View style={styles.inputRow}>
-                                <View style={styles.countryCode}>
+                                <View style={[styles.countryCode, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
                                     <Text style={styles.countryFlag}>🇵🇰</Text>
-                                    <Text style={styles.countryText}>+92</Text>
+                                    <Text style={[styles.countryText, { color: theme.colors.text }]}>+92</Text>
                                 </View>
                                 <TextInput
-                                    style={styles.phoneInput}
+                                    style={[styles.phoneInput, { backgroundColor: theme.colors.card, borderColor: theme.colors.primary, color: theme.colors.text }]}
                                     placeholder="3XX XXXXXXX"
                                     placeholderTextColor={theme.colors.placeholder}
                                     value={phoneNumber}
@@ -161,349 +161,108 @@ const LoginScreen: React.FC = () => {
                                 />
                             </View>
                         </View>
-
-                        <View style={styles.termsRow}>
-                            <View style={styles.checkbox}>
-                                <Text style={styles.checkMark}>✓</Text>
-                            </View>
-                            <Text style={styles.termsText}>
-                                {t.agreeTerms}{' '}
-                                <Text style={styles.linkText}>{t.safetyTerms}</Text> {t.and}{' '}
-                                <Text style={styles.linkText}>{t.privacyPolicy}</Text> {t.ofSafora}
-                            </Text>
-                        </View>
-
                         <TouchableOpacity
-                            style={[styles.primaryBtn, otpLoading && styles.btnDisabled]}
+                            style={[styles.primaryBtn, { backgroundColor: theme.colors.primary }, otpLoading && styles.btnDisabled]}
                             onPress={handleGetOTP}
                             disabled={otpLoading}
                         >
-                            {otpLoading
-                                ? <ActivityIndicator color={theme.colors.black} />
-                                : <Text style={styles.primaryBtnText}>{t.getOtp}</Text>
-                            }
+                            {otpLoading ? <ActivityIndicator color="#000" /> : <Text style={styles.primaryBtnText}>{t.getOtp}</Text>}
                         </TouchableOpacity>
                     </View>
-                )}
-
-                {/* ── Email / Password Tab ── */}
-                {activeTab === 'email' && (
+                ) : (
                     <View>
                         <View style={styles.inputGroup}>
-                            <Text style={styles.inputLabel}>{t.emailAddressLabel}</Text>
+                            <Text style={[styles.inputLabel, { color: theme.colors.primary }]}>{t.emailAddressLabel}</Text>
                             <TextInput
-                                style={styles.textInput}
+                                style={[styles.textInput, { backgroundColor: theme.colors.card, borderColor: theme.colors.border, color: theme.colors.text }]}
                                 placeholder="you@example.com"
                                 placeholderTextColor={theme.colors.placeholder}
                                 value={email}
                                 onChangeText={setEmail}
                                 keyboardType="email-address"
                                 autoCapitalize="none"
-                                autoComplete="email"
                             />
                         </View>
-
                         <View style={styles.inputGroup}>
-                            <Text style={styles.inputLabel}>{t.passwordLabel}</Text>
-                            <View style={styles.passwordRow}>
+                            <Text style={[styles.inputLabel, { color: theme.colors.primary }]}>{t.passwordLabel}</Text>
+                            <View style={[styles.passwordRow, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
                                 <TextInput
-                                    style={styles.passwordInput}
-                                    placeholder="Enter your password"
+                                    style={[styles.passwordInput, { color: theme.colors.text }]}
+                                    placeholder="••••••••"
                                     placeholderTextColor={theme.colors.placeholder}
                                     value={password}
                                     onChangeText={setPassword}
                                     secureTextEntry={!showPassword}
-                                    autoCapitalize="none"
                                 />
-                                <TouchableOpacity
-                                    style={styles.eyeBtn}
-                                    onPress={() => setShowPassword(!showPassword)}
-                                >
+                                <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
                                     <Text style={styles.eyeIcon}>{showPassword ? '🙈' : '👁️'}</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
-
-                        <TouchableOpacity style={styles.forgotRow}>
-                            <Text style={styles.forgotText}>{t.forgotPassword}</Text>
-                        </TouchableOpacity>
-
                         <TouchableOpacity
-                            style={[styles.primaryBtn, emailLoading && styles.btnDisabled]}
+                            style={[styles.primaryBtn, { backgroundColor: theme.colors.primary }, emailLoading && styles.btnDisabled]}
                             onPress={handleEmailLogin}
                             disabled={emailLoading}
                         >
-                            {emailLoading
-                                ? <ActivityIndicator color={theme.colors.black} />
-                                : <Text style={styles.primaryBtnText}>{t.loginBtn}</Text>
-                            }
+                            {emailLoading ? <ActivityIndicator color="#000" /> : <Text style={styles.primaryBtnText}>{t.loginBtn}</Text>}
                         </TouchableOpacity>
                     </View>
                 )}
 
-                {/* Divider */}
-                <View style={styles.socialDivider}>
-                    <View style={styles.dividerLine} />
-                    <Text style={styles.dividerText}>{t.orDivider}</Text>
-                    <View style={styles.dividerLine} />
+                <View style={styles.footer}>
+                    <View style={styles.socialDivider}>
+                        <View style={[styles.dividerLine, { backgroundColor: theme.colors.divider }]} />
+                        <Text style={[styles.dividerText, { color: theme.colors.textSecondary }]}>{t.orDivider}</Text>
+                        <View style={[styles.dividerLine, { backgroundColor: theme.colors.divider }]} />
+                    </View>
+                    <View style={styles.registerRow}>
+                        <Text style={[styles.registerText, { color: theme.colors.textSecondary }]}>{t.noAccount} </Text>
+                        <TouchableOpacity onPress={() => navigation.navigate('Register', { selectedRole })}>
+                            <Text style={[styles.registerLink, { color: isDriver ? theme.colors.secondary : theme.colors.primary }]}>{t.registerLink}</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
-
-                {/* Register Link */}
-                <View style={styles.registerRow}>
-                    <Text style={styles.registerText}>{t.noAccount} </Text>
-                    <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-                        <Text style={styles.registerLink}>{t.registerLink}</Text>
-                    </TouchableOpacity>
-                </View>
-
             </ScrollView>
         </KeyboardAvoidingView>
     );
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: theme.colors.background,
-    },
-    scrollContent: {
-        flexGrow: 1,
-        padding: 24,
-        paddingTop: 60,
-    },
-    backBtn: {
-        width: 36,
-        height: 36,
-        borderRadius: 10,
-        backgroundColor: theme.colors.card,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 32,
-    },
-    backBtnText: {
-        color: theme.colors.text,
-        fontSize: 20,
-    },
-    badge: {
-        alignSelf: 'flex-start',
-        backgroundColor: 'rgba(245,197,24,0.12)',
-        borderColor: 'rgba(245,197,24,0.3)',
-        borderWidth: 1,
-        borderRadius: 20,
-        paddingHorizontal: 12,
-        paddingVertical: 4,
-        marginBottom: 18,
-    },
-    badgeText: {
-        fontSize: 11,
-        color: theme.colors.primary,
-        fontWeight: '700',
-        letterSpacing: 1,
-    },
-    title: {
-        fontSize: 42,
-        color: theme.colors.text,
-        fontWeight: '900',
-        letterSpacing: 3,
-        lineHeight: 44,
-        marginBottom: 8,
-    },
-    subtitle: {
-        color: theme.colors.textSecondary,
-        fontSize: 13,
-        lineHeight: 20,
-        marginBottom: 28,
-    },
-    // Tab Switcher
-    tabSwitcher: {
-        flexDirection: 'row',
-        backgroundColor: theme.colors.card,
-        borderRadius: 14,
-        padding: 4,
-        marginBottom: 28,
-    },
-    tab: {
-        flex: 1,
-        paddingVertical: 10,
-        borderRadius: 11,
-        alignItems: 'center',
-    },
-    tabActive: {
-        backgroundColor: theme.colors.primary,
-    },
-    tabText: {
-        fontSize: 13,
-        fontWeight: '700',
-        color: theme.colors.textSecondary,
-    },
-    tabTextActive: {
-        color: theme.colors.black,
-    },
-    // Phone OTP inputs
-    inputGroup: {
-        marginBottom: 20,
-    },
-    inputLabel: {
-        fontSize: 11,
-        letterSpacing: 2,
-        textTransform: 'uppercase',
-        color: theme.colors.primary,
-        fontWeight: '700',
-        marginBottom: 8,
-    },
-    inputRow: {
-        flexDirection: 'row',
-        gap: 10,
-    },
-    countryCode: {
-        backgroundColor: theme.colors.card,
-        borderWidth: 1.5,
-        borderColor: theme.colors.border,
-        borderRadius: 12,
-        paddingHorizontal: 10,
-        height: 52,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-    },
-    countryFlag: { fontSize: 14 },
-    countryText: {
-        color: theme.colors.text,
-        fontSize: 14,
-        fontWeight: '700',
-    },
-    phoneInput: {
-        flex: 1,
-        backgroundColor: theme.colors.card,
-        borderWidth: 1.5,
-        borderColor: theme.colors.primary,
-        borderRadius: 12,
-        paddingHorizontal: 16,
-        fontSize: 15,
-        color: theme.colors.text,
-        fontWeight: '600',
-        letterSpacing: 1,
-        height: 52,
-    },
-    // Email inputs
-    textInput: {
-        backgroundColor: theme.colors.card,
-        borderWidth: 1.5,
-        borderColor: theme.colors.border,
-        borderRadius: 12,
-        paddingHorizontal: 16,
-        fontSize: 14,
-        color: theme.colors.text,
-        height: 52,
-    },
-    passwordRow: {
-        flexDirection: 'row',
-        backgroundColor: theme.colors.card,
-        borderWidth: 1.5,
-        borderColor: theme.colors.border,
-        borderRadius: 12,
-        height: 52,
-        alignItems: 'center',
-    },
-    passwordInput: {
-        flex: 1,
-        paddingHorizontal: 16,
-        fontSize: 14,
-        color: theme.colors.text,
-        height: '100%',
-    },
-    eyeBtn: {
-        paddingHorizontal: 14,
-        height: '100%',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    eyeIcon: { fontSize: 16 },
-    forgotRow: {
-        alignItems: 'flex-end',
-        marginBottom: 24,
-        marginTop: -8,
-    },
-    forgotText: {
-        color: theme.colors.primary,
-        fontSize: 12,
-        fontWeight: '600',
-    },
-    // Terms
-    termsRow: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        gap: 10,
-        marginBottom: 28,
-    },
-    checkbox: {
-        width: 18,
-        height: 18,
-        borderRadius: 5,
-        backgroundColor: theme.colors.primary,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginTop: 1,
-    },
-    checkMark: {
-        fontSize: 10,
-        color: theme.colors.black,
-        fontWeight: '900',
-    },
-    termsText: {
-        fontSize: 12,
-        color: theme.colors.textSecondary,
-        lineHeight: 18,
-        flex: 1,
-    },
-    linkText: { color: theme.colors.primary },
-    // Buttons
-    primaryBtn: {
-        backgroundColor: theme.colors.primary,
-        borderRadius: 14,
-        paddingVertical: 16,
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: 52,
-    },
+    container: { flex: 1 },
+    scrollContent: { flexGrow: 1, padding: 24, paddingTop: 60 },
+    backBtn: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
+    backBtnText: { fontSize: 22 },
+    badge: { alignSelf: 'flex-start', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5, marginBottom: 16 },
+    badgeText: { fontSize: 11, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase' },
+    title: { fontSize: 40, fontWeight: '900', letterSpacing: 1, lineHeight: 44, marginBottom: 8 },
+    rtlTitle: { textAlign: 'right' },
+    subtitle: { fontSize: 14, lineHeight: 20, marginBottom: 32 },
+    rtl: { textAlign: 'right' },
+    tabSwitcher: { flexDirection: 'row', borderRadius: 16, padding: 5, marginBottom: 32 },
+    tab: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
+    tabText: { fontSize: 14, fontWeight: '700' },
+    inputGroup: { marginBottom: 24 },
+    inputLabel: { fontSize: 12, fontWeight: '800', letterSpacing: 1, marginBottom: 10, textTransform: 'uppercase' },
+    inputRow: { flexDirection: 'row', gap: 12 },
+    countryCode: { borderWidth: 2, borderRadius: 16, paddingHorizontal: 14, height: 56, flexDirection: 'row', alignItems: 'center', gap: 8 },
+    countryFlag: { fontSize: 16 },
+    countryText: { fontSize: 15, fontWeight: '700' },
+    phoneInput: { flex: 1, borderWidth: 2, borderRadius: 16, paddingHorizontal: 18, fontSize: 16, fontWeight: '700', letterSpacing: 1.5, height: 56 },
+    textInput: { borderWidth: 2, borderRadius: 16, paddingHorizontal: 18, fontSize: 15, height: 56 },
+    passwordRow: { flexDirection: 'row', borderWidth: 2, borderRadius: 16, height: 56, alignItems: 'center' },
+    passwordInput: { flex: 1, paddingHorizontal: 18, fontSize: 15, height: '100%' },
+    eyeBtn: { paddingHorizontal: 16 },
+    eyeIcon: { fontSize: 18 },
+    primaryBtn: { borderRadius: 18, paddingVertical: 18, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4 },
     btnDisabled: { opacity: 0.6 },
-    primaryBtnText: {
-        color: theme.colors.black,
-        fontSize: 15,
-        fontWeight: '700',
-        letterSpacing: 0.5,
-    },
-    // Divider
-    socialDivider: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginVertical: 24,
-        gap: 12,
-    },
-    dividerLine: {
-        flex: 1,
-        height: 1,
-        backgroundColor: theme.colors.divider,
-    },
-    dividerText: {
-        color: theme.colors.textSecondary,
-        fontSize: 11,
-    },
-    // Register
-    registerRow: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    registerText: {
-        color: theme.colors.textSecondary,
-        fontSize: 13,
-    },
-    registerLink: {
-        color: theme.colors.primary,
-        fontSize: 13,
-        fontWeight: '700',
-    },
+    primaryBtnText: { color: '#000', fontSize: 16, fontWeight: '900', letterSpacing: 0.5 },
+    footer: { marginTop: 40 },
+    socialDivider: { flexDirection: 'row', alignItems: 'center', marginBottom: 24, gap: 16 },
+    dividerLine: { flex: 1, height: 1 },
+    dividerText: { fontSize: 12, fontWeight: '600' },
+    registerRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
+    registerText: { fontSize: 14 },
+    registerLink: { fontSize: 14, fontWeight: '800' },
 });
 
 export default LoginScreen;

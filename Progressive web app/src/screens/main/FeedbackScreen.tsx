@@ -1,19 +1,40 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, TextInput, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import {
+    View,
+    Text,
+    StyleSheet,
+    TouchableOpacity,
+    TextInput,
+    ScrollView,
+    Alert,
+    ActivityIndicator,
+} from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import theme from '../../utils/theme';
+import { useAppTheme } from '../../context/ThemeContext';
+import { AppTheme } from '../../utils/theme';
 import apiService from '../../services/api';
 
-const tags = ["Professional", "Helpful", "Clean vehicle", "On-time", "Great music", "Safe Driving"];
+const TAGS = [
+    'Professional',
+    'Safe Driving',
+    'Clean Vehicle',
+    'On Time',
+    'Polite',
+    'Great Music',
+];
 
 const FeedbackScreen: React.FC = () => {
     const navigation = useNavigation<any>();
     const route = useRoute<any>();
     const { rideId } = route.params || {};
-    const [rating, setRating] = useState(5);
+
+    const [rating, setRating] = useState(0);
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
     const [comment, setComment] = useState('');
     const [loading, setLoading] = useState(false);
+
+    const theme = useAppTheme();
+    const s = useMemo(() => makeStyles(theme), [theme]);
 
     const toggleTag = (tag: string) => {
         if (selectedTags.includes(tag)) {
@@ -25,216 +46,351 @@ const FeedbackScreen: React.FC = () => {
 
     const handleSubmit = async () => {
         if (!rideId) {
-            // No rideId (demo mode) — just navigate
             navigation.navigate('FareBreakdown');
             return;
         }
         setLoading(true);
         try {
-            await apiService.post(`/rides/${rideId}/rate`, {
-                score: rating,
-                comment: comment.trim() || selectedTags.join(', '),
-                raterRole: 'passenger',
+            await apiService.post('/rides/feedback', {
+                rideId,
+                rating,
+                tags: selectedTags,
+                comment,
             });
             navigation.navigate('FareBreakdown');
         } catch (err: any) {
-            Alert.alert('Rating Failed', err.message || 'Could not submit rating. Please try again.');
+            Alert.alert('Submission Failed', err.message || 'Could not submit feedback. Please try again.');
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <ScrollView contentContainerStyle={styles.container}>
-            <View style={styles.header}>
-                <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-                    <Text style={styles.backText}>←</Text>
-                </TouchableOpacity>
-                <Text style={styles.title}>RATE YOUR{"\n"}JOURNEY</Text>
+        <ScrollView
+            contentContainerStyle={s.container}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+        >
+            {/* Arrived safely badge */}
+            <View style={s.badgeRow}>
+                <View style={s.badge}>
+                    <Text style={s.badgeText}>✓  ARRIVED SAFELY</Text>
+                </View>
             </View>
 
-            <View style={styles.profileSection}>
-                <Image 
-                    source={{ uri: 'https://via.placeholder.com/100' }} 
-                    style={styles.driverImg} 
-                />
-                <Text style={styles.driverName}>Ahmed Khan</Text>
-                <Text style={styles.carInfo}>White Toyota Corolla • LEC-405</Text>
+            {/* Title + subtitle */}
+            <Text style={s.title}>RATE YOUR RIDE</Text>
+            <Text style={s.subtitle}>
+                Help us keep SAFORA safe for everyone. Your feedback matters.
+            </Text>
+
+            {/* Driver info card */}
+            <View style={s.driverCard}>
+                <View style={s.driverLeft}>
+                    <View style={s.avatar}>
+                        <Text style={s.avatarText}>A</Text>
+                    </View>
+                    <View style={s.driverInfo}>
+                        <Text style={s.driverName}>Ahmed Raza</Text>
+                        <Text style={s.driverSub}>LEA-451 · Eco Bike</Text>
+                    </View>
+                </View>
+                <View style={s.driverRight}>
+                    <View style={s.distanceBadge}>
+                        <Text style={s.distanceBadgeText}>5.9KM</Text>
+                    </View>
+                    <Text style={s.durationText}>18 min</Text>
+                </View>
             </View>
 
-            <View style={styles.ratingRow}>
-                {[1, 2, 3, 4, 5].map((star) => (
-                    <TouchableOpacity key={star} onPress={() => setRating(star)}>
-                        <Text style={[styles.star, star <= rating && styles.starActive]}>
-                            {star <= rating ? '⭐' : '☆'}
-                        </Text>
-                    </TouchableOpacity>
-                ))}
-            </View>
-
-            <Text style={styles.sectionLabel}>WHAT WENT WELL?</Text>
-            <View style={styles.tagGrid}>
-                {tags.map((tag) => (
-                    <TouchableOpacity 
-                        key={tag} 
-                        style={[styles.tag, selectedTags.includes(tag) && styles.tagSelected]}
-                        onPress={() => toggleTag(tag)}
+            {/* Overall rating */}
+            <Text style={s.sectionLabel}>OVERALL RATING</Text>
+            <View style={s.starsRow}>
+                {[1, 2, 3, 4, 5].map(star => (
+                    <TouchableOpacity
+                        key={star}
+                        onPress={() => setRating(star)}
+                        activeOpacity={0.7}
+                        style={s.starBtn}
                     >
-                        <Text style={[styles.tagText, selectedTags.includes(tag) && styles.tagTextSelected]}>
-                            {tag}
+                        <Text style={[s.star, star <= rating && s.starFilled]}>
+                            {star <= rating ? '★' : '☆'}
                         </Text>
                     </TouchableOpacity>
                 ))}
             </View>
 
-            <TextInput 
-                style={styles.commentInput} 
-                placeholder="Leave a comment (Optional)"
+            {/* Quick tags */}
+            <Text style={s.sectionLabel}>QUICK TAGS</Text>
+            <View style={s.tagsRow}>
+                {TAGS.map(tag => {
+                    const active = selectedTags.includes(tag);
+                    return (
+                        <TouchableOpacity
+                            key={tag}
+                            style={[s.tag, active && s.tagActive]}
+                            onPress={() => toggleTag(tag)}
+                            activeOpacity={0.75}
+                        >
+                            <Text style={[s.tagText, active && s.tagTextActive]}>
+                                {tag}
+                            </Text>
+                        </TouchableOpacity>
+                    );
+                })}
+            </View>
+
+            {/* Comment input */}
+            <TextInput
+                style={s.commentInput}
+                placeholder="Tell us more about your experience..."
                 placeholderTextColor={theme.colors.placeholder}
                 multiline
                 value={comment}
                 onChangeText={setComment}
+                textAlignVertical="top"
             />
 
-            <TouchableOpacity 
-                style={[styles.submitBtn, loading && { opacity: 0.6 }]} 
+            {/* Submit button */}
+            <TouchableOpacity
+                style={[s.submitBtn, loading && s.submitBtnDisabled]}
                 onPress={handleSubmit}
                 disabled={loading}
+                activeOpacity={0.85}
             >
-                {loading
-                    ? <ActivityIndicator color={theme.colors.black} />
-                    : <Text style={styles.submitText}>Submit Feedback →</Text>
-                }
+                {loading ? (
+                    <ActivityIndicator color={theme.colors.black} />
+                ) : (
+                    <Text style={s.submitText}>Submit Feedback →</Text>
+                )}
+            </TouchableOpacity>
+
+            {/* Skip link */}
+            <TouchableOpacity
+                style={s.skipBtn}
+                onPress={() => navigation.navigate('FareBreakdown')}
+                activeOpacity={0.6}
+            >
+                <Text style={s.skipText}>Skip for now</Text>
             </TouchableOpacity>
         </ScrollView>
     );
 };
 
-const styles = StyleSheet.create({
-    container: {
-        flexGrow: 1,
-        backgroundColor: theme.colors.background,
-        padding: 24,
-        paddingTop: 60,
-    },
-    header: {
-        marginBottom: 32,
-    },
-    backBtn: {
-        width: 40,
-        height: 40,
-        borderRadius: 12,
-        backgroundColor: theme.colors.card,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 20,
-        borderWidth: 1,
-        borderColor: '#222',
-    },
-    backText: {
-        color: theme.colors.text,
-        fontSize: 20,
-    },
-    title: {
-        fontSize: 36,
-        color: theme.colors.text,
-        fontWeight: '900',
-        letterSpacing: 2,
-        lineHeight: 38,
-    },
-    profileSection: {
-        alignItems: 'center',
-        marginBottom: 32,
-    },
-    driverImg: {
-        width: 80,
-        height: 80,
-        borderRadius: 24,
-        backgroundColor: theme.colors.card,
-        marginBottom: 16,
-        borderWidth: 2,
-        borderColor: theme.colors.primary,
-    },
-    driverName: {
-        fontSize: 20,
-        fontWeight: '900',
-        color: theme.colors.text,
-        marginBottom: 4,
-    },
-    carInfo: {
-        fontSize: 12,
-        color: theme.colors.textSecondary,
-    },
-    ratingRow: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        gap: 12,
-        marginBottom: 40,
-    },
-    star: {
-        fontSize: 34,
-        color: '#333',
-    },
-    starActive: {
-        color: theme.colors.primary,
-    },
-    sectionLabel: {
-        fontSize: 10,
-        letterSpacing: 3,
-        color: theme.colors.primary,
-        fontWeight: '800',
-        marginBottom: 16,
-    },
-    tagGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 10,
-        marginBottom: 32,
-    },
-    tag: {
-        backgroundColor: theme.colors.card,
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        borderRadius: 12,
-        borderWidth: 1.5,
-        borderColor: '#222',
-    },
-    tagSelected: {
-        borderColor: theme.colors.primary,
-        backgroundColor: 'rgba(245,197,24,0.08)',
-    },
-    tagText: {
-        fontSize: 12,
-        color: theme.colors.textSecondary,
-        fontWeight: '600',
-    },
-    tagTextSelected: {
-        color: theme.colors.primary,
-    },
-    commentInput: {
-        backgroundColor: theme.colors.card,
-        borderRadius: 16,
-        padding: 16,
-        height: 100,
-        color: theme.colors.text,
-        textAlignVertical: 'top',
-        fontSize: 14,
-        marginBottom: 40,
-        borderWidth: 1,
-        borderColor: '#222',
-    },
-    submitBtn: {
-        backgroundColor: theme.colors.primary,
-        paddingVertical: 16,
-        borderRadius: 16,
-        alignItems: 'center',
-        marginTop: 'auto',
-    },
-    submitText: {
-        color: theme.colors.black,
-        fontSize: 15,
-        fontWeight: '900',
-    },
-});
+const makeStyles = (t: AppTheme) =>
+    StyleSheet.create({
+        container: {
+            flexGrow: 1,
+            backgroundColor: t.colors.background,
+            paddingHorizontal: 24,
+            paddingTop: 64,
+            paddingBottom: 40,
+        },
+
+        /* Arrived safely badge */
+        badgeRow: {
+            alignItems: 'flex-start',
+            marginBottom: 20,
+        },
+        badge: {
+            backgroundColor: t.colors.success,
+            borderRadius: t.borderRadius.full,
+            paddingHorizontal: 14,
+            paddingVertical: 6,
+        },
+        badgeText: {
+            color: '#FFFFFF',
+            fontSize: t.fontSize.xs,
+            fontWeight: t.fontWeight.heavy,
+            letterSpacing: 1.2,
+        },
+
+        /* Title & subtitle */
+        title: {
+            fontSize: 38,
+            fontWeight: t.fontWeight.heavy,
+            color: t.colors.text,
+            letterSpacing: 1.5,
+            lineHeight: 42,
+            marginBottom: 10,
+            fontFamily: t.fonts.heading,
+        },
+        subtitle: {
+            fontSize: t.fontSize.sm,
+            color: t.colors.textSecondary,
+            lineHeight: 20,
+            marginBottom: 28,
+            fontFamily: t.fonts.body,
+        },
+
+        /* Driver card */
+        driverCard: {
+            backgroundColor: t.colors.cardSecondary,
+            borderRadius: t.borderRadius.xl,
+            padding: 16,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: 32,
+            borderWidth: 1,
+            borderColor: t.colors.border,
+        },
+        driverLeft: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
+        },
+        avatar: {
+            width: 48,
+            height: 48,
+            borderRadius: 24,
+            backgroundColor: t.colors.primary,
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
+        avatarText: {
+            fontSize: t.fontSize.xl,
+            fontWeight: t.fontWeight.heavy,
+            color: t.colors.black,
+        },
+        driverInfo: {
+            gap: 3,
+        },
+        driverName: {
+            fontSize: t.fontSize.md,
+            fontWeight: t.fontWeight.heavy,
+            color: t.colors.text,
+            fontFamily: t.fonts.bodyBold,
+        },
+        driverSub: {
+            fontSize: t.fontSize.xs,
+            color: t.colors.textSecondary,
+            fontFamily: t.fonts.body,
+        },
+        driverRight: {
+            alignItems: 'flex-end',
+            gap: 4,
+        },
+        distanceBadge: {
+            backgroundColor: t.colors.primary,
+            borderRadius: t.borderRadius.sm,
+            paddingHorizontal: 10,
+            paddingVertical: 4,
+        },
+        distanceBadgeText: {
+            fontSize: t.fontSize.xs,
+            fontWeight: t.fontWeight.heavy,
+            color: t.colors.black,
+            letterSpacing: 0.5,
+        },
+        durationText: {
+            fontSize: t.fontSize.xs,
+            color: t.colors.textSecondary,
+            fontFamily: t.fonts.body,
+        },
+
+        /* Section labels */
+        sectionLabel: {
+            fontSize: 10,
+            letterSpacing: 3,
+            color: t.colors.textSecondary,
+            fontWeight: t.fontWeight.heavy,
+            marginBottom: 14,
+            fontFamily: t.fonts.bodyBold,
+        },
+
+        /* Stars */
+        starsRow: {
+            flexDirection: 'row',
+            gap: 8,
+            marginBottom: 32,
+        },
+        starBtn: {
+            padding: 4,
+        },
+        star: {
+            fontSize: 36,
+            color: t.colors.border,
+        },
+        starFilled: {
+            color: t.colors.primary,
+        },
+
+        /* Tags */
+        tagsRow: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: 10,
+            marginBottom: 28,
+        },
+        tag: {
+            borderWidth: 1.5,
+            borderColor: t.colors.border,
+            borderRadius: t.borderRadius.full,
+            paddingHorizontal: 16,
+            paddingVertical: 9,
+            backgroundColor: 'transparent',
+        },
+        tagActive: {
+            backgroundColor: t.colors.primary,
+            borderColor: t.colors.primary,
+        },
+        tagText: {
+            fontSize: t.fontSize.xs,
+            fontWeight: t.fontWeight.semibold,
+            color: t.colors.textSecondary,
+            fontFamily: t.fonts.bodyMedium,
+        },
+        tagTextActive: {
+            color: t.colors.black,
+        },
+
+        /* Comment input */
+        commentInput: {
+            backgroundColor: t.colors.inputBg,
+            borderRadius: t.borderRadius.lg,
+            padding: 16,
+            minHeight: 110,
+            color: t.colors.text,
+            fontSize: t.fontSize.sm,
+            marginBottom: 32,
+            borderWidth: 1,
+            borderColor: t.colors.border,
+            fontFamily: t.fonts.body,
+        },
+
+        /* Submit button */
+        submitBtn: {
+            backgroundColor: t.colors.primary,
+            paddingVertical: 17,
+            borderRadius: t.borderRadius.lg,
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 16,
+            ...(t.shadows.primary as object),
+        },
+        submitBtnDisabled: {
+            opacity: 0.6,
+        },
+        submitText: {
+            color: t.colors.black,
+            fontSize: t.fontSize.md,
+            fontWeight: t.fontWeight.heavy,
+            letterSpacing: 0.5,
+            fontFamily: t.fonts.bodyBold,
+        },
+
+        /* Skip */
+        skipBtn: {
+            alignItems: 'center',
+            paddingVertical: 8,
+        },
+        skipText: {
+            fontSize: t.fontSize.sm,
+            color: t.colors.textSecondary,
+            fontFamily: t.fonts.body,
+            textDecorationLine: 'underline',
+        },
+    });
 
 export default FeedbackScreen;

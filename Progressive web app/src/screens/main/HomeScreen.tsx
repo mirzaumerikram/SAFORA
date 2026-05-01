@@ -1,373 +1,590 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Modal, Pressable } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+    View,
+    Text,
+    StyleSheet,
+    TouchableOpacity,
+    Modal,
+    Pressable,
+    StatusBar,
+} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import SaforaMap from '../../components/SaforaMap';
 import { useNavigation } from '@react-navigation/native';
-import theme from '../../utils/theme';
+import { useAppTheme } from '../../context/ThemeContext';
+import { AppTheme } from '../../utils/theme';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 import { STORAGE_KEYS } from '../../utils/constants';
 
-const { width, height } = Dimensions.get('window');
+// ─── Tab definitions ──────────────────────────────────────────────────────────
+type TabId = 'ride' | 'history' | 'safety' | 'profile';
 
+interface Tab {
+    id: TabId;
+    icon: string;
+    label: string;
+    route?: string;
+}
+
+const TABS: Tab[] = [
+    { id: 'ride',    icon: '🚗', label: 'Ride' },
+    { id: 'history', icon: '🕒', label: 'History', route: 'RideHistory' },
+    { id: 'safety',  icon: '🛡️', label: 'Safety',  route: 'Safety' },
+    { id: 'profile', icon: '👤', label: 'Profile',  route: 'Profile' },
+];
+
+// ─── Quick shortcuts ──────────────────────────────────────────────────────────
+interface Shortcut {
+    icon: string;
+    label: string;
+    subtitle: string;
+    bg: string;
+    route?: string;
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 const HomeScreen: React.FC = () => {
-    const navigation = useNavigation<any>();
-    const { t } = useLanguage();
-    const { logout } = useAuth();
-    const [userName, setUserName] = useState('');
-    const [menuOpen, setMenuOpen] = useState(false);
+    const navigation    = useNavigation<any>();
+    const { t }         = useLanguage();
+    const { logout }    = useAuth();
+    const { theme, isDark } = useAppTheme();
+    const s                 = useMemo(() => makeStyles(theme), [theme]);
 
+    const [userName, setUserName]   = useState('');
+    const [fullName, setFullName]   = useState('');
+    const [menuOpen, setMenuOpen]   = useState(false);
+    const [activeTab, setActiveTab] = useState<TabId>('ride');
+
+    // Load user name from AsyncStorage
     useEffect(() => {
         AsyncStorage.getItem(STORAGE_KEYS.USER_DATA).then(raw => {
             if (raw) {
                 const user = JSON.parse(raw);
-                setUserName(user?.name?.split(' ')[0] || '');
+                const name: string = user?.name || '';
+                setFullName(name);
+                setUserName(name.split(' ')[0] || '');
             }
         });
     }, []);
 
+    // Derive user initial for avatar
+    const userInitial = userName ? userName.charAt(0).toUpperCase() : 'A';
+
+    // Greeting based on time of day
+    const greeting = (() => {
+        const h = new Date().getHours();
+        if (h < 12) return 'Good morning';
+        if (h < 17) return 'Good afternoon';
+        return 'Good evening';
+    })();
+
+    // Menu items
     const menuItems = [
-        { icon: '👤', label: 'My Profile',      onPress: () => navigation.navigate('Profile') },
-        { icon: '📍', label: 'Ride History',     onPress: () => navigation.navigate('RideHistory') },
-        { icon: '🛡️', label: 'Safety Center',    onPress: () => navigation.navigate('Safety') },
-        { icon: '🎀', label: 'Pink Pass',         onPress: () => navigation.navigate('PinkPass') },
-        { icon: '🚪', label: 'Logout',            onPress: () => logout(), danger: true },
+        { icon: '👤', label: 'My Profile',    onPress: () => navigation.navigate('Profile'),     danger: false },
+        { icon: '📍', label: 'Ride History',   onPress: () => navigation.navigate('RideHistory'), danger: false },
+        { icon: '🛡️', label: 'Safety Center',  onPress: () => navigation.navigate('Safety'),      danger: false },
+        { icon: '🎀', label: 'Pink Pass',       onPress: () => navigation.navigate('PinkPass'),    danger: false },
+        { icon: '🚪', label: 'Logout',          onPress: () => logout(),                           danger: true  },
     ];
 
-    const initialRegion = {
-        latitude: 32.4945,
-        longitude: 74.5229, // Sialkot Coordinates
-        latitudeDelta: 0.015,
-        longitudeDelta: 0.0121,
-    };
+    // Quick shortcuts
+    const shortcuts: Shortcut[] = [
+        {
+            icon: '🎀',
+            label: 'Pink Pass',
+            subtitle: 'Women Only',
+            bg: theme.colors.secondary,
+            route: 'PinkPass',
+        },
+        {
+            icon: '🏢',
+            label: 'Work',
+            subtitle: 'DHA Phase 5',
+            bg: theme.colors.primary,
+        },
+        {
+            icon: '🏠',
+            label: 'Home',
+            subtitle: 'Gulberg II',
+            bg: theme.colors.cardSecondary,
+        },
+    ];
 
     const handleSearchPress = () => {
         navigation.navigate('RideSelection');
     };
 
-    return (
-        <View style={styles.container}>
-            <SaforaMap type="home" />
+    const handleTabPress = (tab: Tab) => {
+        setActiveTab(tab.id);
+        if (tab.route) {
+            navigation.navigate(tab.route);
+        }
+    };
 
-            {/* Slide-down Menu Modal */}
+    return (
+        <View style={s.root}>
+            <StatusBar translucent backgroundColor="transparent" barStyle={isDark ? "light-content" : "dark-content"} />
+
+            {/* ── Full-screen map ── */}
+            <View style={s.mapContainer}>
+                <SaforaMap type="home" />
+            </View>
+
+            {/* ── Full-screen overlay ── */}
+            <View style={s.overlay}>
+
+                {/* ── Top header ── */}
+                <View style={s.header}>
+                    {/* Left: Pink Pass badge + greeting stack */}
+                    <View style={s.headerLeft}>
+                        <TouchableOpacity
+                            style={s.pinkPassBadge}
+                            onPress={() => navigation.navigate('PinkPass')}
+                            activeOpacity={0.85}
+                        >
+                            <Text style={s.pinkPassBadgeIcon}>🎀</Text>
+                            <Text style={s.pinkPassBadgeText}>PINK PASS</Text>
+                        </TouchableOpacity>
+
+                        <Text style={s.greetingText}>
+                            {greeting}, {fullName || 'Ayesha Khan'} 👋
+                        </Text>
+                    </View>
+
+                    {/* Right: Avatar + hamburger */}
+                    <View style={s.headerRight}>
+                        <TouchableOpacity
+                            style={s.avatar}
+                            onPress={() => navigation.navigate('Profile')}
+                            activeOpacity={0.85}
+                        >
+                            <Text style={s.avatarText}>{userInitial}</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={s.hamburgerBtn}
+                            onPress={() => setMenuOpen(true)}
+                            activeOpacity={0.85}
+                        >
+                            <Text style={s.hamburgerIcon}>☰</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+
+                {/* Spacer — pushes bottom sheet to bottom */}
+                <View style={s.flex1} />
+
+                {/* ── Bottom white card ── */}
+                <View style={s.bottomCard}>
+                    {/* Drag handle */}
+                    <View style={s.dragHandle} />
+
+                    {/* Search bar */}
+                    <TouchableOpacity
+                        style={s.searchBar}
+                        onPress={handleSearchPress}
+                        activeOpacity={0.8}
+                    >
+                        <Text style={s.searchIcon}>🔍</Text>
+                        <Text style={s.searchPlaceholder}>Where to?</Text>
+                        <View style={s.searchActionBtn}>
+                            <Text style={s.searchActionIcon}>➤</Text>
+                        </View>
+                    </TouchableOpacity>
+
+                    {/* Quick shortcuts */}
+                    <View style={s.shortcuts}>
+                        {shortcuts.map((sc, i) => (
+                            <TouchableOpacity
+                                key={i}
+                                style={s.shortcutItem}
+                                onPress={() => sc.route && navigation.navigate(sc.route)}
+                                activeOpacity={0.75}
+                            >
+                                <View style={[s.shortcutCircle, { backgroundColor: sc.bg }]}>
+                                    <Text style={s.shortcutEmoji}>{sc.icon}</Text>
+                                </View>
+                                <Text style={s.shortcutLabel}>{sc.label}</Text>
+                                <Text style={s.shortcutSubtitle}>{sc.subtitle}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                </View>
+
+                {/* ── Tab bar ── */}
+                <View style={s.tabBar}>
+                    {TABS.map(tab => {
+                        const isActive = activeTab === tab.id;
+                        return (
+                            <TouchableOpacity
+                                key={tab.id}
+                                style={s.tabItem}
+                                onPress={() => handleTabPress(tab)}
+                                activeOpacity={0.7}
+                            >
+                                <Text style={[s.tabIcon, isActive && s.tabIconActive]}>
+                                    {tab.icon}
+                                </Text>
+                                <Text style={[s.tabLabel, isActive && s.tabLabelActive]}>
+                                    {tab.label}
+                                </Text>
+                                {isActive && <View style={s.tabActiveDot} />}
+                            </TouchableOpacity>
+                        );
+                    })}
+                </View>
+            </View>
+
+            {/* ── Slide-down hamburger menu modal ── */}
             <Modal
                 visible={menuOpen}
                 transparent
                 animationType="fade"
                 onRequestClose={() => setMenuOpen(false)}
             >
-                <Pressable style={styles.menuOverlay} onPress={() => setMenuOpen(false)}>
-                    <Pressable style={styles.menuPanel} onPress={e => e.stopPropagation()}>
-                        {/* Menu Header */}
-                        <View style={styles.menuHeader}>
-                            <View style={styles.menuBrand}>
-                                <Text style={styles.menuBrandIcon}>🛡️</Text>
-                                <Text style={styles.menuBrandName}>SAFORA</Text>
+                <Pressable style={s.menuOverlay} onPress={() => setMenuOpen(false)}>
+                    <Pressable style={s.menuPanel} onPress={e => e.stopPropagation()}>
+
+                        {/* Menu header */}
+                        <View style={s.menuHeader}>
+                            <View style={s.menuBrand}>
+                                <Text style={s.menuBrandIcon}>🛡️</Text>
+                                <Text style={s.menuBrandName}>SAFORA</Text>
                             </View>
-                            <TouchableOpacity onPress={() => setMenuOpen(false)} style={styles.menuClose}>
-                                <Text style={styles.menuCloseText}>✕</Text>
+                            <TouchableOpacity
+                                style={s.menuCloseBtn}
+                                onPress={() => setMenuOpen(false)}
+                                activeOpacity={0.7}
+                            >
+                                <Text style={s.menuCloseText}>✕</Text>
                             </TouchableOpacity>
                         </View>
-                        <Text style={styles.menuGreeting}>Hello, {userName || 'there'} 👋</Text>
 
-                        {/* Menu Items */}
-                        <View style={styles.menuItems}>
+                        <Text style={s.menuGreeting}>
+                            Hello, {userName || 'there'} 👋
+                        </Text>
+
+                        {/* Menu items */}
+                        <View style={s.menuItems}>
                             {menuItems.map((item, i) => (
                                 <TouchableOpacity
                                     key={i}
-                                    style={[styles.menuItem, item.danger && styles.menuItemDanger]}
-                                    onPress={() => { setMenuOpen(false); item.onPress(); }}
+                                    style={[s.menuItem, item.danger && s.menuItemDanger]}
+                                    onPress={() => {
+                                        setMenuOpen(false);
+                                        item.onPress();
+                                    }}
+                                    activeOpacity={0.75}
                                 >
-                                    <Text style={styles.menuItemIcon}>{item.icon}</Text>
-                                    <Text style={[styles.menuItemLabel, item.danger && styles.menuItemLabelDanger]}>
+                                    <Text style={s.menuItemIcon}>{item.icon}</Text>
+                                    <Text style={[s.menuItemLabel, item.danger && s.menuItemLabelDanger]}>
                                         {item.label}
                                     </Text>
-                                    <Text style={styles.menuItemArrow}>›</Text>
+                                    <Text style={s.menuItemArrow}>›</Text>
                                 </TouchableOpacity>
                             ))}
                         </View>
+
                     </Pressable>
                 </Pressable>
             </Modal>
-
-            <View style={styles.overlay}>
-                {/* Header */}
-                <View style={styles.header}>
-                    <TouchableOpacity style={styles.roundBtn} onPress={() => setMenuOpen(true)}>
-                        <Text style={styles.btnIcon}>☰</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={[styles.roundBtn, styles.profileBtn]} onPress={() => navigation.navigate('Profile')}>
-                        <Text style={styles.btnIcon}>👤</Text>
-                    </TouchableOpacity>
-                </View>
-
-                {/* Bottom Sheet UI */}
-                <View style={styles.bottomSheet}>
-                    <View style={styles.handle} />
-                    
-                    <Text style={styles.title}>{t.welcomeUser}{userName ? `, ${userName}` : ''} 👋</Text>
-                    <Text style={styles.subtitle}>{t.whereTo}</Text>
-
-                    {/* Search Field */}
-                    <TouchableOpacity style={styles.searchBox} onPress={handleSearchPress}>
-                        <View style={styles.searchIconContainer}>
-                            <View style={styles.searchDot} />
-                        </View>
-                        <Text style={styles.searchPlaceholder}>{t.searchPlaceholder}</Text>
-                        <View style={styles.historyBtn}>
-                            <Text style={styles.historyIcon}>🕒</Text>
-                        </View>
-                    </TouchableOpacity>
-
-                    {/* Quick Access Grid */}
-                    <View style={styles.quickGrid}>
-                        <TouchableOpacity style={styles.quickItem}>
-                            <View style={[styles.quickIconBg, { backgroundColor: theme.colors.primary }]}>
-                                <Text style={styles.quickEmoji}>🏠</Text>
-                            </View>
-                            <Text style={styles.quickLabel}>{t.homeQuick}</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity style={styles.quickItem}>
-                            <View style={[styles.quickIconBg, { backgroundColor: '#3b3b3b' }]}>
-                                <Text style={styles.quickEmoji}>💼</Text>
-                            </View>
-                            <Text style={styles.quickLabel}>{t.workQuick}</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity style={styles.quickItem}>
-                            <View style={[styles.quickIconBg, { backgroundColor: theme.colors.secondary }]}>
-                                <Text style={styles.quickEmoji}>🎀</Text>
-                            </View>
-                            <Text style={styles.quickLabel}>{t.pinkPassQuick}</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-
-                {/* Bottom Navigation */}
-                <View style={styles.tabBar}>
-                    <TouchableOpacity style={styles.tabItem}>
-                        <Text style={[styles.tabIcon, { color: theme.colors.primary }]}>🏠</Text>
-                        <View style={styles.tabActiveDot} />
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('RideHistory')}>
-                        <Text style={styles.tabIcon}>💸</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('Safety')}>
-                        <Text style={styles.tabIcon}>🛡️</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('Profile')}>
-                        <Text style={styles.tabIcon}>⚙️</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
         </View>
     );
 };
 
-const darkMapStyle = [
-    { "elementType": "geometry", "stylers": [{ "color": "#212121" }] },
-    { "elementType": "labels.icon", "stylers": [{ "visibility": "off" }] },
-    { "elementType": "labels.text.fill", "stylers": [{ "color": "#757575" }] },
-    { "elementType": "labels.text.stroke", "stylers": [{ "color": "#212121" }] },
-    { "featureType": "administrative", "elementType": "geometry", "stylers": [{ "color": "#757575" }] },
-    { "featureType": "water", "elementType": "geometry", "stylers": [{ "color": "#000000" }] }
-];
+// ─── Styles factory ───────────────────────────────────────────────────────────
+const makeStyles = (t: AppTheme) => StyleSheet.create({
 
-const styles = StyleSheet.create({
-    container: {
+    root: {
         flex: 1,
-        backgroundColor: theme.colors.background,
+        backgroundColor: t.colors.background,
     },
-    map: {
-        width: width,
-        height: height,
+
+    // ── Map ──
+    mapContainer: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
     },
+
+    // ── Overlay ──
     overlay: {
         position: 'absolute',
         top: 0,
         left: 0,
         right: 0,
         bottom: 0,
-        justifyContent: 'space-between',
+        justifyContent: 'flex-end',
     },
+
+    flex1: {
+        flex: 1,
+    },
+
+    // ── Header ──
     header: {
-        paddingTop: 50,
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        paddingTop: 52,
         paddingHorizontal: 20,
         flexDirection: 'row',
+        alignItems: 'flex-start',
         justifyContent: 'space-between',
     },
-    roundBtn: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: '#FFFFFF',
+
+    headerLeft: {
+        flex: 1,
+        gap: 6,
+    },
+
+    headerRight: {
+        flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
+        gap: 10,
+    },
+
+    // Pink Pass badge pill
+    pinkPassBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: t.colors.primary,
+        borderRadius: 999,
+        paddingHorizontal: 12,
+        paddingVertical: 5,
+        alignSelf: 'flex-start',
+        gap: 5,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.35,
-        shadowRadius: 10,
-        elevation: 12,
-        borderWidth: 1,
-        borderColor: '#E0E0E0',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 6,
+        elevation: 5,
     },
-    profileBtn: {
-        backgroundColor: theme.colors.primary,
-        borderColor: theme.colors.primary,
+    pinkPassBadgeIcon: {
+        fontSize: 13,
     },
-    btnIcon: {
-        fontSize: 18,
-        color: '#1a1a1a',
+    pinkPassBadgeText: {
+        fontSize: 11,
+        fontWeight: '900',
+        color: t.colors.black,
+        letterSpacing: 1,
     },
-    markerContainer: {
-        alignItems: 'center',
-        justifyContent: 'center',
+
+    // Greeting
+    greetingText: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#FFFFFF',
+        textShadowColor: 'rgba(0,0,0,0.6)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 4,
     },
-    markerPulse: {
+
+    // Avatar circle
+    avatar: {
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: theme.colors.primary,
-        opacity: 0.2,
-        position: 'absolute',
-    },
-    markerInner: {
-        width: 14,
-        height: 14,
-        borderRadius: 7,
-        backgroundColor: theme.colors.primary,
-        borderWidth: 3,
-        borderColor: theme.colors.white,
-    },
-    bottomSheet: {
-        backgroundColor: theme.colors.card,
-        borderTopLeftRadius: 36,
-        borderTopRightRadius: 36,
-        padding: 20,
-        paddingBottom: 80, // leaves space for tab bar (56px) + gap
+        backgroundColor: t.colors.primary,
+        alignItems: 'center',
+        justifyContent: 'center',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: -10 },
-        shadowOpacity: 0.4,
-        shadowRadius: 20,
-        elevation: 20,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.3,
+        shadowRadius: 6,
+        elevation: 6,
     },
-    handle: {
-        width: 36,
-        height: 4,
-        backgroundColor: '#333',
-        borderRadius: 2,
-        alignSelf: 'center',
-        marginBottom: 14,
-    },
-    title: {
-        fontSize: 22,
+    avatarText: {
+        fontSize: 17,
         fontWeight: '900',
-        color: theme.colors.text,
+        color: t.colors.black,
     },
-    subtitle: {
-        fontSize: 12,
-        color: theme.colors.textSecondary,
-        marginBottom: 16,
+
+    // Hamburger
+    hamburgerBtn: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: 'rgba(255,255,255,0.9)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.2,
+        shadowRadius: 6,
+        elevation: 5,
     },
-    searchBox: {
-        backgroundColor: theme.colors.background,
-        borderRadius: 14,
-        height: 48,
+    hamburgerIcon: {
+        fontSize: 17,
+        color: t.colors.black,
+    },
+
+    // ── Bottom card ──
+    bottomCard: {
+        backgroundColor: t.colors.card,
+        borderTopLeftRadius: 28,
+        borderTopRightRadius: 28,
+        paddingHorizontal: 20,
+        paddingTop: 14,
+        paddingBottom: 80, // space for tab bar (56px) + gap
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -8 },
+        shadowOpacity: 0.12,
+        shadowRadius: 18,
+        elevation: 18,
+    },
+
+    dragHandle: {
+        width: 38,
+        height: 4,
+        borderRadius: 2,
+        backgroundColor: t.colors.border,
+        alignSelf: 'center',
+        marginBottom: 18,
+    },
+
+    // ── Search bar ──
+    searchBar: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 14,
-        marginBottom: 16,
+        backgroundColor: t.dark ? t.colors.card : '#F7F7F7',
+        borderRadius: 14,
         borderWidth: 1.5,
-        borderColor: '#222',
+        borderColor: t.colors.border,
+        height: 52,
+        paddingHorizontal: 14,
+        marginBottom: 20,
+        gap: 10,
     },
-    searchIconContainer: {
-        marginRight: 12,
-    },
-    searchDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: theme.colors.primary,
+    searchIcon: {
+        fontSize: 16,
     },
     searchPlaceholder: {
         flex: 1,
-        color: theme.colors.placeholder,
-        fontSize: 14,
+        fontSize: 15,
         fontWeight: '600',
+        color: t.colors.placeholder,
     },
-    historyBtn: {
-        width: 32,
-        height: 32,
-        borderRadius: 8,
-        backgroundColor: theme.colors.cardSecondary,
+    searchActionBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        backgroundColor: t.colors.primary,
         alignItems: 'center',
         justifyContent: 'center',
     },
-    historyIcon: {
-        fontSize: 12,
+    searchActionIcon: {
+        fontSize: 14,
+        color: t.colors.black,
+        fontWeight: '700',
     },
-    quickGrid: {
+
+    // ── Quick shortcuts ──
+    shortcuts: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 4,
+        justifyContent: 'space-around',
     },
-    quickItem: {
+
+    shortcutItem: {
         alignItems: 'center',
         gap: 6,
+        flex: 1,
     },
-    quickIconBg: {
-        width: 46,
-        height: 46,
-        borderRadius: 14,
+
+    shortcutCircle: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
         alignItems: 'center',
         justifyContent: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.1,
+        shadowRadius: 6,
+        elevation: 4,
     },
-    quickEmoji: {
-        fontSize: 20,
+
+    shortcutEmoji: {
+        fontSize: 22,
     },
-    quickLabel: {
+
+    shortcutLabel: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: t.colors.text,
+        textAlign: 'center',
+    },
+
+    shortcutSubtitle: {
         fontSize: 10,
-        color: theme.colors.textSecondary,
-        fontWeight: '600',
+        fontWeight: '500',
+        color: t.colors.textSecondary,
+        textAlign: 'center',
     },
+
+    // ── Tab bar ──
     tabBar: {
         position: 'absolute',
         bottom: 0,
         left: 0,
         right: 0,
-        height: 56,
-        backgroundColor: theme.colors.card,
+        height: 64,
+        backgroundColor: t.colors.card,
         flexDirection: 'row',
         borderTopWidth: 1,
-        borderTopColor: '#1e1e1e',
+        borderTopColor: t.colors.divider,
+        paddingBottom: 6,
     },
+
     tabItem: {
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 8,
+        paddingTop: 8,
+        gap: 2,
     },
+
     tabIcon: {
-        fontSize: 20,
-        color: '#555',
+        fontSize: 22,
+        opacity: 0.45,
     },
+
+    tabIconActive: {
+        opacity: 1,
+    },
+
+    tabLabel: {
+        fontSize: 10,
+        fontWeight: '600',
+        color: t.colors.textSecondary,
+    },
+
+    tabLabelActive: {
+        color: t.colors.primary,
+        fontWeight: '700',
+    },
+
     tabActiveDot: {
         width: 4,
         height: 4,
         borderRadius: 2,
-        backgroundColor: theme.colors.primary,
-        marginTop: 3,
+        backgroundColor: t.colors.primary,
+        marginTop: 1,
     },
 
-    // Menu modal
+    // ── Menu modal ──
     menuOverlay: {
         flex: 1,
         backgroundColor: 'rgba(0,0,0,0.55)',
         justifyContent: 'flex-start',
     },
+
     menuPanel: {
-        backgroundColor: theme.colors.card,
+        backgroundColor: t.colors.card,
         borderBottomLeftRadius: 28,
         borderBottomRightRadius: 28,
         paddingTop: 56,
@@ -379,73 +596,92 @@ const styles = StyleSheet.create({
         shadowRadius: 20,
         elevation: 20,
     },
+
     menuHeader: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         marginBottom: 6,
     },
+
     menuBrand: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
     },
-    menuBrandIcon: { fontSize: 22 },
+
+    menuBrandIcon: {
+        fontSize: 22,
+    },
+
     menuBrandName: {
         fontSize: 20,
         fontWeight: '900',
-        color: theme.colors.primary,
+        color: t.colors.primary,
         letterSpacing: 3,
     },
-    menuClose: {
+
+    menuCloseBtn: {
         width: 34,
         height: 34,
         borderRadius: 10,
-        backgroundColor: theme.colors.background,
+        backgroundColor: t.colors.background,
         alignItems: 'center',
         justifyContent: 'center',
     },
+
     menuCloseText: {
-        color: theme.colors.textSecondary,
+        color: t.colors.textSecondary,
         fontSize: 16,
         fontWeight: '700',
     },
+
     menuGreeting: {
-        color: theme.colors.textSecondary,
+        color: t.colors.textSecondary,
         fontSize: 13,
         marginBottom: 20,
     },
+
     menuItems: {
         gap: 4,
     },
+
     menuItem: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 14,
-        backgroundColor: theme.colors.background,
+        backgroundColor: t.colors.background,
         borderRadius: 14,
         paddingVertical: 14,
         paddingHorizontal: 16,
         borderWidth: 1,
-        borderColor: '#1e1e1e',
+        borderColor: t.colors.divider,
     },
+
     menuItemDanger: {
         borderColor: 'rgba(255,59,48,0.2)',
         backgroundColor: 'rgba(255,59,48,0.05)',
         marginTop: 8,
     },
-    menuItemIcon: { fontSize: 18, width: 26 },
+
+    menuItemIcon: {
+        fontSize: 18,
+        width: 26,
+    },
+
     menuItemLabel: {
         flex: 1,
         fontSize: 14,
         fontWeight: '700',
-        color: theme.colors.text,
+        color: t.colors.text,
     },
+
     menuItemLabelDanger: {
-        color: theme.colors.danger,
+        color: t.colors.danger,
     },
+
     menuItemArrow: {
-        color: theme.colors.textSecondary,
+        color: t.colors.textSecondary,
         fontSize: 20,
         fontWeight: '300',
     },

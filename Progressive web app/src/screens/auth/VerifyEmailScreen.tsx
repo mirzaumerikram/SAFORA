@@ -5,19 +5,32 @@ import {
     StyleSheet,
     TouchableOpacity,
     ActivityIndicator,
+    StatusBar,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiService from '../../services/api';
-import theme from '../../utils/theme';
 import { useAuth } from '../../context/AuthContext';
+import { useAppTheme } from '../../context/ThemeContext';
 import { STORAGE_KEYS } from '../../utils/constants';
 import SaforaAlert from '../../utils/alert';
+
+// This screen is intentionally ALWAYS dark — it is a fullscreen dark experience
+// regardless of the app's light/dark mode setting.
+const DARK = {
+    background: '#0A0A0A',
+    text: '#FFFFFF',
+    textSecondary: 'rgba(255,255,255,0.5)',
+    black: '#000000',
+    success: '#27ae60',
+};
 
 const VerifyEmailScreen: React.FC = () => {
     const navigation = useNavigation<any>();
     const route = useRoute<any>();
     const { setAuthenticated } = useAuth();
+    const theme = useAppTheme();
+
     const { email, token, user } = route.params || {};
 
     const [resendLoading, setResendLoading] = useState(false);
@@ -68,47 +81,76 @@ const VerifyEmailScreen: React.FC = () => {
         }
     };
 
+    const yellow = theme.colors.primary;
+
     return (
         <View style={styles.container}>
-            <View style={styles.card}>
-                <Text style={styles.emoji}>📧</Text>
-                <Text style={styles.title}>Check Your Email</Text>
-                <Text style={styles.subtitle}>
-                    We sent a verification link to
-                </Text>
-                <Text style={styles.email}>{email || 'your email'}</Text>
-                <Text style={styles.body}>
-                    Click the link in the email to verify your account. Check your spam folder if you don't see it.
-                </Text>
+            <StatusBar barStyle="light-content" backgroundColor={DARK.background} />
 
-                <TouchableOpacity
-                    style={styles.primaryBtn}
-                    onPress={handleContinue}
-                    disabled={continueLoading}
-                >
-                    {continueLoading
-                        ? <ActivityIndicator color={theme.colors.black} />
-                        : <Text style={styles.primaryBtnText}>I've Verified — Continue</Text>
-                    }
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    style={[styles.secondaryBtn, resendDone && styles.secondaryBtnDone]}
-                    onPress={handleResend}
-                    disabled={resendLoading || resendDone}
-                >
-                    {resendLoading
-                        ? <ActivityIndicator color={theme.colors.primary} size="small" />
-                        : <Text style={[styles.secondaryBtnText, resendDone && styles.secondaryBtnTextDone]}>
-                            {resendDone ? '✓ Email Sent!' : 'Resend Verification Email'}
-                          </Text>
-                    }
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.skipBtn} onPress={() => navigation.goBack()}>
-                    <Text style={styles.skipText}>Back to Login</Text>
-                </TouchableOpacity>
+            {/* Envelope icon in yellow circle */}
+            <View style={[styles.iconCircle, { backgroundColor: yellow }]}>
+                <Text style={styles.iconEmoji}>📧</Text>
             </View>
+
+            {/* Title */}
+            <Text style={styles.title}>CHECK YOUR EMAIL</Text>
+
+            {/* Subtitle */}
+            <Text style={styles.subtitle}>We sent a verification link to</Text>
+
+            {/* Email address */}
+            <Text style={[styles.emailText, { color: yellow }]}>
+                {email || 'your email'}
+            </Text>
+
+            {/* Primary CTA — yellow bordered / filled button */}
+            <TouchableOpacity
+                style={[styles.primaryBtn, { borderColor: yellow }]}
+                onPress={handleContinue}
+                disabled={continueLoading}
+                activeOpacity={0.8}
+            >
+                {continueLoading ? (
+                    <ActivityIndicator color={DARK.black} />
+                ) : (
+                    <Text style={[styles.primaryBtnText, { color: DARK.black }]}>
+                        {'✓  I\'ve Verified — Continue'}
+                    </Text>
+                )}
+            </TouchableOpacity>
+
+            {/* Secondary CTA — white/outlined button */}
+            <TouchableOpacity
+                style={[
+                    styles.secondaryBtn,
+                    resendDone
+                        ? { borderColor: DARK.success }
+                        : { borderColor: DARK.text },
+                ]}
+                onPress={handleResend}
+                disabled={resendLoading || resendDone}
+                activeOpacity={0.8}
+            >
+                {resendLoading ? (
+                    <ActivityIndicator color={DARK.text} size="small" />
+                ) : (
+                    <Text
+                        style={[
+                            styles.secondaryBtnText,
+                            { color: resendDone ? DARK.success : DARK.text },
+                        ]}
+                    >
+                        {resendDone ? '✓  Email Sent!' : 'Resend Verification Email'}
+                    </Text>
+                )}
+            </TouchableOpacity>
+
+            {/* Spam hint link */}
+            <TouchableOpacity style={styles.hintBtn} onPress={() => navigation.goBack()}>
+                <Text style={[styles.hintText, { color: DARK.textSecondary }]}>
+                    Check your spam folder if you don't see it in your inbox.
+                </Text>
+            </TouchableOpacity>
         </View>
     );
 };
@@ -116,87 +158,84 @@ const VerifyEmailScreen: React.FC = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: theme.colors.background,
+        backgroundColor: DARK.background,
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 24,
+        paddingHorizontal: 32,
+        paddingVertical: 40,
     },
-    card: {
-        backgroundColor: theme.colors.card,
-        borderRadius: 20,
-        padding: 32,
-        width: '100%',
+    iconCircle: {
+        width: 96,
+        height: 96,
+        borderRadius: 48,
         alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 32,
     },
-    emoji: { fontSize: 52, marginBottom: 16 },
+    iconEmoji: {
+        fontSize: 46,
+    },
     title: {
-        fontSize: 24,
+        fontSize: 26,
         fontWeight: '900',
-        color: theme.colors.text,
-        letterSpacing: 1,
-        marginBottom: 8,
+        color: DARK.text,
+        letterSpacing: 2,
         textAlign: 'center',
+        marginBottom: 12,
     },
     subtitle: {
-        fontSize: 13,
-        color: theme.colors.textSecondary,
-        textAlign: 'center',
-    },
-    email: {
         fontSize: 14,
-        fontWeight: '700',
-        color: theme.colors.primary,
-        marginBottom: 16,
+        color: DARK.textSecondary,
         textAlign: 'center',
+        marginBottom: 6,
     },
-    body: {
-        fontSize: 13,
-        color: theme.colors.textSecondary,
+    emailText: {
+        fontSize: 15,
+        fontWeight: '700',
         textAlign: 'center',
-        lineHeight: 20,
-        marginBottom: 28,
+        marginBottom: 40,
     },
     primaryBtn: {
-        backgroundColor: theme.colors.primary,
+        backgroundColor: '#F5C518',
+        borderWidth: 2,
+        borderRadius: 12,
+        paddingVertical: 15,
+        width: '100%',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: 52,
+        marginBottom: 14,
+    },
+    primaryBtnText: {
+        fontWeight: '700',
+        fontSize: 15,
+        letterSpacing: 0.3,
+    },
+    secondaryBtn: {
+        backgroundColor: 'transparent',
+        borderWidth: 1.5,
         borderRadius: 12,
         paddingVertical: 14,
         width: '100%',
         alignItems: 'center',
-        marginBottom: 12,
-        minHeight: 48,
         justifyContent: 'center',
-    },
-    primaryBtnText: {
-        color: theme.colors.black,
-        fontWeight: '700',
-        fontSize: 14,
-    },
-    secondaryBtn: {
-        borderWidth: 1.5,
-        borderColor: theme.colors.primary,
-        borderRadius: 12,
-        paddingVertical: 12,
-        width: '100%',
-        alignItems: 'center',
-        marginBottom: 20,
-        minHeight: 44,
-        justifyContent: 'center',
-    },
-    secondaryBtnDone: {
-        borderColor: theme.colors.success || '#27ae60',
+        minHeight: 50,
+        marginBottom: 32,
     },
     secondaryBtnText: {
-        color: theme.colors.primary,
         fontWeight: '600',
-        fontSize: 13,
+        fontSize: 14,
+        letterSpacing: 0.2,
     },
-    secondaryBtnTextDone: {
-        color: theme.colors.success || '#27ae60',
+    hintBtn: {
+        paddingHorizontal: 16,
+        paddingVertical: 6,
     },
-    skipBtn: { paddingVertical: 8 },
-    skipText: {
-        color: theme.colors.textSecondary,
+    hintText: {
         fontSize: 12,
+        textAlign: 'center',
+        lineHeight: 18,
+        textDecorationLine: 'underline',
     },
 });
 

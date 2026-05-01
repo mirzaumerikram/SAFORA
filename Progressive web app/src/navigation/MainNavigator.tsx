@@ -13,6 +13,7 @@ import PinkPassScreen from '../screens/main/PinkPassScreen';
 import PinkPassCameraScreen from '../screens/main/PinkPassCameraScreen';
 import PaymentScreen from '../screens/main/PaymentScreen';
 import ChatScreen from '../screens/main/ChatScreen';
+import SearchingScreen from '../screens/main/SearchingScreen';
 import theme from '../utils/theme';
 
 const Stack = createStackNavigator();
@@ -26,6 +27,7 @@ const MainNavigator: React.FC = () => {
             }}>
             <Stack.Screen name="Home" component={HomeScreen} />
             <Stack.Screen name="RideSelection" component={RideSelectionScreen} />
+            <Stack.Screen name="Searching" component={SearchingScreen} />
             <Stack.Screen name="Tracking" component={TrackingScreen} />
             <Stack.Screen name="DriverDashboard" component={DriverDashboard} />
             <Stack.Screen name="Feedback" component={FeedbackScreen} />
