@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -30,6 +30,17 @@ const RegisterScreen: React.FC = () => {
 
     const fromOtp   = !!route.params?.token;
     const otpPhone  = route.params?.phone || '';
+
+    // Guard: registration requires phone OTP verification first
+    useEffect(() => {
+        if (!fromOtp) {
+            SaforaAlert(
+                'Phone Verification Required',
+                'Please verify your phone number with OTP before registering.'
+            );
+            navigation.replace('Login', { selectedRole: route.params?.selectedRole || 'passenger' });
+        }
+    }, []);
 
     const [formData, setFormData] = useState({
         name: '',

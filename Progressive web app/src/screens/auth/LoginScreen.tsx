@@ -216,11 +216,21 @@ const LoginScreen: React.FC = () => {
                         <View style={[styles.dividerLine, { backgroundColor: theme.colors.divider }]} />
                     </View>
                     <View style={styles.registerRow}>
-                        <Text style={[styles.registerText, { color: theme.colors.textSecondary }]}>{t.noAccount} </Text>
-                        <TouchableOpacity onPress={() => navigation.navigate('Register', { selectedRole })}>
-                            <Text style={[styles.registerLink, { color: theme.colors.primary }]}>{t.registerLink}</Text>
+                        <Text style={[styles.registerText, { color: theme.colors.textSecondary }]}>
+                            {t.noAccount || 'New user?'}{' '}
+                        </Text>
+                        <TouchableOpacity onPress={() => {
+                            // New users must verify phone first — switch to OTP tab
+                            setActiveTab('otp');
+                        }}>
+                            <Text style={[styles.registerLink, { color: theme.colors.primary }]}>
+                                {t.registerLink || 'Verify phone to register'}
+                            </Text>
                         </TouchableOpacity>
                     </View>
+                    <Text style={[styles.registerHint, { color: theme.colors.placeholder }]}>
+                        Enter your phone number above and tap Get OTP to create a new account.
+                    </Text>
                 </View>
             </ScrollView>
         </KeyboardAvoidingView>
@@ -263,6 +273,7 @@ const styles = StyleSheet.create({
     registerRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
     registerText: { fontSize: 14 },
     registerLink: { fontSize: 14, fontWeight: '800' },
+    registerHint: { fontSize: 11, textAlign: 'center', marginTop: 8, lineHeight: 16, paddingHorizontal: 16 },
 });
 
 export default LoginScreen;
