@@ -12,9 +12,13 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 const ALLOWED_ORIGINS = [
-  // Production domains
+  // Production — passenger PWA
   'https://safora.me',
   'https://www.safora.me',
+  // Production — admin dashboard
+  'https://admin.safora.me',
+  'https://www.admin.safora.me',
+  // Vercel preview deployments
   'https://safora-app-two.vercel.app',
   'https://safora-nu.vercel.app',
   // Local development

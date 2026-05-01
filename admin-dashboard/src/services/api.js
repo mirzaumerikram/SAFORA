@@ -1,4 +1,13 @@
-const BASE_URL = 'http://localhost:5000/api';
+// Production backend on Railway — same server the PWA uses
+const RAILWAY_URL  = 'https://safora-production-f5ce.up.railway.app/api';
+const LOCAL_URL    = 'http://localhost:5000/api';
+
+// Use Railway in production/preview; fall back to localhost only when
+// the admin dashboard itself is served from localhost
+const BASE_URL =
+  typeof window !== 'undefined' && window.location.hostname === 'localhost'
+    ? LOCAL_URL
+    : RAILWAY_URL;
 
 const getToken = () => localStorage.getItem('safora_admin_token');
 
@@ -17,7 +26,8 @@ const request = async (method, url, data) => {
 };
 
 export const api = {
-  get:   (url)       => request('GET',   url),
-  post:  (url, data) => request('POST',  url, data),
-  patch: (url, data) => request('PATCH', url, data),
+  get:    (url)       => request('GET',    url),
+  post:   (url, data) => request('POST',   url, data),
+  patch:  (url, data) => request('PATCH',  url, data),
+  delete: (url)       => request('DELETE', url),
 };
