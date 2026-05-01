@@ -17,7 +17,7 @@ import ChatScreen from '../screens/main/ChatScreen';
 
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { LanguageProvider } from '../context/LanguageContext';
-import { ThemeProvider } from '../context/ThemeContext';
+import { ThemeProvider, useAppTheme } from '../context/ThemeContext';
 import { STORAGE_KEYS } from '../utils/constants';
 
 const RootStack = createStackNavigator();
