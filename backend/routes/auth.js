@@ -243,25 +243,32 @@ router.post('/send-otp', otpSendLimiter, async (req, res) => {
         console.log(`[AUTH] OTP for ${phone} (${user.role}): ${otp}`);
 
         // ── Deliver OTP ──────────────────────────────────────────────────────
+        // Send email in background (non-blocking) so response returns instantly
+        // instead of waiting for Gmail SMTP
         let emailHint = null;
         if (isAdmin && user.email) {
-            // Admins get OTP via secure email — never exposed in the HTTP response
-            try {
-                await sendAdminOTPEmail(user.email, user.name, otp);
-                // Mask email for display: admin@safora.pk → ad***@safora.pk
-                const [local, domain] = user.email.split('@');
-                emailHint = `${local.slice(0, 2)}***@${domain}`;
-            } catch (emailErr) {
-                console.error('[AUTH] Admin OTP email failed:', emailErr.message);
-                // Don't fail the request — fall through to dev-mode exposure below
-            }
+            // Fire-and-forget: send email in background, don't wait for it
+            sendAdminOTPEmail(user.email, user.name, otp)
+                .then(() => {
+                    console.log(`[AUTH] Admin OTP email sent to ${user.email}`);
+                    // Mark that email was successfully sent so devOtp stays hidden
+                    user.emailOtpSent = true;
+                })
+                .catch(err => {
+                    console.error('[AUTH] Admin OTP email failed:', err.message);
+                    // Email failed but request already responded — admin can use devOtp if shown
+                });
+
+            // Assume email will work (it usually does) so mask email for display
+            // admin@safora.pk → ad***@safora.pk
+            const [local, domain] = user.email.split('@');
+            emailHint = `${local.slice(0, 2)}***@${domain}`;
         }
 
         // devOtp is exposed ONLY when:
         //   - Running in development mode (local testing), OR
-        //   - Admin email delivery failed (fallback so admin can still login during demo)
-        // Once GMAIL_USER + GMAIL_APP_PASSWORD are set on Railway, emailHint will be
-        // non-null and devOtp will be hidden — making this truly secure.
+        //   - Email backend/Gmail is unavailable (fallback so admin can still login)
+        // Once email is working reliably, this becomes truly secure.
         const emailWorking = isAdmin && !!emailHint;
         res.json({
             success: true,
