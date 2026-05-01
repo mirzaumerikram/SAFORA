@@ -255,18 +255,25 @@ router.post('/send-otp', otpSendLimiter, async (req, res) => {
         const [local, domain] = user.email.split('@');
         const emailHint = `${local.slice(0, 2)}***@${domain}`;
 
-        // Fire-and-forget — respond immediately, email sends in background
-        sendAdminOTPEmail(user.email, user.name, otp)
-            .then(() => console.log(`[AUTH] ✅ OTP email delivered to ${user.email}`))
-            .catch(err => console.error(`[AUTH] ❌ OTP email failed: ${err.message}`));
-
-        res.json({
-            success:   true,
-            message:   `OTP sent to ${emailHint}`,
-            isNewUser,
-            emailHint,
-            // devOtp is NEVER sent — admin must check email
-        });
+        // Send email — await so we know if it worked
+        try {
+            await sendAdminOTPEmail(user.email, user.name, otp);
+            console.log(`[AUTH] ✅ OTP email delivered to ${user.email}`);
+            res.json({
+                success:   true,
+                message:   `OTP sent to ${emailHint}`,
+                isNewUser,
+                emailHint,
+            });
+        } catch (emailErr) {
+            console.error(`[AUTH] ❌ Email failed: ${emailErr.message}`);
+            // Return the error clearly so we know exactly what's wrong
+            res.status(500).json({
+                success: false,
+                message: `Email failed: ${emailErr.message}`,
+                hint:    `GMAIL_USER=${process.env.GMAIL_USER || 'NOT SET'}`,
+            });
+        }
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }

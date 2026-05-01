@@ -12,13 +12,14 @@ const createTransporter = () => {
     
     return nodemailer.createTransport({
         host: 'smtp.gmail.com',
-        port: 465,
-        secure: true,
-        family: 4,                 // force IPv4 — Railway blocks IPv6 SMTP
+        port: 587,          // 587 + STARTTLS — more reliable on cloud providers than 465
+        secure: false,      // false = STARTTLS upgrade after connect
+        family: 4,          // force IPv4 — Railway blocks IPv6
         auth: { user, pass },
-        connectionTimeout: 8000,
-        greetingTimeout:   5000,
-        socketTimeout:     10000,
+        tls: { rejectUnauthorized: false },
+        connectionTimeout: 10000,
+        greetingTimeout:    8000,
+        socketTimeout:     15000,
     });
 };
 
