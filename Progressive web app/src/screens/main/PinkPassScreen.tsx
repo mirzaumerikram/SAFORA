@@ -1,339 +1,291 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity, ScrollView,
-    ActivityIndicator, Alert, Platform,
+    ActivityIndicator, StatusBar,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import theme from '../../utils/theme';
+import { useAppTheme } from '../../context/ThemeContext';
+import { AppTheme } from '../../utils/theme';
 import apiService from '../../services/api';
 
-type VerifyStep = 'idle' | 'scanning' | 'processing' | 'done';
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type PassStatus = 'loading' | 'active' | 'pending' | 'eligible' | 'ineligible';
+
+const REQUIREMENTS = [
+    'Female driver (verified via CNIC)',
+    'Valid driving license (2+ years)',
+    'Clean safety record on SAFORA',
+    'Background check cleared',
+    'Vehicle in good condition',
+];
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 const PinkPassScreen: React.FC = () => {
-    const navigation = useNavigation<any>();
-    const [loading, setLoading] = useState(true);
-    const [status, setStatus] = useState<{ pinkPassVerified: boolean; gender: string; eligible: boolean } | null>(null);
-    const [verifyStep, setVerifyStep] = useState<VerifyStep>('idle');
-    const [progress, setProgress] = useState(0);
-    const [verifyResult, setVerifyResult] = useState<'success' | 'fail' | null>(null);
+    const navigation       = useNavigation<any>();
+    const { theme }        = useAppTheme();
+    const s                = useMemo(() => makeStyles(theme), [theme]);
 
-    useEffect(() => {
-        fetchStatus();
-    }, []);
+    const [status, setStatus]   = useState<PassStatus>('loading');
+    const [applying, setApplying] = useState(false);
+
+    useEffect(() => { fetchStatus(); }, []);
 
     const fetchStatus = async () => {
-        setLoading(true);
         try {
-            const res = await apiService.get('/pink-pass/status') as any;
-            setStatus(res);
+            const res: any = await apiService.get('/pink-pass/status');
+            if (res?.pinkPassVerified) setStatus('active');
+            else if (res?.applied)     setStatus('pending');
+            else if (res?.eligible)    setStatus('eligible');
+            else                       setStatus('ineligible');
         } catch {
-            // Backend not available - show demo UI
-            setStatus({ pinkPassVerified: false, gender: 'female', eligible: true });
-        } finally {
-            setLoading(false);
+            // Demo: show eligible state
+            setStatus('eligible');
         }
     };
 
-    const startVerification = () => {
-        // Navigate to the actual Camera Screen
-        navigation.navigate('PinkPassCamera');
+    const handleApply = async () => {
+        setApplying(true);
+        try {
+            await apiService.post('/pink-pass/apply', {});
+            setStatus('pending');
+        } catch {
+            setStatus('pending'); // demo
+        } finally {
+            setApplying(false);
+        }
     };
 
-    const renderScanAnimation = () => (
-        <View style={styles.scanBox}>
-            <View style={styles.scanFrame}>
-                <View style={[styles.scanCorner, styles.scanTL]} />
-                <View style={[styles.scanCorner, styles.scanTR]} />
-                <View style={[styles.scanCorner, styles.scanBL]} />
-                <View style={[styles.scanCorner, styles.scanBR]} />
-                <Text style={styles.scanEmoji}>👤</Text>
-                <View style={[styles.scanLine, { top: `${progress}%` as any }]} />
-            </View>
-            <Text style={styles.scanLabel}>
-                {verifyStep === 'processing' ? '🤖 AI Liveness Check...' : `📷 Scanning Face... ${progress}%`}
-            </Text>
-            {verifyStep === 'processing' && <ActivityIndicator color={theme.colors.primary} style={{ marginTop: 12 }} />}
-        </View>
-    );
-
-    if (loading) {
+    if (status === 'loading') {
         return (
-            <View style={styles.centered}>
+            <View style={s.center}>
                 <ActivityIndicator size="large" color={theme.colors.primary} />
             </View>
         );
     }
 
     return (
-        <View style={styles.container}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <Text style={styles.backText}>←</Text>
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>PINK PASS</Text>
-                <View style={{ width: 40 }} />
+        <ScrollView
+            style={s.root}
+            contentContainerStyle={s.content}
+            showsVerticalScrollIndicator={false}
+        >
+            <StatusBar
+                barStyle={theme.dark ? 'light-content' : 'dark-content'}
+                backgroundColor={theme.colors.background}
+            />
+
+            {/* Back */}
+            <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
+                <Text style={s.backText}>←</Text>
+            </TouchableOpacity>
+
+            {/* Badge */}
+            <View style={s.infoBadge}>
+                <Text style={s.infoBadgeText}>INFO</Text>
             </View>
 
-            <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+            {/* Title */}
+            <Text style={s.title}>PINK PASS{'\n'}APPLICATION</Text>
+            <Text style={s.subtitle}>
+                Pink Pass is exclusively for verified female drivers providing safe rides for women passengers.
+            </Text>
 
-                {/* Hero Badge */}
-                <View style={styles.heroBadge}>
-                    <Text style={styles.heroEmoji}>🎀</Text>
-                    <Text style={styles.heroTitle}>Pink Pass</Text>
-                    <Text style={styles.heroSub}>AI-powered safety verification for women</Text>
+            {/* Active state */}
+            {status === 'active' && (
+                <View style={s.activeCard}>
+                    <Text style={s.activeIcon}>✓</Text>
+                    <View style={s.activeTexts}>
+                        <Text style={s.activeName}>Pink Pass Active</Text>
+                        <Text style={s.activeSub}>Your badge is visible on your profile</Text>
+                    </View>
                 </View>
+            )}
 
-                {/* Status Card */}
-                {status?.pinkPassVerified ? (
-                    <View style={[styles.statusCard, styles.verifiedCard]}>
-                        <View style={styles.statusRow}>
-                            <View style={styles.verifiedBadge}>
-                                <Text style={styles.verifiedIcon}>✓</Text>
-                            </View>
-                            <View style={styles.statusText}>
-                                <Text style={styles.statusTitle}>Pink Pass Verified</Text>
-                                <Text style={styles.statusSub}>You can book Pink Pass rides with female-only drivers</Text>
-                            </View>
-                        </View>
-                        <View style={styles.benefitRow}>
-                            {['Female Driver', 'AI Safety', 'Priority Match'].map(b => (
-                                <View key={b} style={styles.benefitChip}>
-                                    <Text style={styles.benefitText}>{b}</Text>
-                                </View>
-                            ))}
-                        </View>
+            {/* Pending state */}
+            {status === 'pending' && (
+                <View style={s.pendingCard}>
+                    <Text style={s.pendingIcon}>⏳</Text>
+                    <View>
+                        <Text style={s.pendingTitle}>Application Under Review</Text>
+                        <Text style={s.pendingSub}>We'll notify you within 2–3 business days</Text>
                     </View>
-                ) : (
-                    <View style={[styles.statusCard, styles.unverifiedCard]}>
-                        <Text style={styles.unverifiedTitle}>Not Verified</Text>
-                        <Text style={styles.unverifiedSub}>
-                            Complete the face liveness check to unlock Pink Pass rides
-                        </Text>
-                    </View>
-                )}
+                </View>
+            )}
 
-                {/* Gender gating */}
-                {!status?.eligible && (
-                    <View style={styles.gateCard}>
-                        <Text style={styles.gateEmoji}>ℹ️</Text>
-                        <Text style={styles.gateText}>Pink Pass is available for female passengers only</Text>
-                    </View>
-                )}
-
-                {/* Verification flow */}
-                {status?.eligible && !status?.pinkPassVerified && (
-                    <View style={styles.section}>
-                        <Text style={styles.sectionLabel}>FACE LIVENESS CHECK</Text>
-
-                        {verifyStep === 'idle' && (
-                            <View>
-                                {[
-                                    { icon: '📷', text: 'Face scan via device camera' },
-                                    { icon: '🤖', text: 'AI liveness detection (anti-spoofing)' },
-                                    { icon: '🔒', text: 'Data is encrypted and not stored' },
-                                    { icon: '⚡', text: 'Takes less than 10 seconds' },
-                                ].map((step, i) => (
-                                    <View key={i} style={styles.stepRow}>
-                                        <Text style={styles.stepIcon}>{step.icon}</Text>
-                                        <Text style={styles.stepText}>{step.text}</Text>
-                                    </View>
-                                ))}
-                                <TouchableOpacity style={styles.startBtn} onPress={startVerification}>
-                                    <Text style={styles.startBtnText}>Start Verification →</Text>
-                                </TouchableOpacity>
+            {/* Eligibility requirements */}
+            {(status === 'eligible' || status === 'ineligible') && (
+                <View style={s.requirementsCard}>
+                    <Text style={s.requirementsTitle}>Eligibility Requirements</Text>
+                    {REQUIREMENTS.map((req, i) => (
+                        <View key={i} style={s.reqRow}>
+                            <View style={[s.reqCheck, status === 'ineligible' && i > 1 && s.reqCheckFail]}>
+                                <Text style={s.reqCheckText}>
+                                    {status === 'ineligible' && i > 1 ? '✕' : '✓'}
+                                </Text>
                             </View>
-                        )}
-
-                        {/* No scan animation here anymore, it happens on the Camera Screen */}
-
-                        {verifyStep === 'done' && verifyResult === 'success' && (
-                            <View style={styles.resultCard}>
-                                <Text style={styles.resultIcon}>✅</Text>
-                                <Text style={styles.resultTitle}>Verification Successful!</Text>
-                                <Text style={styles.resultSub}>Confidence: 97.3% • Liveness: Passed</Text>
-                                <Text style={styles.resultSub}>Pink Pass rides are now unlocked</Text>
-                            </View>
-                        )}
-
-                        {verifyStep === 'done' && verifyResult === 'fail' && (
-                            <View style={[styles.resultCard, { borderColor: theme.colors.danger }]}>
-                                <Text style={styles.resultIcon}>❌</Text>
-                                <Text style={[styles.resultTitle, { color: theme.colors.danger }]}>Verification Failed</Text>
-                                <Text style={styles.resultSub}>Please try again in good lighting</Text>
-                                <TouchableOpacity style={styles.retryBtn} onPress={() => { setVerifyStep('idle'); setVerifyResult(null); }}>
-                                    <Text style={styles.retryText}>Try Again</Text>
-                                </TouchableOpacity>
-                            </View>
-                        )}
-                    </View>
-                )}
-
-                {/* How it works */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionLabel}>HOW PINK PASS WORKS</Text>
-                    {[
-                        { num: '1', title: 'Verify Your Identity', desc: 'One-time AI face liveness check' },
-                        { num: '2', title: 'Book Pink Pass Rides', desc: 'Select Pink Pass when booking' },
-                        { num: '3', title: 'Female-Only Match', desc: 'Matched only with certified female drivers' },
-                        { num: '4', title: 'AI Safety Monitor', desc: 'Route deviation alerts throughout the ride' },
-                    ].map(step => (
-                        <View key={step.num} style={styles.howRow}>
-                            <View style={styles.howNum}>
-                                <Text style={styles.howNumText}>{step.num}</Text>
-                            </View>
-                            <View style={styles.howContent}>
-                                <Text style={styles.howTitle}>{step.title}</Text>
-                                <Text style={styles.howDesc}>{step.desc}</Text>
-                            </View>
+                            <Text style={s.reqText}>{req}</Text>
                         </View>
                     ))}
                 </View>
+            )}
 
-            </ScrollView>
-        </View>
+            {/* Info notice */}
+            <View style={s.noticeCard}>
+                <Text style={s.noticeIcon}>🔒</Text>
+                <Text style={s.noticeText}>
+                    Your gender will be verified through your CNIC. Pink Pass badge will appear on your profile upon approval.
+                </Text>
+            </View>
+
+            {/* CTA */}
+            {status === 'eligible' && (
+                <TouchableOpacity
+                    style={s.applyBtn}
+                    activeOpacity={0.85}
+                    onPress={handleApply}
+                    disabled={applying}
+                >
+                    {applying
+                        ? <ActivityIndicator color="#FFF" />
+                        : <Text style={s.applyBtnText}>Apply for Pink Pass →</Text>
+                    }
+                </TouchableOpacity>
+            )}
+
+            {status === 'ineligible' && (
+                <View style={s.ineligibleNote}>
+                    <Text style={s.ineligibleText}>
+                        You don't meet all requirements yet. Complete your driver profile to qualify.
+                    </Text>
+                </View>
+            )}
+        </ScrollView>
     );
 };
 
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: theme.colors.background },
-    centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background },
-    header: {
-        paddingTop: Platform.OS === 'ios' ? 50 : 40,
-        paddingHorizontal: 20, paddingBottom: 16,
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    },
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
+const makeStyles = (t: AppTheme) => StyleSheet.create({
+    root:    { flex: 1, backgroundColor: t.colors.background },
+    center:  { flex: 1, backgroundColor: t.colors.background, alignItems: 'center', justifyContent: 'center' },
+    content: { paddingHorizontal: 24, paddingTop: 56, paddingBottom: 48 },
+
     backBtn: {
-        width: 40, height: 40, borderRadius: 12,
-        backgroundColor: theme.colors.card,
+        width: 38, height: 38, borderRadius: 12,
+        backgroundColor: t.colors.cardSecondary,
         alignItems: 'center', justifyContent: 'center',
+        marginBottom: 28,
+        borderWidth: 1, borderColor: t.colors.border,
     },
-    backText: { color: theme.colors.text, fontSize: 20 },
-    headerTitle: { fontSize: 16, fontWeight: '900', color: theme.colors.text, letterSpacing: 2 },
-    scroll: { paddingHorizontal: 20, paddingBottom: 40 },
+    backText: { fontSize: 20, color: t.colors.text, fontWeight: '600' },
 
-    heroBadge: {
-        backgroundColor: 'rgba(255,107,157,0.08)',
-        borderWidth: 1, borderColor: 'rgba(255,107,157,0.25)',
-        borderRadius: 20, padding: 24,
-        alignItems: 'center', marginBottom: 20,
-    },
-    heroEmoji: { fontSize: 48, marginBottom: 10 },
-    heroTitle: { fontSize: 24, fontWeight: '900', color: theme.colors.secondary, letterSpacing: 2, marginBottom: 6 },
-    heroSub: { fontSize: 12, color: theme.colors.textSecondary, textAlign: 'center' },
-
-    statusCard: {
-        borderRadius: 16, padding: 18, marginBottom: 20,
+    infoBadge: {
+        alignSelf: 'flex-start',
+        backgroundColor: 'rgba(236,72,153,0.12)',
+        borderColor: 'rgba(236,72,153,0.35)',
         borderWidth: 1.5,
+        borderRadius: 20,
+        paddingHorizontal: 14,
+        paddingVertical: 5,
+        marginBottom: 18,
     },
-    verifiedCard: {
-        backgroundColor: 'rgba(0,230,118,0.05)',
-        borderColor: 'rgba(0,230,118,0.3)',
-    },
-    unverifiedCard: {
-        backgroundColor: theme.colors.card,
-        borderColor: theme.colors.border,
-    },
-    statusRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 16 },
-    verifiedBadge: {
-        width: 44, height: 44, borderRadius: 22,
-        backgroundColor: theme.colors.success,
-        alignItems: 'center', justifyContent: 'center',
-    },
-    verifiedIcon: { color: theme.colors.black, fontSize: 20, fontWeight: '900' },
-    statusText: { flex: 1 },
-    statusTitle: { color: theme.colors.text, fontWeight: '800', fontSize: 15 },
-    statusSub: { color: theme.colors.textSecondary, fontSize: 11, marginTop: 3 },
-    benefitRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-    benefitChip: {
-        backgroundColor: 'rgba(0,230,118,0.1)',
-        borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4,
-        borderWidth: 1, borderColor: 'rgba(0,230,118,0.2)',
-    },
-    benefitText: { color: theme.colors.success, fontSize: 10, fontWeight: '700' },
-    unverifiedTitle: { color: theme.colors.text, fontWeight: '800', fontSize: 15, marginBottom: 6 },
-    unverifiedSub: { color: theme.colors.textSecondary, fontSize: 12, lineHeight: 18 },
-
-    gateCard: {
-        flexDirection: 'row', alignItems: 'center', gap: 12,
-        backgroundColor: theme.colors.card, borderRadius: 14, padding: 16, marginBottom: 20,
-        borderWidth: 1, borderColor: theme.colors.border,
-    },
-    gateEmoji: { fontSize: 20 },
-    gateText: { color: theme.colors.textSecondary, fontSize: 13, flex: 1 },
-
-    section: { marginBottom: 28 },
-    sectionLabel: {
-        fontSize: 10, letterSpacing: 3, fontWeight: '800',
-        color: theme.colors.textSecondary, marginBottom: 14,
+    infoBadgeText: {
+        fontSize: 11, fontWeight: '800',
+        color: t.colors.secondary,
+        letterSpacing: 2,
     },
 
-    stepRow: {
-        flexDirection: 'row', alignItems: 'center', gap: 12,
-        backgroundColor: theme.colors.card, borderRadius: 12,
-        padding: 14, marginBottom: 8,
-        borderWidth: 1, borderColor: '#1E1E1E',
+    title: {
+        fontSize: 36, fontWeight: '900',
+        color: t.colors.text,
+        letterSpacing: 1, lineHeight: 42,
+        marginBottom: 14,
     },
-    stepIcon: { fontSize: 18 },
-    stepText: { color: theme.colors.textSecondary, fontSize: 13, flex: 1 },
+    subtitle: {
+        fontSize: 14, color: t.colors.textSecondary,
+        lineHeight: 22, marginBottom: 28,
+    },
 
-    startBtn: {
-        backgroundColor: theme.colors.secondary,
-        borderRadius: 14, paddingVertical: 16,
-        alignItems: 'center', marginTop: 8,
+    /* Active card */
+    activeCard: {
+        flexDirection: 'row', alignItems: 'center',
+        backgroundColor: 'rgba(34,197,94,0.1)',
+        borderColor: 'rgba(34,197,94,0.4)',
+        borderWidth: 1.5, borderRadius: 16,
+        padding: 16, marginBottom: 22, gap: 14,
     },
-    startBtnText: { color: theme.colors.black, fontWeight: '800', fontSize: 15 },
+    activeIcon: { fontSize: 26, color: t.colors.success },
+    activeTexts: { flex: 1 },
+    activeName:  { fontSize: 16, fontWeight: '800', color: t.colors.success },
+    activeSub:   { fontSize: 13, color: t.colors.textSecondary, marginTop: 3 },
 
-    scanBox: { alignItems: 'center', paddingVertical: 20 },
-    scanFrame: {
-        width: 200, height: 200, borderRadius: 16,
-        backgroundColor: 'rgba(255,107,157,0.05)',
-        alignItems: 'center', justifyContent: 'center',
-        overflow: 'hidden', position: 'relative',
-        borderWidth: 1, borderColor: 'rgba(255,107,157,0.2)',
+    /* Pending card */
+    pendingCard: {
+        flexDirection: 'row', alignItems: 'center',
+        backgroundColor: t.colors.cardSecondary,
+        borderRadius: 16, padding: 16, marginBottom: 22, gap: 14,
+        borderWidth: 1, borderColor: t.colors.border,
     },
-    scanCorner: {
-        position: 'absolute', width: 20, height: 20,
-        borderColor: theme.colors.secondary, borderWidth: 3,
-    },
-    scanTL: { top: 10, left: 10, borderBottomWidth: 0, borderRightWidth: 0, borderTopLeftRadius: 6 },
-    scanTR: { top: 10, right: 10, borderBottomWidth: 0, borderLeftWidth: 0, borderTopRightRadius: 6 },
-    scanBL: { bottom: 10, left: 10, borderTopWidth: 0, borderRightWidth: 0, borderBottomLeftRadius: 6 },
-    scanBR: { bottom: 10, right: 10, borderTopWidth: 0, borderLeftWidth: 0, borderBottomRightRadius: 6 },
-    scanEmoji: { fontSize: 60 },
-    scanLine: {
-        position: 'absolute', left: 0, right: 0, height: 2,
-        backgroundColor: theme.colors.secondary, opacity: 0.7,
-    },
-    scanLabel: { color: theme.colors.textSecondary, fontSize: 12, marginTop: 16, fontWeight: '600' },
+    pendingIcon:  { fontSize: 26 },
+    pendingTitle: { fontSize: 15, fontWeight: '700', color: t.colors.text },
+    pendingSub:   { fontSize: 13, color: t.colors.textSecondary, marginTop: 3 },
 
-    resultCard: {
-        backgroundColor: theme.colors.card, borderRadius: 16, padding: 24,
-        alignItems: 'center', borderWidth: 1.5,
-        borderColor: 'rgba(0,230,118,0.3)',
+    /* Requirements card */
+    requirementsCard: {
+        backgroundColor: t.dark ? 'rgba(236,72,153,0.06)' : 'rgba(236,72,153,0.05)',
+        borderColor: 'rgba(236,72,153,0.2)',
+        borderWidth: 1.5, borderRadius: 18,
+        padding: 20, marginBottom: 20,
     },
-    resultIcon: { fontSize: 48, marginBottom: 12 },
-    resultTitle: { color: theme.colors.success, fontSize: 18, fontWeight: '900', marginBottom: 8 },
-    resultSub: { color: theme.colors.textSecondary, fontSize: 12, marginBottom: 4 },
-    retryBtn: {
-        marginTop: 12, borderWidth: 1.5, borderColor: theme.colors.danger,
-        borderRadius: 10, paddingVertical: 10, paddingHorizontal: 24,
-    },
-    retryText: { color: theme.colors.danger, fontWeight: '700', fontSize: 13 },
-
-    howRow: {
-        flexDirection: 'row', gap: 14, alignItems: 'flex-start',
+    requirementsTitle: {
+        fontSize: 13, fontWeight: '800',
+        color: t.colors.secondary,
         marginBottom: 16,
     },
-    howNum: {
-        width: 30, height: 30, borderRadius: 15,
-        backgroundColor: 'rgba(255,107,157,0.12)',
-        borderWidth: 1, borderColor: 'rgba(255,107,157,0.3)',
+    reqRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 12 },
+    reqCheck: {
+        width: 22, height: 22, borderRadius: 11,
+        backgroundColor: t.colors.secondary,
         alignItems: 'center', justifyContent: 'center',
     },
-    howNumText: { color: theme.colors.secondary, fontWeight: '900', fontSize: 13 },
-    howContent: { flex: 1 },
-    howTitle: { color: theme.colors.text, fontWeight: '700', fontSize: 13 },
-    howDesc: { color: theme.colors.textSecondary, fontSize: 11, marginTop: 2 },
+    reqCheckFail: { backgroundColor: t.colors.danger },
+    reqCheckText: { fontSize: 11, fontWeight: '900', color: '#FFF' },
+    reqText: { fontSize: 14, color: t.colors.text, flex: 1 },
+
+    /* Notice card */
+    noticeCard: {
+        flexDirection: 'row', alignItems: 'flex-start',
+        backgroundColor: t.colors.cardSecondary,
+        borderRadius: 14, padding: 16, marginBottom: 28,
+        borderWidth: 1, borderColor: t.colors.border,
+        gap: 12,
+    },
+    noticeIcon: { fontSize: 18, marginTop: 1 },
+    noticeText: {
+        flex: 1, fontSize: 13,
+        color: t.colors.textSecondary, lineHeight: 20,
+    },
+
+    /* Apply button */
+    applyBtn: {
+        backgroundColor: t.colors.secondary,
+        borderRadius: 16, paddingVertical: 16,
+        alignItems: 'center',
+        shadowColor: t.colors.secondary,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.3, shadowRadius: 14, elevation: 6,
+    },
+    applyBtnText: { fontSize: 15, fontWeight: '800', color: '#FFF' },
+
+    /* Ineligible note */
+    ineligibleNote: {
+        backgroundColor: t.colors.cardSecondary,
+        borderRadius: 14, padding: 16,
+        borderWidth: 1, borderColor: t.colors.border,
+    },
+    ineligibleText: { fontSize: 14, color: t.colors.textSecondary, lineHeight: 20 },
 });
 
 export default PinkPassScreen;

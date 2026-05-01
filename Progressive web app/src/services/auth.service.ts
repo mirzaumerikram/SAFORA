@@ -14,6 +14,14 @@ export interface RegisterData {
     password: string;
 }
 
+export interface CompleteProfileData {
+    name: string;
+    email?: string;
+    gender?: string;
+    cnic?: string;
+    role?: string;
+}
+
 export interface AuthResponse {
     success: boolean;
     token: string;
@@ -73,6 +81,22 @@ class AuthService {
                 await this.saveAuthData(response.token, response.user);
             }
 
+            return response;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async completeProfile(data: CompleteProfileData, token: string): Promise<AuthResponse> {
+        try {
+            const response = await apiService.post<AuthResponse>(
+                '/auth/complete-profile',
+                data,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            if (response.success && response.token) {
+                await this.saveAuthData(response.token, response.user);
+            }
             return response;
         } catch (error) {
             throw this.handleError(error);
@@ -159,17 +183,9 @@ class AuthService {
     }
 
     private handleError(error: any): Error {
-        if (error.response) {
-            // Server responded with error
-            const message = error.response.data?.message || 'Authentication failed';
-            return new Error(message);
-        } else if (error.request) {
-            // Request made but no response
-            return new Error('Network error. Please check your connection.');
-        } else {
-            // Something else happened
-            return new Error(error.message || 'An unexpected error occurred');
-        }
+        // apiService already throws an Error with the correct message
+        if (error instanceof Error) return error;
+        return new Error(error.message || 'An unexpected error occurred');
     }
 }
 

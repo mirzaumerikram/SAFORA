@@ -33,7 +33,7 @@ const FeedbackScreen: React.FC = () => {
     const [comment, setComment] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const theme = useAppTheme();
+    const { theme } = useAppTheme();
     const s = useMemo(() => makeStyles(theme), [theme]);
 
     const toggleTag = (tag: string) => {

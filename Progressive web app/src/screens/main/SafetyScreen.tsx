@@ -46,7 +46,7 @@ const getContactColor = (index: number) => CONTACT_COLORS[index % CONTACT_COLORS
 const SafetyScreen: React.FC = () => {
     const navigation = useNavigation<any>();
     const { t } = useLanguage();
-    const theme = useAppTheme();
+    const { theme } = useAppTheme();
     const s = useMemo(() => makeStyles(theme), [theme]);
 
     // SOS state

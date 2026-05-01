@@ -101,7 +101,7 @@ const parsePriceNum = (price: string): number =>
 const RideHistoryScreen: React.FC = () => {
     const navigation = useNavigation<any>();
     const { t } = useLanguage();
-    const theme = useAppTheme();
+    const { theme } = useAppTheme();
     const s = useMemo(() => makeStyles(theme), [theme]);
 
     const [rides, setRides] = useState<Ride[]>([]);

@@ -14,11 +14,12 @@ import PinkPassCameraScreen from '../screens/main/PinkPassCameraScreen';
 import PaymentScreen from '../screens/main/PaymentScreen';
 import ChatScreen from '../screens/main/ChatScreen';
 import SearchingScreen from '../screens/main/SearchingScreen';
-import theme from '../utils/theme';
+import { useAppTheme } from '../context/ThemeContext';
 
 const Stack = createStackNavigator();
 
 const MainNavigator: React.FC = () => {
+    const { theme } = useAppTheme();
     return (
         <Stack.Navigator
             screenOptions={{

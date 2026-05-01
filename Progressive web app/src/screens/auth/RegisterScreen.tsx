@@ -1,243 +1,378 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
-    View,
-    Text,
-    StyleSheet,
-    ScrollView,
-    TouchableOpacity,
-    KeyboardAvoidingView,
-    Platform,
-    TextInput,
-    StatusBar,
-    ActivityIndicator,
+    View, Text, StyleSheet, ScrollView, TouchableOpacity,
+    KeyboardAvoidingView, Platform, TextInput,
+    ActivityIndicator, StatusBar,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppTheme } from '../../context/ThemeContext';
-import authService from '../../services/auth.service';
+import { AppTheme } from '../../utils/theme';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
+import authService from '../../services/auth.service';
 import SaforaAlert from '../../utils/alert';
-import { APP_CONSTANTS } from '../../utils/constants';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type Gender = 'male' | 'female' | 'other';
 
+// ─── Component ────────────────────────────────────────────────────────────────
+
 const RegisterScreen: React.FC = () => {
     const navigation = useNavigation<any>();
-    const route = useRoute<any>();
-    const { theme } = useAppTheme();
+    const route      = useRoute<any>();
+    const { theme }  = useAppTheme();
     const { setAuthenticated } = useAuth();
     const { t, isUrdu } = useLanguage();
 
-    const fromOtp   = !!route.params?.token;
-    const otpPhone  = route.params?.phone || '';
+    // Params passed from OTPScreen after successful Firebase verification
+    const otpToken     : string                    = route.params?.token      || '';
+    const otpPhone     : string                    = route.params?.phone      || '';
+    const selectedRole : 'passenger' | 'driver'    = route.params?.selectedRole || 'passenger';
+    const isDriver = selectedRole === 'driver';
 
-    // Guard: registration requires phone OTP verification first
+    // Guard: must arrive here via OTP flow
     useEffect(() => {
-        if (!fromOtp) {
+        if (!otpToken) {
             SaforaAlert(
-                'Phone Verification Required',
+                'Verification Required',
                 'Please verify your phone number with OTP before registering.'
             );
-            navigation.replace('Login', { selectedRole: route.params?.selectedRole || 'passenger' });
+            navigation.replace('Login', { selectedRole });
         }
     }, []);
 
-    const [formData, setFormData] = useState({
-        name: '',
-        email: '',
-        phone: otpPhone,
-        password: '',
-        confirmPassword: '',
-    });
+    // ── Form state ────────────────────────────────────────────────────────────
+    const [name,   setName]   = useState('');
+    const [email,  setEmail]  = useState('');
+    const [cnic,   setCnic]   = useState('');
     const [gender, setGender] = useState<Gender>('male');
+    const [agreed, setAgreed] = useState(false);
     const [loading, setLoading] = useState(false);
 
+    // ── Submit ────────────────────────────────────────────────────────────────
     const handleRegister = async () => {
-        if (!formData.name.trim() || !formData.email.trim() || !formData.password) {
-            SaforaAlert('Error', 'Please fill in all required fields');
-            return;
+        if (!name.trim()) {
+            SaforaAlert('Required', 'Please enter your full name.'); return;
         }
-        if (formData.password !== formData.confirmPassword) {
-            SaforaAlert('Error', 'Passwords do not match');
-            return;
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            SaforaAlert('Invalid Email', 'Please enter a valid email address.'); return;
         }
-        if (formData.password.length < 6) {
-            SaforaAlert('Error', 'Password must be at least 6 characters');
-            return;
+        if (!agreed) {
+            SaforaAlert('Terms Required', 'Please accept the Terms & Conditions to continue.'); return;
         }
 
         setLoading(true);
         try {
-            const response = await authService.register({
-                ...formData,
-                gender,
-                role: 'passenger'
-            });
+            // Call complete-profile — the user already exists as a placeholder
+            // created by verify-firebase-token on the backend
+            const response = await authService.completeProfile(
+                {
+                    name:   name.trim(),
+                    email:  email.trim() || undefined,
+                    gender,
+                    cnic:   cnic.trim()  || undefined,
+                    role:   selectedRole,
+                },
+                otpToken
+            );
+
             if (response.success) {
+                // Persist selected role so AuthContext resolves it correctly
+                await AsyncStorage.setItem('@safora_selected_role', selectedRole);
                 setAuthenticated(true);
             } else {
-                SaforaAlert('Registration Failed', response.message || 'Something went wrong');
+                SaforaAlert('Registration Failed', response.message || 'Something went wrong. Please try again.');
             }
-        } catch (error: any) {
-            SaforaAlert('Registration Failed', error.message || 'Server error');
+        } catch (err: any) {
+            SaforaAlert('Registration Failed', err.message || 'Server error. Please try again.');
         } finally {
             setLoading(false);
         }
     };
 
+    const s = useMemo(() => makeStyles(theme), [theme]);
+
     return (
         <KeyboardAvoidingView
-            style={[styles.container, { backgroundColor: theme.colors.background }]}
+            style={s.root}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-            <StatusBar barStyle={theme.dark ? 'light-content' : 'dark-content'} />
-            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                <TouchableOpacity 
-                    style={[styles.backBtn, { backgroundColor: theme.colors.card }]} 
-                    onPress={() => navigation.goBack()}
-                >
-                    <Text style={[styles.backBtnText, { color: theme.colors.text }]}>←</Text>
+            <StatusBar
+                barStyle={theme.dark ? 'light-content' : 'dark-content'}
+                backgroundColor={theme.colors.background}
+            />
+            <ScrollView
+                contentContainerStyle={s.scroll}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+            >
+                {/* Back */}
+                <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
+                    <Text style={s.backText}>←</Text>
                 </TouchableOpacity>
 
-                <View style={[styles.badge, { backgroundColor: theme.dark ? 'rgba(245,197,24,0.15)' : 'rgba(245,197,24,0.1)' }]}>
-                    <Text style={[styles.badgeText, { color: theme.colors.primary }]}>{t.createAccount}</Text>
+                {/* Badge */}
+                <View style={[s.badge, isDriver && s.badgeDriver]}>
+                    <Text style={[s.badgeText, isDriver && s.badgeTextDriver]}>
+                        {isDriver ? '🚗  CREATE DRIVER ACCOUNT' : '🧍  CREATE ACCOUNT'}
+                    </Text>
                 </View>
 
-                <Text style={[styles.title, { color: theme.colors.text }, isUrdu && styles.rtlTitle]}>
-                    {t.registerTitle}
+                {/* Title */}
+                <Text style={[s.title, isUrdu && s.rtl]}>
+                    {t.registerTitle || 'JOIN SAFORA'}
                 </Text>
-                <Text style={[styles.subtitle, { color: theme.colors.textSecondary }, isUrdu && styles.rtl]}>
-                    {t.registerSub}
+                <Text style={[s.subtitle, isUrdu && s.rtl]}>
+                    {isDriver
+                        ? 'Complete your profile to start earning on SAFORA.'
+                        : 'Create your account to start riding safely.'}
                 </Text>
 
-                {/* Form Fields */}
-                <View style={styles.form}>
-                    <View style={styles.inputGroup}>
-                        <Text style={[styles.inputLabel, { color: theme.colors.primary }]}>{t.fullNameLabel}</Text>
-                        <TextInput
-                            style={[styles.input, { backgroundColor: theme.colors.card, borderColor: theme.colors.border, color: theme.colors.text }]}
-                            placeholder="John Doe"
-                            placeholderTextColor={theme.colors.placeholder}
-                            value={formData.name}
-                            onChangeText={(val) => setFormData({...formData, name: val})}
-                        />
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={[styles.inputLabel, { color: theme.colors.primary }]}>{t.emailAddressLabel}</Text>
-                        <TextInput
-                            style={[styles.input, { backgroundColor: theme.colors.card, borderColor: theme.colors.border, color: theme.colors.text }]}
-                            placeholder="john@example.com"
-                            placeholderTextColor={theme.colors.placeholder}
-                            value={formData.email}
-                            onChangeText={(val) => setFormData({...formData, email: val})}
-                            keyboardType="email-address"
-                            autoCapitalize="none"
-                        />
-                    </View>
-
-                    {!fromOtp && (
-                        <View style={styles.inputGroup}>
-                            <Text style={[styles.inputLabel, { color: theme.colors.primary }]}>{t.phoneNumberLabel}</Text>
-                            <TextInput
-                                style={[styles.input, { backgroundColor: theme.colors.card, borderColor: theme.colors.border, color: theme.colors.text }]}
-                                placeholder="+92 3XX XXXXXXX"
-                                placeholderTextColor={theme.colors.placeholder}
-                                value={formData.phone}
-                                onChangeText={(val) => setFormData({...formData, phone: val})}
-                                keyboardType="phone-pad"
-                            />
-                        </View>
-                    )}
-
-                    {/* Gender Selection */}
-                    <Text style={[styles.inputLabel, { color: theme.colors.primary, marginBottom: 12 }]}>{t.selectGender}</Text>
-                    <View style={styles.genderRow}>
-                        {(['male', 'female'] as const).map((g) => (
-                            <TouchableOpacity
-                                key={g}
-                                style={[
-                                    styles.genderCard, 
-                                    { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
-                                    gender === g && { borderColor: theme.colors.primary, backgroundColor: theme.dark ? 'rgba(245,197,24,0.1)' : 'rgba(245,197,24,0.05)' }
-                                ]}
-                                onPress={() => setGender(g)}
-                            >
-                                <Text style={styles.genderEmoji}>{g === 'male' ? '👨' : '👩'}</Text>
-                                <Text style={[styles.genderLabel, { color: theme.colors.text }]}>{g === 'male' ? t.male : t.female}</Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={[styles.inputLabel, { color: theme.colors.primary }]}>{t.passwordLabel}</Text>
-                        <TextInput
-                            style={[styles.input, { backgroundColor: theme.colors.card, borderColor: theme.colors.border, color: theme.colors.text }]}
-                            placeholder="••••••••"
-                            placeholderTextColor={theme.colors.placeholder}
-                            value={formData.password}
-                            onChangeText={(val) => setFormData({...formData, password: val})}
-                            secureTextEntry
-                        />
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={[styles.inputLabel, { color: theme.colors.primary }]}>{t.confirmPasswordLabel}</Text>
-                        <TextInput
-                            style={[styles.input, { backgroundColor: theme.colors.card, borderColor: theme.colors.border, color: theme.colors.text }]}
-                            placeholder="••••••••"
-                            placeholderTextColor={theme.colors.placeholder}
-                            value={formData.confirmPassword}
-                            onChangeText={(val) => setFormData({...formData, confirmPassword: val})}
-                            secureTextEntry
-                        />
+                {/* Phone (pre-filled, read-only) */}
+                <Text style={s.label}>PHONE NUMBER (VERIFIED ✓)</Text>
+                <View style={s.phoneDisplay}>
+                    <Text style={s.flagText}>🇵🇰</Text>
+                    <Text style={s.phoneText}>{otpPhone || '+92 — verified'}</Text>
+                    <View style={s.verifiedBadge}>
+                        <Text style={s.verifiedText}>✓ OTP</Text>
                     </View>
                 </View>
 
+                {/* Full Name */}
+                <Text style={s.label}>FULL NAME</Text>
+                <TextInput
+                    style={s.input}
+                    placeholder="Ayesha Khan"
+                    placeholderTextColor={theme.colors.placeholder}
+                    value={name}
+                    onChangeText={setName}
+                    autoCapitalize="words"
+                />
+
+                {/* Email */}
+                <Text style={s.label}>EMAIL ADDRESS <Text style={s.optional}>(optional)</Text></Text>
+                <TextInput
+                    style={s.input}
+                    placeholder="ayesha@example.com"
+                    placeholderTextColor={theme.colors.placeholder}
+                    value={email}
+                    onChangeText={setEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                />
+
+                {/* Gender */}
+                <Text style={s.label}>GENDER</Text>
+                <View style={s.genderRow}>
+                    {(['male', 'female', 'other'] as Gender[]).map(g => (
+                        <TouchableOpacity
+                            key={g}
+                            style={[s.genderPill, gender === g && s.genderPillActive]}
+                            activeOpacity={0.75}
+                            onPress={() => setGender(g)}
+                        >
+                            <Text style={[s.genderText, gender === g && s.genderTextActive]}>
+                                {g.charAt(0).toUpperCase() + g.slice(1)}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+
+                {/* CNIC */}
+                <Text style={s.label}>CNIC NUMBER <Text style={s.optional}>(optional)</Text></Text>
+                <TextInput
+                    style={s.input}
+                    placeholder="XXXXX-XXXXXXX-X"
+                    placeholderTextColor={theme.colors.placeholder}
+                    value={cnic}
+                    onChangeText={setCnic}
+                    keyboardType="number-pad"
+                    maxLength={15}
+                />
+
+                {/* Terms */}
                 <TouchableOpacity
-                    style={[styles.primaryBtn, { backgroundColor: theme.colors.primary }, loading && styles.btnDisabled]}
+                    style={s.termsRow}
+                    activeOpacity={0.7}
+                    onPress={() => setAgreed(a => !a)}
+                >
+                    <View style={[s.checkbox, agreed && s.checkboxOn]}>
+                        {agreed && <Text style={s.checkmark}>✓</Text>}
+                    </View>
+                    <Text style={s.termsText}>
+                        I agree to the{' '}
+                        <Text style={s.termsLink}>Terms</Text>
+                        {', '}
+                        <Text style={s.termsLink}>Privacy Policy</Text>
+                        {' and '}
+                        <Text style={s.termsLink}>Safety Guidelines</Text>
+                        {' of SAFORA'}
+                    </Text>
+                </TouchableOpacity>
+
+                {/* Submit */}
+                <TouchableOpacity
+                    style={[s.submitBtn, loading && s.btnDisabled]}
+                    activeOpacity={0.85}
                     onPress={handleRegister}
                     disabled={loading}
                 >
-                    {loading ? <ActivityIndicator color="#000" /> : <Text style={styles.primaryBtnText}>{t.registerBtn}</Text>}
+                    {loading
+                        ? <ActivityIndicator color="#000" />
+                        : <Text style={s.submitText}>
+                            {isDriver ? 'Create Driver Account →' : 'Create Account →'}
+                          </Text>
+                    }
                 </TouchableOpacity>
 
-                <View style={styles.footer}>
-                    <Text style={[styles.footerText, { color: theme.colors.textSecondary }]}>{t.alreadyAccount} </Text>
-                    <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-                        <Text style={[styles.footerLink, { color: theme.colors.primary }]}>{t.loginLink}</Text>
-                    </TouchableOpacity>
-                </View>
+                {/* Already have account */}
+                <TouchableOpacity
+                    style={s.loginRow}
+                    onPress={() => navigation.replace('Login', { selectedRole })}
+                >
+                    <Text style={s.loginText}>
+                        Already have an account?{' '}
+                        <Text style={s.loginLink}>Sign In</Text>
+                    </Text>
+                </TouchableOpacity>
             </ScrollView>
         </KeyboardAvoidingView>
     );
 };
 
-const styles = StyleSheet.create({
-    container: { flex: 1 },
-    scrollContent: { flexGrow: 1, padding: 24, paddingTop: 60, paddingBottom: 40 },
-    backBtn: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
-    backBtnText: { fontSize: 22 },
-    badge: { alignSelf: 'flex-start', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5, marginBottom: 16 },
-    badgeText: { fontSize: 11, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase' },
-    title: { fontSize: 36, fontWeight: '900', letterSpacing: 1, lineHeight: 40, marginBottom: 8 },
-    rtlTitle: { textAlign: 'right' },
-    subtitle: { fontSize: 14, lineHeight: 20, marginBottom: 32 },
-    rtl: { textAlign: 'right' },
-    form: { marginBottom: 32 },
-    inputGroup: { marginBottom: 20 },
-    inputLabel: { fontSize: 12, fontWeight: '800', letterSpacing: 1, marginBottom: 10, textTransform: 'uppercase' },
-    input: { borderWidth: 2, borderRadius: 16, paddingHorizontal: 18, fontSize: 15, height: 56 },
-    genderRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
-    genderCard: { flex: 1, borderWidth: 2, borderRadius: 20, padding: 16, alignItems: 'center', gap: 8 },
-    genderEmoji: { fontSize: 24 },
-    genderLabel: { fontSize: 14, fontWeight: '700' },
-    primaryBtn: { borderRadius: 18, paddingVertical: 18, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4 },
-    btnDisabled: { opacity: 0.6 },
-    primaryBtnText: { color: '#000', fontSize: 16, fontWeight: '900', letterSpacing: 1 },
-    footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 24 },
-    footerText: { fontSize: 14 },
-    footerLink: { fontSize: 14, fontWeight: '800' },
-});
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
+const makeStyles = (t: AppTheme) =>
+    StyleSheet.create({
+        root:   { flex: 1, backgroundColor: t.colors.background },
+        scroll: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 56, paddingBottom: 48 },
+
+        backBtn: {
+            width: 40, height: 40, borderRadius: 13,
+            backgroundColor: t.colors.cardSecondary,
+            alignItems: 'center', justifyContent: 'center',
+            marginBottom: 28,
+            borderWidth: 1, borderColor: t.colors.border,
+        },
+        backText: { fontSize: 20, color: t.colors.text, fontWeight: '600' },
+
+        badge: {
+            alignSelf: 'flex-start',
+            backgroundColor: 'rgba(245,197,24,0.1)',
+            borderColor: 'rgba(245,197,24,0.35)',
+            borderWidth: 1.5, borderRadius: 22,
+            paddingHorizontal: 14, paddingVertical: 6,
+            marginBottom: 18,
+        },
+        badgeDriver: {
+            backgroundColor: 'rgba(34,197,94,0.1)',
+            borderColor: 'rgba(34,197,94,0.35)',
+        },
+        badgeText: {
+            fontSize: 11, fontWeight: '800',
+            color: '#F5C518', letterSpacing: 1.5,
+        },
+        badgeTextDriver: { color: '#22C55E' },
+
+        title: {
+            fontSize: 38, fontWeight: '900',
+            color: t.colors.text,
+            letterSpacing: 2, lineHeight: 44,
+            marginBottom: 8,
+        },
+        rtl: { textAlign: 'right' },
+        subtitle: {
+            fontSize: 14, color: t.colors.textSecondary,
+            lineHeight: 22, marginBottom: 28,
+        },
+
+        label: {
+            fontSize: 10, fontWeight: '800',
+            color: t.colors.primary,
+            letterSpacing: 2, marginBottom: 8, marginTop: 4,
+        },
+        optional: { color: t.colors.textSecondary, fontWeight: '400', fontSize: 9 },
+
+        phoneDisplay: {
+            flexDirection: 'row', alignItems: 'center',
+            backgroundColor: t.colors.cardSecondary,
+            borderWidth: 1, borderColor: t.colors.border,
+            borderRadius: 14, paddingHorizontal: 16, height: 52,
+            marginBottom: 20, gap: 10,
+        },
+        flagText: { fontSize: 18 },
+        phoneText: { flex: 1, fontSize: 15, fontWeight: '600', color: t.colors.text },
+        verifiedBadge: {
+            backgroundColor: 'rgba(34,197,94,0.15)',
+            borderColor: 'rgba(34,197,94,0.4)',
+            borderWidth: 1, borderRadius: 10,
+            paddingHorizontal: 8, paddingVertical: 3,
+        },
+        verifiedText: { fontSize: 11, fontWeight: '700', color: '#22C55E' },
+
+        input: {
+            height: 52,
+            backgroundColor: t.colors.cardSecondary,
+            borderWidth: 1.5, borderColor: t.colors.border,
+            borderRadius: 14, paddingHorizontal: 16,
+            fontSize: 15, color: t.colors.text,
+            marginBottom: 20,
+        },
+
+        genderRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
+        genderPill: {
+            flex: 1, height: 44, borderRadius: 12,
+            borderWidth: 1.5, borderColor: t.colors.border,
+            alignItems: 'center', justifyContent: 'center',
+            backgroundColor: t.colors.cardSecondary,
+        },
+        genderPillActive: {
+            borderColor: t.colors.primary,
+            backgroundColor: t.dark
+                ? 'rgba(245,197,24,0.1)'
+                : 'rgba(245,197,24,0.08)',
+        },
+        genderText: { fontSize: 14, fontWeight: '600', color: t.colors.textSecondary },
+        genderTextActive: { color: t.colors.primary, fontWeight: '700' },
+
+        termsRow: {
+            flexDirection: 'row', alignItems: 'flex-start',
+            gap: 10, marginBottom: 28,
+        },
+        checkbox: {
+            width: 20, height: 20, borderRadius: 6,
+            borderWidth: 2, borderColor: t.colors.border,
+            alignItems: 'center', justifyContent: 'center',
+            marginTop: 1,
+        },
+        checkboxOn: {
+            backgroundColor: t.colors.primary,
+            borderColor: t.colors.primary,
+        },
+        checkmark: { fontSize: 11, color: '#000', fontWeight: '900' },
+        termsText: {
+            flex: 1, fontSize: 13,
+            color: t.colors.textSecondary, lineHeight: 20,
+        },
+        termsLink: { color: t.colors.primary, fontWeight: '600' },
+
+        submitBtn: {
+            backgroundColor: t.colors.primary,
+            borderRadius: 16, height: 56,
+            alignItems: 'center', justifyContent: 'center',
+            marginBottom: 20,
+            shadowColor: t.colors.primary,
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.3, shadowRadius: 16, elevation: 8,
+        },
+        btnDisabled: { opacity: 0.6 },
+        submitText: { fontSize: 16, fontWeight: '800', color: '#000' },
+
+        loginRow: { alignItems: 'center' },
+        loginText: { fontSize: 13, color: t.colors.textSecondary },
+        loginLink: { color: t.colors.primary, fontWeight: '700' },
+    });
 
 export default RegisterScreen;

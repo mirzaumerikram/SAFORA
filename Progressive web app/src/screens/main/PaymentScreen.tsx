@@ -15,7 +15,7 @@ const PaymentScreen: React.FC = () => {
     const route = useRoute<any>();
     const { rideId, estimatedPrice, pickup, dropoff, rideType, rideName } = route.params || {};
 
-    const theme = useAppTheme();
+    const { theme } = useAppTheme();
     const s = useMemo(() => makeStyles(theme), [theme]);
 
     const [method, setMethod] = useState<PayMethod>('cash');

@@ -6,11 +6,12 @@ import LoginScreen from '../screens/auth/LoginScreen';
 import OTPScreen from '../screens/auth/OTPScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
 import VerifyEmailScreen from '../screens/auth/VerifyEmailScreen';
-import theme from '../utils/theme';
+import { useAppTheme } from '../context/ThemeContext';
 
 const Stack = createStackNavigator();
 
 const AuthNavigator: React.FC = () => {
+    const { theme } = useAppTheme();
     return (
         <Stack.Navigator
             initialRouteName="Splash"

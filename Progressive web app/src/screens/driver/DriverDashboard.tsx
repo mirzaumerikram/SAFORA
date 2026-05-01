@@ -35,7 +35,7 @@ interface IncomingRide {
 
 const DriverDashboard: React.FC = () => {
     const navigation = useNavigation<any>();
-    const theme = useAppTheme();
+    const { theme } = useAppTheme();
     const s = useMemo(() => makeStyles(theme), [theme]);
 
     const [isOnline, setIsOnline]     = useState(false);

@@ -11,7 +11,7 @@ const FareBreakdownScreen: React.FC = () => {
     const route = useRoute<any>();
     const { rideId, totalFare } = route.params || {};
 
-    const theme = useAppTheme();
+    const { theme } = useAppTheme();
     const s = useMemo(() => makeStyles(theme), [theme]);
 
     // Fare breakdown (fallback to design values)

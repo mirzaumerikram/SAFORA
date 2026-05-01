@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Image, Animated, Platform, Modal, Alert } from 'react-native';
 import SaforaMap from '../../components/SaforaMap';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import theme from '../../utils/theme';
+import { useAppTheme } from '../../context/ThemeContext';
+import { lightTheme as theme } from '../../utils/theme';
 import socketService from '../../services/socket.service';
 import apiService from '../../services/api';
 import { SAFETY_ENDPOINTS } from '../../utils/constants';
@@ -14,6 +15,7 @@ interface Coordinates { latitude: number; longitude: number; }
 const TrackingScreen: React.FC = () => {
     const navigation = useNavigation<any>();
     const route = useRoute<any>();
+    const { theme: liveTheme } = useAppTheme();
     const { rideId, estimatedPrice, pickup, dropoff } = route.params || {};
 
     const [status, setStatus]               = useState('ARRIVING');

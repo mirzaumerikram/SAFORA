@@ -29,7 +29,7 @@ const VerifyEmailScreen: React.FC = () => {
     const navigation = useNavigation<any>();
     const route = useRoute<any>();
     const { setAuthenticated } = useAuth();
-    const theme = useAppTheme();
+    const { theme } = useAppTheme();
 
     const { email, token, user } = route.params || {};
 

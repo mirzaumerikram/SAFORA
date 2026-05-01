@@ -37,7 +37,7 @@ const ChatScreen: React.FC = () => {
     const route      = useRoute<any>();
     const { rideId, senderRole, driverName } = route.params || {};
 
-    const theme = useAppTheme();
+    const { theme } = useAppTheme();
     const s     = useMemo(() => makeStyles(theme), [theme]);
 
     const flatRef                     = useRef<FlatList>(null);

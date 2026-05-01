@@ -63,7 +63,7 @@ const RideSelectionScreen: React.FC = () => {
     const [selected, setSelected] = useState<string>('eco');
     const [booking,  setBooking]  = useState<boolean>(false);
 
-    const theme = useAppTheme();
+    const { theme } = useAppTheme();
     const s = useMemo(() => makeStyles(theme), [theme]);
 
     const selectedRide = rideTypes.find(r => r.id === selected)!;

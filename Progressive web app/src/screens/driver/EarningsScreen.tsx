@@ -1,285 +1,202 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import theme from '../../utils/theme';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+    View, Text, StyleSheet, FlatList, TouchableOpacity,
+    ActivityIndicator, RefreshControl, StatusBar,
+} from 'react-native';
+import { useAppTheme } from '../../context/ThemeContext';
 import apiService from '../../services/api';
 
-interface RideHistory {
+// ─── Always-dark palette (Driver Earnings is permanently dark) ────────────────
+const D = {
+    bg:      '#0A0E1A',
+    card:    '#141A28',
+    border:  '#1F2937',
+    text:    '#FFFFFF',
+    textSub: '#8B949E',
+    yellow:  '#F5C518',
+};
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface RecentRide {
     id: string;
-    date: string;
-    fare: number;
     passengerName: string;
-    distance: number;
+    pickup: string;
+    dropoff: string;
+    fare: number;
+    time: string;
 }
 
-interface EarningsStats {
-    todayEarnings: number;
-    weeklyEarnings: number;
-    totalTrips: number;
-    averageRating: string;
-}
+const MOCK_RIDES: RecentRide[] = [
+    { id: '1', passengerName: 'Sara Malik',  pickup: 'Gulberg',  dropoff: 'Garden Town', fare: 185, time: '9:01 AM'  },
+    { id: '2', passengerName: 'Ayesha Khan', pickup: 'DHA Ph.5', dropoff: 'MM Alam Rd',  fare: 220, time: '11:20 AM' },
+    { id: '3', passengerName: 'Zainab Ali',  pickup: 'Cantt',    dropoff: 'Garden Town', fare: 150, time: '1:00 PM'  },
+    { id: '4', passengerName: 'Hina Butt',   pickup: 'Bahria',   dropoff: 'Wapda Town',  fare: 310, time: '3:35 PM'  },
+];
+
+const AVATAR_COLORS = ['#F5C518', '#EC4899', '#22C55E', '#3B82F6', '#8B5CF6'];
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 const EarningsScreen: React.FC = () => {
-    const navigation = useNavigation();
-    const [loading, setLoading] = useState(true);
-    const [stats, setStats] = useState<EarningsStats>({
-        todayEarnings: 0,
-        weeklyEarnings: 0,
-        totalTrips: 0,
-        averageRating: '5.0',
-    });
-    const [recentRides, setRecentRides] = useState<RideHistory[]>([]);
+    const { theme }  = useAppTheme();
 
-    useEffect(() => {
-        fetchEarnings();
-    }, []);
+    const [loading, setLoading]       = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [todayEarnings, setToday]   = useState(2450);
+    const [weekEarnings, setWeek]     = useState(12300);
+    const [totalTrips, setTrips]      = useState(14);
+    const [avgRating, setRating]      = useState('4.5');
+    const [avgFare, setAvgFare]       = useState(175);
+    const [rides, setRides]           = useState<RecentRide[]>(MOCK_RIDES);
 
-    const fetchEarnings = async () => {
+    const fetchEarnings = useCallback(async (isRefresh = false) => {
+        if (isRefresh) setRefreshing(true);
         try {
-            const res = await apiService.get('/drivers/earnings');
-            if (res.success) {
-                setStats(res.stats);
-                setRecentRides(res.recentRides);
+            const res: any = await apiService.get('/drivers/earnings');
+            if (res?.stats) {
+                setToday(res.stats.todayEarnings  ?? 2450);
+                setWeek(res.stats.weeklyEarnings  ?? 12300);
+                setTrips(res.stats.totalTrips     ?? 14);
+                setRating(res.stats.averageRating ?? '4.5');
+                setAvgFare(res.stats.avgFare      ?? 175);
             }
-        } catch (error) {
-            console.error('Failed to fetch earnings', error);
+            if (res?.recentRides?.length) setRides(res.recentRides);
+        } catch {
+            // Keep mock data
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
-    };
+    }, []);
 
-    const formatDate = (dateStr: string) => {
-        const date = new Date(dateStr);
-        return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + ' ' +
-               date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-    };
+    useEffect(() => { fetchEarnings(); }, []);
 
-    const renderHeader = () => (
-        <View style={styles.header}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                <Text style={styles.backText}>←</Text>
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>My Earnings</Text>
-            <View style={{ width: 40 }} />
-        </View>
-    );
-
-    const renderOverview = () => (
-        <View style={styles.overviewContainer}>
-            <View style={styles.overviewCard}>
-                <Text style={styles.overviewLabel}>TODAY'S EARNINGS</Text>
-                <Text style={styles.overviewValue}>RS {stats.todayEarnings}</Text>
+    const ListHeader = () => (
+        <View>
+            <StatusBar barStyle="light-content" backgroundColor={D.bg} />
+            <Text style={styles.driverLabel}>DRIVER MODE</Text>
+            <View style={styles.titleRow}>
+                <Text style={styles.title}>MY EARNINGS</Text>
+                <View style={styles.menuDot}><Text style={styles.menuDotText}>•••</Text></View>
             </View>
-            <View style={styles.overviewCard}>
-                <Text style={styles.overviewLabel}>THIS WEEK</Text>
-                <Text style={styles.overviewValue}>RS {stats.weeklyEarnings}</Text>
+
+            <View style={styles.bigCardsRow}>
+                <View style={styles.bigCard}>
+                    <Text style={styles.bigCardLabel}>TODAY'S EARNINGS</Text>
+                    <Text style={[styles.bigCardValue, { color: theme.colors.primary }]}>
+                        RS {todayEarnings.toLocaleString()}
+                    </Text>
+                </View>
+                <View style={styles.bigCard}>
+                    <Text style={styles.bigCardLabel}>THIS WEEK</Text>
+                    <Text style={[styles.bigCardValue, { color: theme.colors.primary }]}>
+                        RS {weekEarnings.toLocaleString()}
+                    </Text>
+                </View>
             </View>
 
             <View style={styles.statsRow}>
-                <View style={styles.statItem}>
-                    <Text style={styles.statVal}>{stats.totalTrips}</Text>
-                    <Text style={styles.statLabel}>Total Trips</Text>
+                <View style={styles.statCol}>
+                    <Text style={styles.statVal}>{totalTrips}</Text>
+                    <Text style={styles.statLbl}>TOTAL TRIPS</Text>
                 </View>
-                <View style={styles.statDivider} />
-                <View style={styles.statItem}>
-                    <Text style={styles.statVal}>⭐ {stats.averageRating}</Text>
-                    <Text style={styles.statLabel}>Rating</Text>
+                <View style={styles.statDiv} />
+                <View style={styles.statCol}>
+                    <Text style={styles.statVal}>{avgRating}★</Text>
+                    <Text style={styles.statLbl}>RATING</Text>
+                </View>
+                <View style={styles.statDiv} />
+                <View style={styles.statCol}>
+                    <Text style={[styles.statVal, { color: theme.colors.primary }]}>
+                        RS {avgFare}
+                    </Text>
+                    <Text style={styles.statLbl}>AVG/TRIP</Text>
                 </View>
             </View>
+
+            <Text style={styles.sectionLbl}>RECENT RIDES</Text>
         </View>
     );
 
-    const renderRideItem = ({ item }: { item: RideHistory }) => (
-        <View style={styles.rideItem}>
-            <View style={styles.rideIconContainer}>
-                <Text style={styles.rideIcon}>🚗</Text>
+    const renderRide = ({ item, index }: { item: RecentRide; index: number }) => (
+        <View style={styles.rideRow}>
+            <View style={[styles.avatar, { backgroundColor: AVATAR_COLORS[index % AVATAR_COLORS.length] }]}>
+                <Text style={styles.avatarTxt}>{item.passengerName[0]}</Text>
             </View>
             <View style={styles.rideInfo}>
-                <Text style={styles.passengerName}>{item.passengerName}</Text>
-                <Text style={styles.rideDate}>{formatDate(item.date)} • {item.distance} km</Text>
+                <Text style={styles.rideName}>{item.passengerName}</Text>
+                <Text style={styles.rideRoute}>{item.pickup} → {item.dropoff}</Text>
             </View>
-            <Text style={styles.rideFare}>+RS {item.fare}</Text>
+            <View style={styles.rideRight}>
+                <Text style={[styles.rideFare, { color: theme.colors.primary }]}>Rs {item.fare}</Text>
+                <Text style={styles.rideTime}>{item.time}</Text>
+            </View>
         </View>
     );
 
     if (loading) {
         return (
-            <View style={[styles.container, styles.loadingCenter]}>
-                <ActivityIndicator size="large" color={theme.colors.primary} />
+            <View style={styles.center}>
+                <ActivityIndicator size="large" color={D.yellow} />
             </View>
         );
     }
 
     return (
-        <View style={styles.container}>
-            {renderHeader()}
-            <FlatList
-                data={recentRides}
-                keyExtractor={(item) => item.id}
-                ListHeaderComponent={() => (
-                    <>
-                        {renderOverview()}
-                        <Text style={styles.sectionTitle}>Recent Rides</Text>
-                        {recentRides.length === 0 && (
-                            <Text style={styles.emptyText}>No recent rides found.</Text>
-                        )}
-                    </>
-                )}
-                renderItem={renderRideItem}
-                contentContainerStyle={styles.listContent}
-                showsVerticalScrollIndicator={false}
-            />
-        </View>
+        <FlatList
+            style={styles.root}
+            data={rides}
+            keyExtractor={i => i.id}
+            renderItem={renderRide}
+            ListHeaderComponent={<ListHeader />}
+            ItemSeparatorComponent={() => <View style={styles.sep} />}
+            refreshControl={
+                <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={() => fetchEarnings(true)}
+                    tintColor={D.yellow}
+                />
+            }
+            contentContainerStyle={styles.content}
+        />
     );
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: theme.colors.background,
-    },
-    loadingCenter: {
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    header: {
-        paddingTop: Platform.OS === 'ios' ? 50 : 40,
-        paddingHorizontal: 20,
-        paddingBottom: 16,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        backgroundColor: theme.colors.background,
-    },
-    backBtn: {
-        width: 40,
-        height: 40,
-        borderRadius: 12,
-        backgroundColor: theme.colors.card,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: '#1E1E1E',
-    },
-    backText: {
-        color: theme.colors.text,
-        fontSize: 20,
-    },
-    headerTitle: {
-        fontSize: 16,
-        fontWeight: '900',
-        color: theme.colors.text,
-        letterSpacing: 1.5,
-    },
-    listContent: {
-        paddingHorizontal: 20,
-        paddingBottom: 40,
-    },
-    overviewContainer: {
-        marginBottom: 24,
-    },
-    overviewCard: {
-        backgroundColor: theme.colors.card,
-        borderRadius: 16,
-        padding: 20,
-        alignItems: 'center',
-        marginBottom: 12,
-        borderWidth: 1,
-        borderColor: '#1E1E1E',
-    },
-    overviewLabel: {
-        fontSize: 11,
-        fontWeight: '800',
-        color: theme.colors.textSecondary,
-        letterSpacing: 2,
-        marginBottom: 6,
-    },
-    overviewValue: {
-        fontSize: 32,
-        fontWeight: '900',
-        color: theme.colors.primary,
-        letterSpacing: -1,
-    },
-    statsRow: {
-        flexDirection: 'row',
-        backgroundColor: theme.colors.card,
-        borderRadius: 16,
-        paddingVertical: 16,
-        borderWidth: 1,
-        borderColor: '#1E1E1E',
-    },
-    statItem: {
-        flex: 1,
-        alignItems: 'center',
-    },
-    statVal: {
-        fontSize: 20,
-        fontWeight: '900',
-        color: theme.colors.text,
-        marginBottom: 4,
-    },
-    statLabel: {
-        fontSize: 11,
-        color: theme.colors.textSecondary,
-        fontWeight: '600',
-    },
-    statDivider: {
-        width: 1,
-        backgroundColor: '#1E1E1E',
-    },
-    sectionTitle: {
-        fontSize: 16,
-        fontWeight: '900',
-        color: theme.colors.text,
-        marginBottom: 16,
-        marginLeft: 4,
-    },
-    emptyText: {
-        color: theme.colors.textSecondary,
-        textAlign: 'center',
-        marginTop: 20,
-        fontSize: 13,
-    },
-    rideItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: theme.colors.card,
-        padding: 16,
-        borderRadius: 16,
-        marginBottom: 12,
-        borderWidth: 1,
-        borderColor: '#1E1E1E',
-    },
-    rideIconContainer: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: '#111',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 16,
-    },
-    rideIcon: {
-        fontSize: 20,
-    },
-    rideInfo: {
-        flex: 1,
-    },
-    passengerName: {
-        fontSize: 15,
-        fontWeight: '700',
-        color: theme.colors.text,
-        marginBottom: 4,
-    },
-    rideDate: {
-        fontSize: 11,
-        color: theme.colors.textSecondary,
-    },
-    rideFare: {
-        fontSize: 15,
-        fontWeight: '900',
-        color: '#00e676',
-    },
+    root:    { flex: 1, backgroundColor: D.bg },
+    center:  { flex: 1, backgroundColor: D.bg, alignItems: 'center', justifyContent: 'center' },
+    content: { paddingHorizontal: 20, paddingBottom: 40, paddingTop: 56 },
+
+    driverLabel: { fontSize: 11, fontWeight: '700', color: D.yellow, letterSpacing: 2, marginBottom: 8 },
+    titleRow:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+    title:       { fontSize: 32, fontWeight: '900', color: D.text, letterSpacing: 1 },
+    menuDot:     { width: 36, height: 36, borderRadius: 18, backgroundColor: D.card, alignItems: 'center', justifyContent: 'center' },
+    menuDotText: { color: D.textSub, fontSize: 14, letterSpacing: 1 },
+
+    bigCardsRow: { flexDirection: 'row', gap: 12, marginBottom: 14 },
+    bigCard:     { flex: 1, backgroundColor: D.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: D.border },
+    bigCardLabel:{ fontSize: 10, fontWeight: '700', color: D.textSub, letterSpacing: 1, marginBottom: 8 },
+    bigCardValue:{ fontSize: 22, fontWeight: '900' },
+
+    statsRow: { flexDirection: 'row', backgroundColor: D.card, borderRadius: 16, borderWidth: 1, borderColor: D.border, paddingVertical: 14, paddingHorizontal: 8, marginBottom: 24 },
+    statCol:  { flex: 1, alignItems: 'center' },
+    statVal:  { fontSize: 18, fontWeight: '900', color: D.text },
+    statLbl:  { fontSize: 9, fontWeight: '700', color: D.textSub, letterSpacing: 1, marginTop: 4 },
+    statDiv:  { width: 1, backgroundColor: D.border, marginHorizontal: 4 },
+
+    sectionLbl: { fontSize: 11, fontWeight: '700', color: D.textSub, letterSpacing: 2, marginBottom: 12 },
+
+    rideRow:   { flexDirection: 'row', alignItems: 'center', paddingVertical: 14 },
+    avatar:    { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+    avatarTxt: { fontSize: 18, fontWeight: '900', color: '#000' },
+    rideInfo:  { flex: 1 },
+    rideName:  { fontSize: 14, fontWeight: '700', color: D.text },
+    rideRoute: { fontSize: 12, color: D.textSub, marginTop: 3 },
+    rideRight: { alignItems: 'flex-end' },
+    rideFare:  { fontSize: 15, fontWeight: '800' },
+    rideTime:  { fontSize: 11, color: D.textSub, marginTop: 3 },
+    sep:       { height: 1, backgroundColor: D.border },
 });
 
 export default EarningsScreen;

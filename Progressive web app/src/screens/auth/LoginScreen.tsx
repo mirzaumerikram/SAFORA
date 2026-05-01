@@ -1,312 +1,356 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
-    View,
-    Text,
-    StyleSheet,
-    TouchableOpacity,
-    KeyboardAvoidingView,
-    Platform,
-    TextInput,
-    ScrollView,
-    ActivityIndicator,
-    StatusBar,
+    View, Text, StyleSheet, TouchableOpacity,
+    KeyboardAvoidingView, Platform, TextInput,
+    ScrollView, ActivityIndicator, StatusBar,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { signInWithPhoneNumber, RecaptchaVerifier } from 'firebase/auth';
+import { useAppTheme } from '../../context/ThemeContext';
+import { AppTheme } from '../../utils/theme';
+import { useLanguage } from '../../context/LanguageContext';
+import SaforaAlert from '../../utils/alert';
+import { signInWithPhoneNumber } from 'firebase/auth';
 import { firebaseAuth, firebaseConfig } from '../../config/firebase';
 import { setConfirmationResult } from '../../services/otpStore';
-import { useAppTheme } from '../../context/ThemeContext';
-import authService from '../../services/auth.service';
-import SaforaAlert from '../../utils/alert';
-import { useAuth } from '../../context/AuthContext';
-import { useLanguage } from '../../context/LanguageContext';
 
-// Native-only reCAPTCHA modal (not used on web)
-const FirebaseRecaptchaVerifierModal: any = Platform.OS !== 'web'
-    ? require('expo-firebase-recaptcha').FirebaseRecaptchaVerifierModal
-    : () => null;
+// Native reCAPTCHA (modal, native only)
+const FirebaseRecaptchaVerifierModal: any =
+    Platform.OS !== 'web'
+        ? require('expo-firebase-recaptcha').FirebaseRecaptchaVerifierModal
+        : () => null;
 
-type TabType = 'otp' | 'email';
+// ─── Web reCAPTCHA helpers ─────────────────────────────────────────────────────
+// Creates a brand-new invisible RecaptchaVerifier each time.
+// Clears the container first so Firebase never sees a "already rendered" error.
+const buildWebVerifier = () => {
+    if (Platform.OS !== 'web') return null;
+    try {
+        const { RecaptchaVerifier } = require('firebase/auth');
+
+        // Ensure container div exists in DOM
+        let el = document.getElementById('safora-recaptcha');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'safora-recaptcha';
+            document.body.appendChild(el);
+        }
+        // Wipe any previously rendered widget so Firebase can start fresh
+        el.innerHTML = '';
+
+        return new RecaptchaVerifier(firebaseAuth, el, {
+            size: 'invisible',
+            callback: () => {},          // reCAPTCHA solved
+            'expired-callback': () => {},// reCAPTCHA expired
+        });
+    } catch (e) {
+        console.warn('[reCAPTCHA] build failed:', e);
+        return null;
+    }
+};
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 const LoginScreen: React.FC = () => {
     const navigation = useNavigation<any>();
-    const route = useRoute<any>();
-    const { theme } = useAppTheme();
-    const { setAuthenticated } = useAuth();
+    const route      = useRoute<any>();
+    const { theme }  = useAppTheme();
     const { t, isUrdu } = useLanguage();
 
-    // Read the role passed from LanguageRoleScreen
-    const selectedRole: 'passenger' | 'driver' = route.params?.selectedRole || 'passenger';
+    const selectedRole: 'passenger' | 'driver' =
+        route.params?.selectedRole || 'passenger';
     const isDriver = selectedRole === 'driver';
 
-    const [activeTab, setActiveTab] = useState<TabType>('otp');
-    const [phoneNumber, setPhoneNumber] = useState('');
-    const [otpLoading, setOtpLoading] = useState(false);
-    const recaptchaVerifier = useRef<any>(null);        // native
-    const webRecaptcha = useRef<RecaptchaVerifier | null>(null); // web
+    const [phone, setPhone]     = useState('');
+    const [loading, setLoading] = useState(false);
+    const [agreed, setAgreed]   = useState(true);
 
-    // Initialise invisible reCAPTCHA for web
-    useEffect(() => {
-        if (Platform.OS === 'web') {
-            try {
-                if (!document.getElementById('recaptcha-container')) {
-                    const recaptchaDiv = document.createElement('div');
-                    recaptchaDiv.id = 'recaptcha-container';
-                    recaptchaDiv.style.display = 'none';
-                    document.body.appendChild(recaptchaDiv);
-                }
-                if (!webRecaptcha.current) {
-                    webRecaptcha.current = new RecaptchaVerifier(
-                        firebaseAuth,
-                        'recaptcha-container',
-                        { size: 'invisible' }
-                    );
-                }
-            } catch (e) {
-                console.warn('[reCAPTCHA] init error', e);
-            }
-        }
-    }, []);
+    // Native reCAPTCHA ref (only used on native)
+    const recaptchaRef = useRef<any>(null);
 
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
-    const [emailLoading, setEmailLoading] = useState(false);
+    const s = useMemo(() => makeStyles(theme), [theme]);
 
-    const handleGetOTP = async () => {
-        const clean = phoneNumber.replace(/\s/g, '');
-        if (!clean || clean.length < 9) {
-            SaforaAlert('Error', 'Please enter a valid phone number');
+    const handleSendOTP = async () => {
+        const digits = phone.replace(/\D/g, '');
+        if (digits.length < 9 || digits.length > 11) {
+            SaforaAlert('Invalid Number', 'Enter a valid Pakistani mobile number.\nExample: 300 1234567');
             return;
         }
-        setOtpLoading(true);
-        try {
-            const fullPhone = `+92${clean}`;
-            // Use the correct verifier depending on platform
-            const verifier = Platform.OS === 'web'
-                ? webRecaptcha.current!
-                : recaptchaVerifier.current!;
-            const confirmationResult = await signInWithPhoneNumber(
-                firebaseAuth,
-                fullPhone,
-                verifier
-            );
-            setConfirmationResult(confirmationResult);
-            navigation.navigate('OTP', { phone: fullPhone, selectedRole });
-        } catch (error: any) {
-            SaforaAlert('Error', error.message || 'Failed to send OTP. Try again.');
-        } finally {
-            setOtpLoading(false);
-        }
-    };
-
-    const handleEmailLogin = async () => {
-        if (!email.trim() || !password) {
-            SaforaAlert('Error', 'Please fill in all fields');
+        if (!agreed) {
+            SaforaAlert('Terms Required', 'Please accept the Safety Terms & Privacy Policy.');
             return;
         }
-        setEmailLoading(true);
+
+        setLoading(true);
+        // Remove leading zero, prefix +92
+        const fullPhone = `+92${digits.replace(/^0/, '')}`;
+
         try {
-            const response = await authService.login({ email: email.trim(), password });
-            if (response.success) {
-                setAuthenticated(true);
+            let verifier: any;
+
+            if (Platform.OS === 'web') {
+                // Build a fresh verifier each attempt — no "already rendered" errors
+                verifier = buildWebVerifier();
+                if (!verifier) {
+                    SaforaAlert('Error', 'reCAPTCHA failed to initialize. Please refresh and try again.');
+                    setLoading(false);
+                    return;
+                }
             } else {
-                SaforaAlert('Login Failed', 'Invalid email or password');
+                verifier = recaptchaRef.current;
             }
-        } catch (error: any) {
-            SaforaAlert('Login Failed', error.message || 'Invalid email or password');
+
+            const confirmation = await signInWithPhoneNumber(firebaseAuth, fullPhone, verifier);
+            setConfirmationResult(confirmation);
+
+            // Clean up web verifier after successful submission
+            if (Platform.OS === 'web') {
+                try { verifier.clear(); } catch {}
+            }
+
+            navigation.navigate('OTP', { phone: fullPhone, selectedRole });
+        } catch (err: any) {
+            // Always clean up on error too
+            if (Platform.OS === 'web') {
+                try {
+                    const el = document.getElementById('safora-recaptcha');
+                    if (el) el.innerHTML = '';
+                } catch {}
+            }
+
+            const code = err?.code || '';
+            const msg =
+                code === 'auth/too-many-requests'
+                    ? 'Too many attempts. Wait a few minutes then try again.'
+                    : code === 'auth/invalid-phone-number'
+                    ? 'Invalid phone number. Check and try again.'
+                    : code === 'auth/captcha-check-failed'
+                    ? 'reCAPTCHA failed. Refresh the page and try again.'
+                    : err?.message || 'Could not send OTP. Please try again.';
+
+            SaforaAlert('OTP Failed', msg);
         } finally {
-            setEmailLoading(false);
+            setLoading(false);
         }
     };
 
     return (
         <KeyboardAvoidingView
-            style={[styles.container, { backgroundColor: theme.colors.background }]}
+            style={s.root}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-            <StatusBar barStyle={theme.dark ? 'light-content' : 'dark-content'} />
-            {/* Native reCAPTCHA modal (iOS/Android only) */}
+            <StatusBar
+                barStyle={theme.dark ? 'light-content' : 'dark-content'}
+                backgroundColor={theme.colors.background}
+            />
+
+            {/* Native invisible reCAPTCHA (native builds only) */}
             {Platform.OS !== 'web' && (
                 <FirebaseRecaptchaVerifierModal
-                    ref={recaptchaVerifier}
+                    ref={recaptchaRef}
                     firebaseConfig={firebaseConfig}
-                    attemptInvisibleVerification={true}
+                    attemptInvisibleVerification
                 />
             )}
 
-            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                <TouchableOpacity 
-                    style={[styles.backBtn, { backgroundColor: theme.colors.card }]} 
-                    onPress={() => navigation.goBack()}
-                >
-                    <Text style={[styles.backBtnText, { color: theme.colors.text }]}>←</Text>
-                </TouchableOpacity>
+            <ScrollView
+                contentContainerStyle={s.scroll}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+            >
+                {/* ── Center content on wide screens ── */}
+                <View style={s.inner}>
 
-                <View style={[styles.badge, { backgroundColor: theme.dark ? 'rgba(245,197,24,0.15)' : 'rgba(245,197,24,0.1)' }]}>
-                    <Text style={[styles.badgeText, { color: theme.colors.primary }]}>
-                        {isDriver ? (t.driverLogin || '🚗 DRIVER LOGIN') : (t.passengerLogin || '🛡️ PASSENGER LOGIN')}
+                    {/* Back */}
+                    <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
+                        <Text style={s.backText}>←</Text>
+                    </TouchableOpacity>
+
+                    {/* Role badge */}
+                    <View style={[s.badge, isDriver && s.badgeDriver]}>
+                        <Text style={[s.badgeText, isDriver && s.badgeDriverText]}>
+                            {isDriver ? '🚗  DRIVER' : '🧍  PASSENGER'}
+                        </Text>
+                    </View>
+
+                    {/* Title */}
+                    <Text style={[s.title, isUrdu && s.rtl]}>
+                        {'WELCOME\nBACK'}
                     </Text>
-                </View>
+                    <Text style={[s.subtitle, isUrdu && s.rtl]}>
+                        Enter your phone number to receive a one-time verification code.
+                    </Text>
 
-                <Text style={[styles.title, { color: theme.colors.text }, isUrdu && styles.rtlTitle]}>
-                    {t.welcomeBack}
-                </Text>
-                <Text style={[styles.subtitle, { color: theme.colors.textSecondary }, isUrdu && styles.rtl]}>
-                    {t.signInSub}
-                </Text>
+                    {/* Phone input */}
+                    <Text style={s.label}>PHONE NUMBER</Text>
+                    <View style={s.phoneRow}>
+                        <View style={s.countryBox}>
+                            <Text style={s.flag}>🇵🇰</Text>
+                            <Text style={s.cc}>+92</Text>
+                        </View>
+                        <TextInput
+                            style={s.phoneInput}
+                            placeholder="300 1234567"
+                            placeholderTextColor={theme.colors.placeholder}
+                            value={phone}
+                            onChangeText={setPhone}
+                            keyboardType="phone-pad"
+                            maxLength={11}
+                            returnKeyType="done"
+                            onSubmitEditing={handleSendOTP}
+                            autoFocus={false}
+                        />
+                    </View>
 
-                <View style={[styles.tabSwitcher, { backgroundColor: theme.colors.card }]}>
+                    {/* Terms */}
                     <TouchableOpacity
-                        style={[styles.tab, activeTab === 'otp' && { backgroundColor: theme.colors.primary }]}
-                        onPress={() => setActiveTab('otp')}
+                        style={s.termsRow}
+                        activeOpacity={0.7}
+                        onPress={() => setAgreed(a => !a)}
                     >
-                        <Text style={[styles.tabText, { color: activeTab === 'otp' ? '#000' : theme.colors.textSecondary }]}>
-                            {t.phoneOtpTab}
+                        <View style={[s.checkbox, agreed && s.checkboxOn]}>
+                            {agreed && <Text style={s.checkmark}>✓</Text>}
+                        </View>
+                        <Text style={s.termsText}>
+                            I agree to the{' '}
+                            <Text style={s.link}>Safety Terms</Text>
+                            {' '}and{' '}
+                            <Text style={s.link}>Privacy Policy</Text>
+                            {' '}of SAFORA
                         </Text>
                     </TouchableOpacity>
+
+                    {/* Send OTP */}
                     <TouchableOpacity
-                        style={[styles.tab, activeTab === 'email' && { backgroundColor: theme.colors.primary }]}
-                        onPress={() => setActiveTab('email')}
+                        style={[s.btn, loading && s.btnDisabled]}
+                        activeOpacity={0.85}
+                        onPress={handleSendOTP}
+                        disabled={loading}
                     >
-                        <Text style={[styles.tabText, { color: activeTab === 'email' ? '#000' : theme.colors.textSecondary }]}>
-                            {t.emailTab}
-                        </Text>
+                        {loading
+                            ? <ActivityIndicator color="#000" />
+                            : <Text style={s.btnText}>Get OTP →</Text>
+                        }
                     </TouchableOpacity>
-                </View>
 
-                {activeTab === 'otp' ? (
-                    <View>
-                        <View style={styles.inputGroup}>
-                            <Text style={[styles.inputLabel, { color: theme.colors.primary }]}>{t.phoneNumberLabel}</Text>
-                            <View style={styles.inputRow}>
-                                <View style={[styles.countryCode, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-                                    <Text style={styles.countryFlag}>🇵🇰</Text>
-                                    <Text style={[styles.countryText, { color: theme.colors.text }]}>+92</Text>
-                                </View>
-                                <TextInput
-                                    style={[styles.phoneInput, { backgroundColor: theme.colors.card, borderColor: theme.colors.primary, color: theme.colors.text }]}
-                                    placeholder="3XX XXXXXXX"
-                                    placeholderTextColor={theme.colors.placeholder}
-                                    value={phoneNumber}
-                                    onChangeText={setPhoneNumber}
-                                    keyboardType="phone-pad"
-                                />
-                            </View>
-                        </View>
-                        <TouchableOpacity
-                            style={[styles.primaryBtn, { backgroundColor: theme.colors.primary }, otpLoading && styles.btnDisabled]}
-                            onPress={handleGetOTP}
-                            disabled={otpLoading}
-                        >
-                            {otpLoading ? <ActivityIndicator color="#000" /> : <Text style={styles.primaryBtnText}>{t.getOtp}</Text>}
-                        </TouchableOpacity>
-                    </View>
-                ) : (
-                    <View>
-                        <View style={styles.inputGroup}>
-                            <Text style={[styles.inputLabel, { color: theme.colors.primary }]}>{t.emailAddressLabel}</Text>
-                            <TextInput
-                                style={[styles.textInput, { backgroundColor: theme.colors.card, borderColor: theme.colors.border, color: theme.colors.text }]}
-                                placeholder="you@example.com"
-                                placeholderTextColor={theme.colors.placeholder}
-                                value={email}
-                                onChangeText={setEmail}
-                                keyboardType="email-address"
-                                autoCapitalize="none"
-                            />
-                        </View>
-                        <View style={styles.inputGroup}>
-                            <Text style={[styles.inputLabel, { color: theme.colors.primary }]}>{t.passwordLabel}</Text>
-                            <View style={[styles.passwordRow, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-                                <TextInput
-                                    style={[styles.passwordInput, { color: theme.colors.text }]}
-                                    placeholder="••••••••"
-                                    placeholderTextColor={theme.colors.placeholder}
-                                    value={password}
-                                    onChangeText={setPassword}
-                                    secureTextEntry={!showPassword}
-                                />
-                                <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
-                                    <Text style={styles.eyeIcon}>{showPassword ? '🙈' : '👁️'}</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                        <TouchableOpacity
-                            style={[styles.primaryBtn, { backgroundColor: theme.colors.primary }, emailLoading && styles.btnDisabled]}
-                            onPress={handleEmailLogin}
-                            disabled={emailLoading}
-                        >
-                            {emailLoading ? <ActivityIndicator color="#000" /> : <Text style={styles.primaryBtnText}>{t.loginBtn}</Text>}
-                        </TouchableOpacity>
-                    </View>
-                )}
-
-                <View style={styles.footer}>
-                    <View style={styles.socialDivider}>
-                        <View style={[styles.dividerLine, { backgroundColor: theme.colors.divider }]} />
-                        <Text style={[styles.dividerText, { color: theme.colors.textSecondary }]}>{t.orDivider}</Text>
-                        <View style={[styles.dividerLine, { backgroundColor: theme.colors.divider }]} />
-                    </View>
-                    <View style={styles.registerRow}>
-                        <Text style={[styles.registerText, { color: theme.colors.textSecondary }]}>
-                            {t.noAccount || 'New user?'}{' '}
+                    {/* New user hint */}
+                    <View style={s.hintBox}>
+                        <Text style={s.hintText}>
+                            New to SAFORA?{' '}
+                            <Text style={s.link}>Don't worry</Text>
+                            {' '}— we'll create your account automatically.
                         </Text>
-                        <TouchableOpacity onPress={() => {
-                            // New users must verify phone first — switch to OTP tab
-                            setActiveTab('otp');
-                        }}>
-                            <Text style={[styles.registerLink, { color: theme.colors.primary }]}>
-                                {t.registerLink || 'Verify phone to register'}
-                            </Text>
-                        </TouchableOpacity>
                     </View>
-                    <Text style={[styles.registerHint, { color: theme.colors.placeholder }]}>
-                        Enter your phone number above and tap Get OTP to create a new account.
-                    </Text>
+
                 </View>
             </ScrollView>
         </KeyboardAvoidingView>
     );
 };
 
-const styles = StyleSheet.create({
-    container: { flex: 1 },
-    scrollContent: { flexGrow: 1, padding: 24, paddingTop: 60 },
-    backBtn: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
-    backBtnText: { fontSize: 22 },
-    badge: { alignSelf: 'flex-start', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5, marginBottom: 16 },
-    badgeText: { fontSize: 11, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase' },
-    title: { fontSize: 40, fontWeight: '900', letterSpacing: 1, lineHeight: 44, marginBottom: 8 },
-    rtlTitle: { textAlign: 'right' },
-    subtitle: { fontSize: 14, lineHeight: 20, marginBottom: 32 },
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
+const makeStyles = (t: AppTheme) => StyleSheet.create({
+    root:  { flex: 1, backgroundColor: t.colors.background },
+    scroll: {
+        flexGrow: 1,
+        alignItems: 'center',          // centre on wide screens
+        paddingVertical: 0,
+    },
+    inner: {
+        width: '100%',
+        maxWidth: 480,                 // cap width on desktop browsers
+        paddingHorizontal: 24,
+        paddingTop: 56,
+        paddingBottom: 48,
+    },
+
+    backBtn: {
+        width: 40, height: 40, borderRadius: 13,
+        backgroundColor: t.colors.cardSecondary,
+        alignItems: 'center', justifyContent: 'center',
+        marginBottom: 32,
+        borderWidth: 1, borderColor: t.colors.border,
+    },
+    backText: { fontSize: 20, color: t.colors.text, fontWeight: '600' },
+
+    badge: {
+        alignSelf: 'flex-start',
+        backgroundColor: 'rgba(245,197,24,0.1)',
+        borderColor: 'rgba(245,197,24,0.35)',
+        borderWidth: 1.5, borderRadius: 22,
+        paddingHorizontal: 14, paddingVertical: 6,
+        marginBottom: 20,
+    },
+    badgeDriver: {
+        backgroundColor: 'rgba(34,197,94,0.1)',
+        borderColor: 'rgba(34,197,94,0.35)',
+    },
+    badgeText: { fontSize: 11, fontWeight: '800', color: '#F5C518', letterSpacing: 1.5 },
+    badgeDriverText: { color: '#22C55E' },
+
+    title: {
+        fontSize: 42, fontWeight: '900',
+        color: t.colors.text,
+        letterSpacing: 2, lineHeight: 50,
+        marginBottom: 10,
+    },
     rtl: { textAlign: 'right' },
-    tabSwitcher: { flexDirection: 'row', borderRadius: 16, padding: 5, marginBottom: 32 },
-    tab: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
-    tabText: { fontSize: 14, fontWeight: '700' },
-    inputGroup: { marginBottom: 24 },
-    inputLabel: { fontSize: 12, fontWeight: '800', letterSpacing: 1, marginBottom: 10, textTransform: 'uppercase' },
-    inputRow: { flexDirection: 'row', gap: 12 },
-    countryCode: { borderWidth: 2, borderRadius: 16, paddingHorizontal: 14, height: 56, flexDirection: 'row', alignItems: 'center', gap: 8 },
-    countryFlag: { fontSize: 16 },
-    countryText: { fontSize: 15, fontWeight: '700' },
-    phoneInput: { flex: 1, borderWidth: 2, borderRadius: 16, paddingHorizontal: 18, fontSize: 16, fontWeight: '700', letterSpacing: 1.5, height: 56 },
-    textInput: { borderWidth: 2, borderRadius: 16, paddingHorizontal: 18, fontSize: 15, height: 56 },
-    passwordRow: { flexDirection: 'row', borderWidth: 2, borderRadius: 16, height: 56, alignItems: 'center' },
-    passwordInput: { flex: 1, paddingHorizontal: 18, fontSize: 15, height: '100%' },
-    eyeBtn: { paddingHorizontal: 16 },
-    eyeIcon: { fontSize: 18 },
-    primaryBtn: { borderRadius: 18, paddingVertical: 18, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4 },
+    subtitle: {
+        fontSize: 14, color: t.colors.textSecondary,
+        lineHeight: 22, marginBottom: 36,
+    },
+
+    label: {
+        fontSize: 10, fontWeight: '800',
+        color: t.colors.primary,
+        letterSpacing: 2, marginBottom: 10,
+    },
+    phoneRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
+    countryBox: {
+        flexDirection: 'row', alignItems: 'center', gap: 6,
+        backgroundColor: t.colors.cardSecondary,
+        borderWidth: 1.5, borderColor: t.colors.border,
+        borderRadius: 14, paddingHorizontal: 14, height: 56,
+    },
+    flag: { fontSize: 18 },
+    cc: { fontSize: 15, fontWeight: '700', color: t.colors.text },
+    phoneInput: {
+        flex: 1, height: 56,
+        backgroundColor: t.colors.cardSecondary,
+        borderWidth: 2, borderColor: t.colors.primary,
+        borderRadius: 14, paddingHorizontal: 16,
+        fontSize: 17, fontWeight: '600',
+        color: t.colors.text, letterSpacing: 0.5,
+    },
+
+    termsRow: {
+        flexDirection: 'row', alignItems: 'flex-start',
+        gap: 10, marginBottom: 32,
+    },
+    checkbox: {
+        width: 20, height: 20, borderRadius: 6,
+        borderWidth: 2, borderColor: t.colors.border,
+        alignItems: 'center', justifyContent: 'center', marginTop: 1,
+    },
+    checkboxOn: { backgroundColor: t.colors.primary, borderColor: t.colors.primary },
+    checkmark: { fontSize: 11, color: '#000', fontWeight: '900' },
+    termsText: { flex: 1, fontSize: 13, color: t.colors.textSecondary, lineHeight: 20 },
+    link: { color: t.colors.primary, fontWeight: '600' },
+
+    btn: {
+        backgroundColor: t.colors.primary,
+        borderRadius: 16, height: 58,
+        alignItems: 'center', justifyContent: 'center',
+        marginBottom: 28,
+        shadowColor: t.colors.primary,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3, shadowRadius: 16, elevation: 8,
+    },
     btnDisabled: { opacity: 0.6 },
-    primaryBtnText: { color: '#000', fontSize: 16, fontWeight: '900', letterSpacing: 0.5 },
-    footer: { marginTop: 40 },
-    socialDivider: { flexDirection: 'row', alignItems: 'center', marginBottom: 24, gap: 16 },
-    dividerLine: { flex: 1, height: 1 },
-    dividerText: { fontSize: 12, fontWeight: '600' },
-    registerRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
-    registerText: { fontSize: 14 },
-    registerLink: { fontSize: 14, fontWeight: '800' },
-    registerHint: { fontSize: 11, textAlign: 'center', marginTop: 8, lineHeight: 16, paddingHorizontal: 16 },
+    btnText: { fontSize: 17, fontWeight: '800', color: '#000', letterSpacing: 0.5 },
+
+    hintBox: { alignItems: 'center', paddingHorizontal: 8 },
+    hintText: { fontSize: 13, color: t.colors.textSecondary, textAlign: 'center', lineHeight: 20 },
 });
 
 export default LoginScreen;

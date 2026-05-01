@@ -32,7 +32,7 @@ const VEHICLE_TYPES = [
 
 const DriverOnboardingScreen: React.FC = () => {
     const navigation = useNavigation<any>();
-    const theme = useAppTheme();
+    const { theme } = useAppTheme();
     const s = useMemo(() => makeStyles(theme), [theme]);
 
     const [step, setStep] = useState<Step>(1);
