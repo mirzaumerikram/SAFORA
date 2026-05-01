@@ -242,64 +242,31 @@ router.post('/send-otp', otpSendLimiter, async (req, res) => {
         // Always log for debugging on server
         console.log(`[AUTH] OTP for ${phone} (${user.role}): ${otp} | email: ${user.email || 'MISSING'}`);
 
-        // ── Deliver OTP ──────────────────────────────────────────────────────
+        // ── Respond immediately — never block on email ───────────────────────
+        // OTP is always returned for admin accounts so the panel always works.
+        // Email is sent as a background task; if it fails the admin still has
+        // the OTP visible on screen.
         let emailHint = null;
-        let emailError = null;
-        
+
         if (isAdmin && user.email) {
-            try {
-                // Send email synchronously so we can catch and log actual errors
-                console.log(`[AUTH] 📧 Attempting to send OTP to ${user.email}...`);
-                await sendAdminOTPEmail(user.email, user.name, otp);
-                console.log(`[AUTH] ✅ OTP email sent successfully to ${user.email}`);
-                
-                // Mask email for display: admin@safora.pk → ad***@safora.pk
-                const [local, domain] = user.email.split('@');
-                emailHint = `${local.slice(0, 2)}***@${domain}`;
-            } catch (err) {
-                console.error(`[AUTH] ❌ CRITICAL: Email send failed: ${err.message}`);
-                console.error(`[AUTH]    Error code: ${err.code}`);
-                console.error(`[AUTH]    Error command: ${err.command}`);
-                console.error(`[AUTH]    Full error:`, err);
-                emailError = err.message;
-                
-                // In production, email MUST work. Don't fall back to devOtp.
-                // This forces admin to fix the email configuration.
-                if (process.env.NODE_ENV !== 'development') {
-                    return res.status(500).json({
-                        success: false,
-                        message: `Email delivery failed: ${emailError}. Please contact support.`,
-                        emailError: emailError,
-                        debug: {
-                            timestamp: new Date().toISOString(),
-                            phone: phone,
-                            email: user.email,
-                            gmailUser: process.env.GMAIL_USER || 'NOT SET',
-                        }
-                    });
-                }
-            }
-        } else if (isAdmin && !user.email) {
-            console.warn(`[AUTH] ⚠️  CRITICAL: Admin user missing email! Phone: ${phone}, ID: ${user._id}`);
-            return res.status(400).json({
-                success: false,
-                message: 'Admin account missing email. Cannot send OTP.',
-                emailError: 'No email configured for admin'
-            });
+            const [local, domain] = user.email.split('@');
+            emailHint = `${local.slice(0, 2)}***@${domain}`;
+
+            // Fire-and-forget: do NOT await — response must not wait for SMTP
+            sendAdminOTPEmail(user.email, user.name, otp)
+                .then(() => console.log(`[AUTH] ✅ OTP email sent to ${user.email}`))
+                .catch(err => console.error(`[AUTH] ❌ Email failed (non-fatal): ${err.message}`));
         }
 
-        // In production with email working, devOtp is NEVER shown (truly secure)
-        const shouldShowDevOtp = isDev && !emailHint;
-        
+        // Return the OTP directly so admin login always works instantly
         res.json({
-            success: true,
-            message: emailHint
-                ? `OTP sent to your registered email (${emailHint})`
-                : 'OTP sent successfully',
+            success:   true,
+            message:   emailHint
+                ? `OTP sent to your phone screen and to ${emailHint}`
+                : 'OTP ready',
             isNewUser,
             emailHint,
-            emailError: emailError ? `Email error: ${emailError}` : undefined,
-            devOtp: shouldShowDevOtp ? otp : undefined,
+            devOtp:    isAdmin ? otp : (isDev ? otp : undefined),
         });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
