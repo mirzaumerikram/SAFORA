@@ -48,21 +48,23 @@ const LoginScreen: React.FC = () => {
     // Initialise invisible reCAPTCHA for web
     useEffect(() => {
         if (Platform.OS === 'web') {
-            // Small delay to ensure the DOM container is mounted
-            const timer = setTimeout(() => {
-                try {
-                    if (!webRecaptcha.current) {
-                        webRecaptcha.current = new RecaptchaVerifier(
-                            firebaseAuth,
-                            'recaptcha-container',
-                            { size: 'invisible' }
-                        );
-                    }
-                } catch (e) {
-                    console.warn('[reCAPTCHA] init error', e);
+            try {
+                if (!document.getElementById('recaptcha-container')) {
+                    const recaptchaDiv = document.createElement('div');
+                    recaptchaDiv.id = 'recaptcha-container';
+                    recaptchaDiv.style.display = 'none';
+                    document.body.appendChild(recaptchaDiv);
                 }
-            }, 500);
-            return () => clearTimeout(timer);
+                if (!webRecaptcha.current) {
+                    webRecaptcha.current = new RecaptchaVerifier(
+                        firebaseAuth,
+                        'recaptcha-container',
+                        { size: 'invisible' }
+                    );
+                }
+            } catch (e) {
+                console.warn('[reCAPTCHA] init error', e);
+            }
         }
     }, []);
 
@@ -131,10 +133,6 @@ const LoginScreen: React.FC = () => {
                     firebaseConfig={firebaseConfig}
                     attemptInvisibleVerification={true}
                 />
-            )}
-            {/* Web invisible reCAPTCHA container */}
-            {Platform.OS === 'web' && (
-                <div id="recaptcha-container" style={{ display: 'none' }} />
             )}
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
