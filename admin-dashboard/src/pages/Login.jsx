@@ -24,16 +24,12 @@ export default function Login() {
     setLoading(true);
     try {
       const res = await sendOtp(cleaned);
-      if (res.emailHint)  setEmailHint(res.emailHint);
-      if (res.devOtp)     setDevOtp(res.devOtp);
-      if (res.emailError) {
-        // Email failed — show the error clearly so it can be debugged
-        setError(`⚠ Email error: ${res.emailError}. Check Railway logs.`);
-      }
+      if (res.emailHint) setEmailHint(res.emailHint);
+      if (res.devOtp)    setDevOtp(res.devOtp);
+      // Always move to OTP step — email errors are non-fatal, code is on screen
       setStep('otp');
     } catch (err) {
-      // Show the full error message including email details from backend
-      setError(err.message || 'Failed to send OTP. Please try again.');
+      setError('Could not reach the server. Please try again.');
     } finally {
       setLoading(false);
     }

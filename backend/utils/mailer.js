@@ -14,10 +14,11 @@ const createTransporter = () => {
         host: 'smtp.gmail.com',
         port: 465,
         secure: true,
+        family: 4,                 // force IPv4 — Railway blocks IPv6 SMTP
         auth: { user, pass },
-        connectionTimeout: 8000,   // fail after 8s — never hang the request
-        greetingTimeout:  5000,
-        socketTimeout:    10000,
+        connectionTimeout: 8000,
+        greetingTimeout:   5000,
+        socketTimeout:     10000,
     });
 };
 
