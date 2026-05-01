@@ -240,7 +240,7 @@ router.post('/send-otp', otpSendLimiter, async (req, res) => {
         const isAdmin = user.role === 'admin';
 
         // Always log for debugging on server
-        console.log(`[AUTH] OTP for ${phone} (${user.role}): ${otp}`);
+        console.log(`[AUTH] OTP for ${phone} (${user.role}): ${otp} | email: ${user.email || 'MISSING'}`);
 
         // ── Deliver OTP ──────────────────────────────────────────────────────
         // Send email in background (non-blocking) so response returns instantly
@@ -263,6 +263,8 @@ router.post('/send-otp', otpSendLimiter, async (req, res) => {
             // admin@safora.pk → ad***@safora.pk
             const [local, domain] = user.email.split('@');
             emailHint = `${local.slice(0, 2)}***@${domain}`;
+        } else if (isAdmin && !user.email) {
+            console.warn(`[AUTH] ⚠️  Admin user missing email! Phone: ${phone}, ID: ${user._id}`);
         }
 
         // devOtp is exposed ONLY when:
@@ -504,6 +506,51 @@ router.post('/verify-firebase-token', async (req, res) => {
         if (error.response?.status === 400) {
             return res.status(401).json({ message: 'Invalid or expired token' });
         }
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// @route   POST /api/auth/admin-setup
+// @desc    Admin setup endpoint — update admin email (uses shared secret key)
+// @access  Public (protected by ADMIN_SETUP_KEY in env)
+router.post('/admin-setup', async (req, res) => {
+    try {
+        const { setupKey, phone, email } = req.body;
+
+        // Verify setup key
+        const expectedKey = process.env.ADMIN_SETUP_KEY;
+        if (!expectedKey || setupKey !== expectedKey) {
+            return res.status(403).json({ message: 'Invalid setup key' });
+        }
+
+        if (!phone || !email) {
+            return res.status(400).json({ message: 'Phone and email are required' });
+        }
+
+        // Find admin user by phone
+        const user = await User.findOne({ phone });
+        if (!user) {
+            return res.status(404).json({ message: `Admin not found with phone: ${phone}` });
+        }
+
+        // Update email
+        user.email = email;
+        user.emailVerified = false;
+        await user.save();
+
+        console.log(`[ADMIN-SETUP] ✅ Admin email updated: ${phone} → ${email}`);
+
+        res.json({
+            success: true,
+            message: `Admin email updated to ${email}`,
+            user: {
+                id: user._id,
+                phone: user.phone,
+                email: user.email,
+                role: user.role
+            }
+        });
+    } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
