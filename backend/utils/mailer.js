@@ -1,27 +1,7 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
-const createTransporter = () => {
-    const user = process.env.GMAIL_USER;
-    const pass = process.env.GMAIL_APP_PASSWORD;
-    
-    if (!user || !pass) {
-        console.error('[MAILER] ❌ Gmail credentials missing!');
-        console.error('[MAILER]    GMAIL_USER:', user ? '✓' : '✗ NOT SET');
-        console.error('[MAILER]    GMAIL_APP_PASSWORD:', pass ? '✓' : '✗ NOT SET');
-    }
-    
-    return nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: 587,          // 587 + STARTTLS — more reliable on cloud providers than 465
-        secure: false,      // false = STARTTLS upgrade after connect
-        family: 4,          // force IPv4 — Railway blocks IPv6
-        auth: { user, pass },
-        tls: { rejectUnauthorized: false },
-        connectionTimeout: 10000,
-        greetingTimeout:    8000,
-        socketTimeout:     15000,
-    });
-};
+// Initialize Resend with API Key
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const sendVerificationEmail = async (toEmail, name, token) => {
     const verifyUrl = `${process.env.APP_BASE_URL}/api/auth/verify-email/${token}`;
@@ -79,13 +59,25 @@ const sendVerificationEmail = async (toEmail, name, token) => {
     </body>
     </html>`;
 
-    const transporter = createTransporter();
-    await transporter.sendMail({
-        from: `SAFORA <${process.env.GMAIL_USER}>`,
-        to: toEmail,
-        subject: 'Verify your SAFORA account ✓',
-        html,
-    });
+    try {
+        const { data, error } = await resend.emails.send({
+            from: 'SAFORA <onboarding@resend.dev>',
+            to: toEmail,
+            subject: 'Verify your SAFORA account ✓',
+            html,
+        });
+
+        if (error) {
+            console.error('[MAILER] ❌ Resend error:', error);
+            throw new Error(`Email failed: ${error.message}`);
+        }
+
+        console.log('[MAILER] ✅ Verification email sent:', data.id);
+        return data;
+    } catch (err) {
+        console.error('[MAILER] ❌ Exception:', err.message);
+        throw err;
+    }
 };
 
 // ─── Admin OTP Email ──────────────────────────────────────────────────────────
@@ -142,24 +134,26 @@ const sendAdminOTPEmail = async (toEmail, name, otp) => {
     </body>
     </html>`;
 
-    const transporter = createTransporter();
-    
     try {
-        const info = await transporter.sendMail({
-            from:    `SAFORA Admin Panel <${process.env.GMAIL_USER}>`,
-            to:      toEmail,
+        const { data, error } = await resend.emails.send({
+            from: 'SAFORA Admin <onboarding@resend.dev>',
+            to: toEmail,
             subject: `🔐 Admin Login Code: ${otp}`,
             html,
         });
-        
-        console.log(`[MAILER] ✅ Email sent: ${info.messageId}`);
-        return info;
-    } catch (error) {
-        console.error(`[MAILER] ❌ Send error: ${error.message}`);
-        console.error(`[MAILER]    Code: ${error.code}`);
-        console.error(`[MAILER]    Cmd: ${error.command}`);
-        throw error; // Re-throw so caller knows it failed
+
+        if (error) {
+            console.error('[MAILER] ❌ Resend error:', error);
+            throw new Error(`Email failed: ${error.message}`);
+        }
+
+        console.log(`[MAILER] ✅ Admin OTP email sent: ${data.id}`);
+        return data;
+    } catch (err) {
+        console.error('[MAILER] ❌ Exception:', err.message);
+        throw err;
     }
 };
 
 module.exports = { sendVerificationEmail, sendAdminOTPEmail };
+
