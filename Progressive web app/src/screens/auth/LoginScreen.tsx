@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
     View,
     Text,
@@ -12,10 +12,7 @@ import {
     StatusBar,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-const FirebaseRecaptchaVerifierModal: any = Platform.OS !== 'web'
-    ? require('expo-firebase-recaptcha').FirebaseRecaptchaVerifierModal
-    : () => null;
-import { signInWithPhoneNumber } from 'firebase/auth';
+import { signInWithPhoneNumber, RecaptchaVerifier } from 'firebase/auth';
 import { firebaseAuth, firebaseConfig } from '../../config/firebase';
 import { setConfirmationResult } from '../../services/otpStore';
 import { useAppTheme } from '../../context/ThemeContext';
@@ -23,6 +20,11 @@ import authService from '../../services/auth.service';
 import SaforaAlert from '../../utils/alert';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
+
+// Native-only reCAPTCHA modal (not used on web)
+const FirebaseRecaptchaVerifierModal: any = Platform.OS !== 'web'
+    ? require('expo-firebase-recaptcha').FirebaseRecaptchaVerifierModal
+    : () => null;
 
 type TabType = 'otp' | 'email';
 
@@ -37,10 +39,32 @@ const LoginScreen: React.FC = () => {
     const selectedRole: 'passenger' | 'driver' = route.params?.selectedRole || 'passenger';
     const isDriver = selectedRole === 'driver';
 
-    const [activeTab, setActiveTab] = useState<TabType>(Platform.OS === 'web' ? 'email' : 'otp');
+    const [activeTab, setActiveTab] = useState<TabType>('otp');
     const [phoneNumber, setPhoneNumber] = useState('');
     const [otpLoading, setOtpLoading] = useState(false);
-    const recaptchaVerifier = useRef<FirebaseRecaptchaVerifierModal>(null);
+    const recaptchaVerifier = useRef<any>(null);        // native
+    const webRecaptcha = useRef<RecaptchaVerifier | null>(null); // web
+
+    // Initialise invisible reCAPTCHA for web
+    useEffect(() => {
+        if (Platform.OS === 'web') {
+            // Small delay to ensure the DOM container is mounted
+            const timer = setTimeout(() => {
+                try {
+                    if (!webRecaptcha.current) {
+                        webRecaptcha.current = new RecaptchaVerifier(
+                            firebaseAuth,
+                            'recaptcha-container',
+                            { size: 'invisible' }
+                        );
+                    }
+                } catch (e) {
+                    console.warn('[reCAPTCHA] init error', e);
+                }
+            }, 500);
+            return () => clearTimeout(timer);
+        }
+    }, []);
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -56,13 +80,17 @@ const LoginScreen: React.FC = () => {
         setOtpLoading(true);
         try {
             const fullPhone = `+92${clean}`;
+            // Use the correct verifier depending on platform
+            const verifier = Platform.OS === 'web'
+                ? webRecaptcha.current!
+                : recaptchaVerifier.current!;
             const confirmationResult = await signInWithPhoneNumber(
                 firebaseAuth,
                 fullPhone,
-                recaptchaVerifier.current!
+                verifier
             );
             setConfirmationResult(confirmationResult);
-            navigation.navigate('OTP', { phone: fullPhone });
+            navigation.navigate('OTP', { phone: fullPhone, selectedRole });
         } catch (error: any) {
             SaforaAlert('Error', error.message || 'Failed to send OTP. Try again.');
         } finally {
@@ -96,11 +124,18 @@ const LoginScreen: React.FC = () => {
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
             <StatusBar barStyle={theme.dark ? 'light-content' : 'dark-content'} />
-            <FirebaseRecaptchaVerifierModal
-                ref={recaptchaVerifier}
-                firebaseConfig={firebaseConfig}
-                attemptInvisibleVerification={true}
-            />
+            {/* Native reCAPTCHA modal (iOS/Android only) */}
+            {Platform.OS !== 'web' && (
+                <FirebaseRecaptchaVerifierModal
+                    ref={recaptchaVerifier}
+                    firebaseConfig={firebaseConfig}
+                    attemptInvisibleVerification={true}
+                />
+            )}
+            {/* Web invisible reCAPTCHA container */}
+            {Platform.OS === 'web' && (
+                <div id="recaptcha-container" style={{ display: 'none' }} />
+            )}
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 <TouchableOpacity 
