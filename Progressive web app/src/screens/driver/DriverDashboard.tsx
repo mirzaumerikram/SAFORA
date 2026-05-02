@@ -50,6 +50,7 @@ const DriverDashboard: React.FC = () => {
     const [profilePicture, setProfilePicture] = useState<string>('');
     const [earnings, setEarnings]         = useState({ today: 0, trips: 0, rating: '5.0' });
     const [menuOpen, setMenuOpen]         = useState(false);
+    const [bgCheckStatus, setBgCheckStatus] = useState<string>('pending');
     const socketConnected = useRef(false);
     const watchId = useRef<number | null>(null);
 
@@ -73,6 +74,7 @@ const DriverDashboard: React.FC = () => {
                 if (res.driver.name) setDriverName(toFirstName(res.driver.name));
                 setEarnings(prev => ({ ...prev, rating: res.driver.rating?.toFixed(1) || '5.0' }));
                 if (res.driver.profilePicture) setProfilePicture(res.driver.profilePicture);
+                setBgCheckStatus(res.driver.backgroundCheck?.status || 'pending');
             }
         } catch { /* use cached data */ }
     };
@@ -85,6 +87,14 @@ const DriverDashboard: React.FC = () => {
 
     // Connect socket and listen for ride requests when going online
     const handleToggleOnline = async (value: boolean) => {
+        if (value && bgCheckStatus !== 'approved') {
+            Alert.alert(
+                'Account Pending Approval',
+                'Your background check is still under review. You will be able to go online once your account is approved by the SAFORA team.',
+                [{ text: 'OK' }]
+            );
+            return;
+        }
         setIsOnline(value);
         if (value) {
             try {
@@ -368,8 +378,19 @@ const DriverDashboard: React.FC = () => {
                     </View>
                 </View>
 
+                {/* Background check warning */}
+                {bgCheckStatus !== 'approved' && (
+                    <TouchableOpacity style={s.pendingBanner} onPress={() => navigation.navigate('DriverProfile')} activeOpacity={0.8}>
+                        <Text style={s.pendingBannerIcon}>⏳</Text>
+                        <View style={s.pendingBannerTexts}>
+                            <Text style={s.pendingBannerTitle}>Account Under Review</Text>
+                            <Text style={s.pendingBannerSub}>You cannot go online until SAFORA approves your background check. Tap for details.</Text>
+                        </View>
+                    </TouchableOpacity>
+                )}
+
                 {/* Status Card */}
-                <View style={s.statusCard}>
+                <View style={[s.statusCard, bgCheckStatus !== 'approved' && s.statusCardDisabled]}>
                     <View style={s.statusTopRow}>
                         <Text style={s.statusCardLabel}>Status</Text>
                         <View style={[s.statusBadge, isOnline && s.statusBadgeOnline]}>
@@ -380,9 +401,11 @@ const DriverDashboard: React.FC = () => {
                         </View>
                     </View>
                     <Text style={s.statusDesc}>
-                        {isOnline
-                            ? 'You are currently online. Go offline to stop receiving rides.'
-                            : 'You are currently offline. Go online to start receiving rides.'}
+                        {bgCheckStatus !== 'approved'
+                            ? 'Your account is pending approval. You will be notified once approved.'
+                            : isOnline
+                                ? 'You are currently online. Go offline to stop receiving rides.'
+                                : 'You are currently offline. Go online to start receiving rides.'}
                     </Text>
                     <View style={s.statusToggleRow}>
                         <Text style={s.statusToggleHint}>{isOnline ? 'Tap to go offline' : 'Tap to go online'}</Text>
@@ -661,11 +684,30 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
     },
 
     // ── Status Card ──
+    pendingBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,160,0,0.1)',
+        borderRadius: 14,
+        padding: 14,
+        marginBottom: 14,
+        gap: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(255,160,0,0.3)',
+    },
+    pendingBannerIcon:  { fontSize: 22 },
+    pendingBannerTexts: { flex: 1 },
+    pendingBannerTitle: { fontSize: 13, fontWeight: '800', color: '#FFA000', marginBottom: 2 },
+    pendingBannerSub:   { fontSize: 11, color: '#FFA000', opacity: 0.8, lineHeight: 16 },
+
     statusCard: {
         backgroundColor: t.dark ? '#1C1C1C' : '#F2F2F2',
         borderRadius: 16,
         padding: 18,
         marginBottom: 16,
+    },
+    statusCardDisabled: {
+        opacity: 0.5,
     },
     statusTopRow: {
         flexDirection: 'row',

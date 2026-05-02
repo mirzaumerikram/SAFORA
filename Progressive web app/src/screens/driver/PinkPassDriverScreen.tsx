@@ -10,92 +10,105 @@ import { AppTheme } from '../../utils/theme';
 import apiService from '../../services/api';
 import { STORAGE_KEYS } from '../../utils/constants';
 
-type Step = 'info' | 'cnic' | 'submitting' | 'done' | 'not_eligible';
+type Step = 'info' | 'cnic' | 'done' | 'not_eligible';
 
 const PinkPassDriverScreen: React.FC = () => {
     const navigation = useNavigation<any>();
     const { theme }  = useAppTheme();
     const s          = useMemo(() => makeStyles(theme), [theme]);
-    const fileInputRef = useRef<any>(null);
 
-    const [step, setStep]             = useState<Step>('info');
-    const [gender, setGender]         = useState('');
+    // Web camera refs
+    const videoRef    = useRef<any>(null);
+    const streamRef   = useRef<MediaStream | null>(null);
+
+    const [step, setStep]               = useState<Step>('info');
     const [pinkPassStatus, setPinkPassStatus] = useState('none');
-    const [cnicsUri, setCnicsUri]     = useState<string | null>(null);
+    const [cameraReady, setCameraReady] = useState(false);
+    const [cameraError, setCameraError] = useState('');
+    const [cnicsUri, setCnicsUri]       = useState<string | null>(null);
     const [cnicsBase64, setCnicsBase64] = useState<string | null>(null);
-    const [submitting, setSubmitting] = useState(false);
+    const [capturing, setCapturing]     = useState(false);
 
     useEffect(() => {
-        const checkEligibility = async () => {
+        const check = async () => {
             try {
                 const raw = await AsyncStorage.getItem(STORAGE_KEYS.USER_DATA);
                 if (raw) {
                     const user = JSON.parse(raw);
-                    setGender(user.gender ?? '');
                     if (user.gender !== 'female') { setStep('not_eligible'); return; }
                 }
                 const res: any = await apiService.get('/drivers/me');
                 if (res.success) {
                     const status = res.driver.pinkPassStatus;
                     setPinkPassStatus(status);
-                    if (status === 'approved') setStep('done');
+                    if (status === 'approved' || status === 'pending_review') setStep('done');
                 }
             } catch { /* use local */ }
         };
-        checkEligibility();
+        check();
     }, []);
 
-    // ── CNIC file picker (web) ──
-    const handlePickCnic = () => {
-        if (Platform.OS === 'web') {
-            fileInputRef.current?.click();
-        } else {
-            Alert.alert('Use File Picker', 'Select your CNIC photo from gallery.');
+    // Start camera when entering cnic step (web only)
+    useEffect(() => {
+        if (step === 'cnic' && Platform.OS === 'web') {
+            startCamera();
+        }
+        return () => {
+            if (step !== 'cnic') stopCamera();
+        };
+    }, [step]);
+
+    const startCamera = async () => {
+        try {
+            setCameraError('');
+            const stream = await (navigator as any).mediaDevices.getUserMedia({
+                video: { width: 1280, height: 720, facingMode: 'environment' },
+            });
+            streamRef.current = stream;
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+                await videoRef.current.play();
+                setCameraReady(true);
+            }
+        } catch (e: any) {
+            setCameraError('Camera access denied. Please allow camera in your browser settings.');
         }
     };
 
-    const handleFileChange = (e: any) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        const localUrl = URL.createObjectURL(file);
-        setCnicsUri(localUrl);
-
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            setCnicsBase64(ev.target?.result as string);
-        };
-        reader.readAsDataURL(file);
+    const stopCamera = () => {
+        streamRef.current?.getTracks().forEach(t => t.stop());
+        streamRef.current = null;
+        setCameraReady(false);
     };
 
-    // ── Submit to backend ──
-    const handleSubmit = async () => {
+    const capturePhoto = () => {
+        if (!videoRef.current) return;
+        setCapturing(true);
+        const canvas = document.createElement('canvas');
+        canvas.width  = videoRef.current.videoWidth  || 1280;
+        canvas.height = videoRef.current.videoHeight || 720;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(videoRef.current, 0, 0);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        setCnicsUri(dataUrl);
+        setCnicsBase64(dataUrl);
+        stopCamera();
+        setCapturing(false);
+    };
+
+    const retake = () => {
+        setCnicsUri(null);
+        setCnicsBase64(null);
+        startCamera();
+    };
+
+    const proceedToLiveness = () => {
         if (!cnicsBase64) {
-            Alert.alert('CNIC Required', 'Please select your CNIC photo first.');
+            Alert.alert('CNIC Required', 'Please capture your CNIC photo first.');
             return;
         }
-        setSubmitting(true);
-        try {
-            const res: any = await apiService.post('/pink-pass/driver/apply', {
-                cnicImage: cnicsBase64,
-            });
-            if (res.success) {
-                // Update local cache
-                const raw = await AsyncStorage.getItem(STORAGE_KEYS.USER_DATA);
-                if (raw) {
-                    const u = JSON.parse(raw);
-                    u.pinkPassStatus = 'pending_review';
-                    await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(u));
-                }
-                setPinkPassStatus('pending_review');
-                setStep('done');
-            } else {
-                Alert.alert('Submission Failed', res.message || 'Please try again.');
-            }
-        } catch (err: any) {
-            Alert.alert('Error', err.message || 'Submission failed. Please try again.');
-        } finally {
-            setSubmitting(false);
-        }
+        // Navigate to existing liveness screen (same as driver liveness)
+        navigation.navigate('PinkPassLiveness', { cnicsBase64 });
     };
 
     // ── Not eligible ──
@@ -124,7 +137,7 @@ const PinkPassDriverScreen: React.FC = () => {
         );
     }
 
-    // ── Already approved or just submitted ──
+    // ── Already applied / approved ──
     if (step === 'done') {
         return (
             <View style={s.container}>
@@ -146,7 +159,10 @@ const PinkPassDriverScreen: React.FC = () => {
                         <>
                             <Text style={s.bigIcon}>⏳</Text>
                             <Text style={s.notEligibleTitle}>Application Submitted!</Text>
-                            <Text style={s.notEligibleText}>Your CNIC is under review. Our team will verify within 24–48 hours. You'll receive a notification once approved.</Text>
+                            <Text style={s.notEligibleText}>
+                                Your CNIC and liveness check are under review.{'\n'}
+                                Our team will verify within 24–48 hours.
+                            </Text>
                         </>
                     )}
                     <TouchableOpacity style={s.primaryBtn} onPress={() => navigation.goBack()}>
@@ -159,20 +175,12 @@ const PinkPassDriverScreen: React.FC = () => {
 
     return (
         <View style={s.container}>
-            {/* Hidden file input for web */}
-            {Platform.OS === 'web' && (
-                // @ts-ignore
-                <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    style={{ display: 'none' }}
-                    onChange={handleFileChange}
-                />
-            )}
-
             <View style={s.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
+                <TouchableOpacity onPress={() => {
+                    stopCamera();
+                    if (step === 'cnic') setStep('info');
+                    else navigation.goBack();
+                }} style={s.backBtn}>
                     <Text style={s.backText}>←</Text>
                 </TouchableOpacity>
                 <Text style={s.headerTitle}>PINK PASS</Text>
@@ -181,8 +189,8 @@ const PinkPassDriverScreen: React.FC = () => {
 
             {/* Step indicator */}
             <View style={s.stepsRow}>
-                {['Info', 'CNIC', 'Submit'].map((label, i) => {
-                    const stepIndex = step === 'info' ? 0 : step === 'cnic' ? 1 : 2;
+                {['Info', 'CNIC', 'Liveness'].map((label, i) => {
+                    const stepIndex = step === 'info' ? 0 : 1;
                     const active = i <= stepIndex;
                     return (
                         <React.Fragment key={label}>
@@ -198,98 +206,112 @@ const PinkPassDriverScreen: React.FC = () => {
                 })}
             </View>
 
-            <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+            {/* ── Step 1: Info ── */}
+            {step === 'info' && (
+                <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+                    <View style={s.pinkBanner}>
+                        <Text style={s.pinkBannerIcon}>🎀</Text>
+                        <Text style={s.pinkBannerTitle}>Apply for Pink Pass</Text>
+                        <Text style={s.pinkBannerSub}>Join Pakistan's first female-verified ride category</Text>
+                    </View>
 
-                {/* ── Step 1: Info ── */}
-                {step === 'info' && (
-                    <>
-                        <View style={s.pinkBanner}>
-                            <Text style={s.pinkBannerIcon}>🎀</Text>
-                            <Text style={s.pinkBannerTitle}>Apply for Pink Pass</Text>
-                            <Text style={s.pinkBannerSub}>Join Pakistan's first female-verified ride category</Text>
-                        </View>
-
-                        {[
-                            { icon: '🪪', title: 'CNIC Verification', desc: 'Upload a clear photo of your CNIC (front). Ensure all text is visible.' },
-                            { icon: '✅', title: 'Admin Review', desc: 'Our team reviews your CNIC within 24 hours and activates your Pink Pass.' },
-                            { icon: '🚗', title: 'Receive Pink Pass Rides', desc: 'Once certified, you will receive exclusive ride requests from verified female passengers.' },
-                        ].map(item => (
-                            <View key={item.title} style={s.requirementItem}>
-                                <Text style={s.requirementIcon}>{item.icon}</Text>
-                                <View style={s.requirementText}>
-                                    <Text style={s.requirementTitle}>{item.title}</Text>
-                                    <Text style={s.requirementDesc}>{item.desc}</Text>
-                                </View>
+                    {[
+                        { icon: '🪪', title: 'Step 1: CNIC Photo', desc: 'Take a live photo of your CNIC (front) using your camera. File uploads are not accepted.' },
+                        { icon: '👁️', title: 'Step 2: Liveness Check', desc: 'A 5-second front-camera blink test to confirm you are a real person — not a photo.' },
+                        { icon: '✅', title: 'Step 3: Admin Review', desc: 'Our team reviews your submission within 24 hours and activates your Pink Pass.' },
+                        { icon: '🚗', title: 'Receive Pink Pass Rides', desc: 'Once certified, you receive exclusive ride requests from verified female passengers.' },
+                    ].map(item => (
+                        <View key={item.title} style={s.requirementItem}>
+                            <Text style={s.requirementIcon}>{item.icon}</Text>
+                            <View style={s.requirementText}>
+                                <Text style={s.requirementTitle}>{item.title}</Text>
+                                <Text style={s.requirementDesc}>{item.desc}</Text>
                             </View>
-                        ))}
-
-                        <View style={s.privacyBox}>
-                            <Text style={s.privacyText}>🔒 Your CNIC photo is processed securely and only used for identity verification.</Text>
                         </View>
+                    ))}
 
-                        <TouchableOpacity style={s.primaryBtn} onPress={() => setStep('cnic')}>
-                            <Text style={s.primaryBtnText}>Start Verification →</Text>
-                        </TouchableOpacity>
-                    </>
-                )}
+                    <View style={s.privacyBox}>
+                        <Text style={s.privacyText}>🔒 Your biometric data is never stored. Only verification results are saved.</Text>
+                    </View>
 
-                {/* ── Step 2: CNIC Upload ── */}
-                {step === 'cnic' && (
-                    <>
-                        <Text style={s.stepPageTitle}>Upload CNIC Photo</Text>
-                        <Text style={s.stepPageSub}>Upload a clear, well-lit photo of the front of your CNIC. All text must be readable.</Text>
+                    <TouchableOpacity style={s.primaryBtn} onPress={() => setStep('cnic')}>
+                        <Text style={s.primaryBtnText}>Start Verification →</Text>
+                    </TouchableOpacity>
+                </ScrollView>
+            )}
 
-                        <TouchableOpacity
-                            style={[s.cnicsUploadBox, cnicsUri ? s.cnicsUploaded : null]}
-                            onPress={handlePickCnic}
-                            activeOpacity={0.8}
-                        >
-                            {cnicsUri ? (
-                                <Image source={{ uri: cnicsUri }} style={s.cnicsPreview} resizeMode="cover" />
+            {/* ── Step 2: Live CNIC Camera ── */}
+            {step === 'cnic' && (
+                <View style={s.cnicContainer}>
+                    {!cnicsUri ? (
+                        <>
+                            {/* Live camera view */}
+                            <View style={s.cameraBox}>
+                                {Platform.OS === 'web' && (
+                                    // @ts-ignore
+                                    <video
+                                        ref={videoRef}
+                                        autoPlay
+                                        muted
+                                        playsInline
+                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                    />
+                                )}
+                                {/* CNIC frame guide */}
+                                <View style={s.cnicFrame} pointerEvents="none">
+                                    <View style={[s.corner, s.tl]} />
+                                    <View style={[s.corner, s.tr]} />
+                                    <View style={[s.corner, s.bl]} />
+                                    <View style={[s.corner, s.br]} />
+                                </View>
+                                {!cameraReady && !cameraError && (
+                                    <View style={s.cameraLoading}>
+                                        <ActivityIndicator color="#FF69B4" size="large" />
+                                        <Text style={s.cameraLoadingText}>Starting camera…</Text>
+                                    </View>
+                                )}
+                            </View>
+
+                            {cameraError ? (
+                                <View style={s.cameraErrorBox}>
+                                    <Text style={s.cameraErrorText}>{cameraError}</Text>
+                                </View>
                             ) : (
-                                <>
-                                    <Text style={s.cnicsUploadIcon}>🪪</Text>
-                                    <Text style={s.cnicsUploadLabel}>Tap to Select CNIC Photo</Text>
-                                    <Text style={s.cnicsUploadHint}>JPG, PNG — front side only</Text>
-                                </>
+                                <View style={s.cnicHintBox}>
+                                    <Text style={s.cnicHintText}>Place your CNIC flat inside the frame · Ensure all text is readable · Avoid glare</Text>
+                                </View>
                             )}
-                        </TouchableOpacity>
 
-                        {cnicsUri && (
-                            <TouchableOpacity style={s.retakeBtn} onPress={handlePickCnic}>
-                                <Text style={s.retakeBtnText}>↺ Choose Different Photo</Text>
+                            <TouchableOpacity
+                                style={[s.captureBtn, (!cameraReady || capturing) && s.btnDisabled]}
+                                onPress={capturePhoto}
+                                disabled={!cameraReady || capturing}
+                            >
+                                {capturing
+                                    ? <ActivityIndicator color="#fff" />
+                                    : <Text style={s.captureBtnText}>📸 Capture CNIC Photo</Text>
+                                }
                             </TouchableOpacity>
-                        )}
+                        </>
+                    ) : (
+                        <>
+                            {/* Preview captured photo */}
+                            <View style={s.previewBox}>
+                                <Image source={{ uri: cnicsUri }} style={s.previewImage} resizeMode="contain" />
+                            </View>
+                            <Text style={s.previewHint}>Check that all CNIC text is clearly visible</Text>
 
-                        <View style={s.tipsBox}>
-                            <Text style={s.tipsTitle}>Tips for a good photo:</Text>
-                            {[
-                                'Place CNIC on a flat, dark surface',
-                                'Ensure all 4 corners are visible',
-                                'Make sure text is sharp and readable',
-                                'Avoid glare from lights',
-                            ].map(tip => (
-                                <Text key={tip} style={s.tipItem}>• {tip}</Text>
-                            ))}
-                        </View>
+                            <TouchableOpacity style={s.retakeBtn} onPress={retake}>
+                                <Text style={s.retakeBtnText}>↺ Retake Photo</Text>
+                            </TouchableOpacity>
 
-                        <TouchableOpacity
-                            style={[s.primaryBtn, !cnicsBase64 && s.btnDisabled, submitting && s.btnDisabled]}
-                            onPress={handleSubmit}
-                            disabled={!cnicsBase64 || submitting}
-                        >
-                            {submitting
-                                ? <ActivityIndicator color="#fff" />
-                                : <Text style={s.primaryBtnText}>Submit Application →</Text>
-                            }
-                        </TouchableOpacity>
-
-                        <TouchableOpacity style={s.backLinkBtn} onPress={() => setStep('info')}>
-                            <Text style={s.backLinkText}>← Back to Info</Text>
-                        </TouchableOpacity>
-                    </>
-                )}
-            </ScrollView>
+                            <TouchableOpacity style={s.primaryBtn} onPress={proceedToLiveness}>
+                                <Text style={s.primaryBtnText}>Proceed to Liveness Test →</Text>
+                            </TouchableOpacity>
+                        </>
+                    )}
+                </View>
+            )}
         </View>
     );
 };
@@ -302,25 +324,25 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
     backText:  { color: t.colors.text, fontSize: 20 },
     headerTitle: { fontSize: 13, fontWeight: '900', color: t.colors.text, letterSpacing: 3 },
 
-    stepsRow:      { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 32, marginBottom: 8, paddingVertical: 12 },
-    stepDot:       { alignItems: 'center', flex: 0 },
-    dot:           { width: 24, height: 24, borderRadius: 12, backgroundColor: t.dark ? '#1E1E1E' : '#EEE', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: t.colors.border },
-    dotActive:     { borderColor: '#FF69B4', backgroundColor: 'rgba(255,105,180,0.15)' },
-    dotCheck:      { fontSize: 11, color: '#FF69B4', fontWeight: '900' },
-    stepLabel:     { fontSize: 9, color: t.colors.textSecondary, marginTop: 5, fontWeight: '600' },
-    stepLabelActive: { color: '#FF69B4' },
-    stepLine:      { flex: 1, height: 1.5, backgroundColor: t.colors.border, marginHorizontal: 4, marginBottom: 16 },
-    stepLineActive:  { backgroundColor: '#FF69B4' },
+    stepsRow:       { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 32, paddingVertical: 12, marginBottom: 4 },
+    stepDot:        { alignItems: 'center', flex: 0 },
+    dot:            { width: 24, height: 24, borderRadius: 12, backgroundColor: t.dark ? '#1E1E1E' : '#EEE', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: t.colors.border },
+    dotActive:      { borderColor: '#FF69B4', backgroundColor: 'rgba(255,105,180,0.15)' },
+    dotCheck:       { fontSize: 11, color: '#FF69B4', fontWeight: '900' },
+    stepLabel:      { fontSize: 9, color: t.colors.textSecondary, marginTop: 5, fontWeight: '600' },
+    stepLabelActive:{ color: '#FF69B4' },
+    stepLine:       { flex: 1, height: 1.5, backgroundColor: t.colors.border, marginHorizontal: 4, marginBottom: 16 },
+    stepLineActive: { backgroundColor: '#FF69B4' },
 
     scroll: { paddingHorizontal: 20, paddingBottom: 60 },
 
-    pinkBanner:      { alignItems: 'center', paddingVertical: 24, marginBottom: 20 },
+    pinkBanner:      { alignItems: 'center', paddingVertical: 20, marginBottom: 16 },
     pinkBannerIcon:  { fontSize: 48, marginBottom: 10 },
     pinkBannerTitle: { fontSize: 22, fontWeight: '900', color: t.colors.text, marginBottom: 6 },
     pinkBannerSub:   { fontSize: 13, color: t.colors.textSecondary, textAlign: 'center' },
 
-    requirementItem:  { flexDirection: 'row', gap: 14, marginBottom: 14, backgroundColor: t.colors.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: t.colors.border },
-    requirementIcon:  { fontSize: 28, marginTop: 2 },
+    requirementItem:  { flexDirection: 'row', gap: 14, marginBottom: 12, backgroundColor: t.colors.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: t.colors.border },
+    requirementIcon:  { fontSize: 26, marginTop: 2 },
     requirementText:  { flex: 1 },
     requirementTitle: { fontSize: 14, fontWeight: '800', color: t.colors.text, marginBottom: 4 },
     requirementDesc:  { fontSize: 12, color: t.colors.textSecondary, lineHeight: 18 },
@@ -328,33 +350,42 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
     privacyBox:  { backgroundColor: 'rgba(255,105,180,0.06)', borderRadius: 14, padding: 14, marginBottom: 20, borderWidth: 1, borderColor: 'rgba(255,105,180,0.15)' },
     privacyText: { fontSize: 11, color: t.colors.textSecondary, textAlign: 'center', lineHeight: 16 },
 
-    stepPageTitle: { fontSize: 22, fontWeight: '900', color: t.colors.text, marginBottom: 8 },
-    stepPageSub:   { fontSize: 13, color: t.colors.textSecondary, lineHeight: 20, marginBottom: 20 },
+    primaryBtn:     { backgroundColor: '#FF69B4', borderRadius: 16, paddingVertical: 17, alignItems: 'center', marginHorizontal: 20, marginBottom: 12 },
+    primaryBtnText: { color: '#fff', fontWeight: '900', fontSize: 14 },
+    btnDisabled:    { opacity: 0.4 },
 
-    cnicsUploadBox: { height: 200, borderRadius: 18, borderWidth: 2, borderColor: t.colors.border, borderStyle: 'dashed', backgroundColor: t.colors.card, alignItems: 'center', justifyContent: 'center', marginBottom: 12, overflow: 'hidden' },
-    cnicsUploaded:  { borderColor: '#FF69B4', borderStyle: 'solid' },
-    cnicsPreview:   { width: '100%', height: '100%' },
-    cnicsUploadIcon:  { fontSize: 40, marginBottom: 10 },
-    cnicsUploadLabel: { fontSize: 14, fontWeight: '700', color: t.colors.text, marginBottom: 4 },
-    cnicsUploadHint:  { fontSize: 11, color: t.colors.textSecondary },
+    // ── CNIC Camera step ──
+    cnicContainer: { flex: 1, paddingHorizontal: 20 },
+    cameraBox: {
+        height: 220, borderRadius: 20, overflow: 'hidden',
+        backgroundColor: '#111', marginBottom: 14, position: 'relative',
+    },
+    cnicFrame: { position: 'absolute', top: 16, left: 24, right: 24, bottom: 16 },
+    corner:    { position: 'absolute', width: 22, height: 22, borderColor: '#FF69B4', borderWidth: 3 },
+    tl: { top: 0,    left: 0,   borderRightWidth: 0, borderBottomWidth: 0 },
+    tr: { top: 0,    right: 0,  borderLeftWidth: 0,  borderBottomWidth: 0 },
+    bl: { bottom: 0, left: 0,   borderRightWidth: 0, borderTopWidth: 0 },
+    br: { bottom: 0, right: 0,  borderLeftWidth: 0,  borderTopWidth: 0 },
 
-    retakeBtn:     { alignItems: 'center', paddingVertical: 10, marginBottom: 8 },
-    retakeBtnText: { color: t.colors.textSecondary, fontSize: 13, fontWeight: '600' },
+    cameraLoading:     { position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: '#111', gap: 12 } as any,
+    cameraLoadingText: { color: '#888', fontSize: 13 },
+    cameraErrorBox:    { backgroundColor: 'rgba(255,68,68,0.1)', borderRadius: 12, padding: 12, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(255,68,68,0.3)' },
+    cameraErrorText:   { color: t.colors.danger, fontSize: 13, textAlign: 'center' },
+    cnicHintBox:       { marginBottom: 16 },
+    cnicHintText:      { fontSize: 12, color: t.colors.textSecondary, textAlign: 'center', lineHeight: 18 },
 
-    tipsBox:   { backgroundColor: t.dark ? '#111' : '#F5F5F5', borderRadius: 14, padding: 14, marginBottom: 20 },
-    tipsTitle: { fontSize: 12, fontWeight: '800', color: t.colors.textSecondary, marginBottom: 8, letterSpacing: 0.5 },
-    tipItem:   { fontSize: 11, color: t.colors.textSecondary, lineHeight: 20 },
+    captureBtn:     { backgroundColor: '#FF69B4', borderRadius: 16, paddingVertical: 16, alignItems: 'center', marginBottom: 8 },
+    captureBtnText: { color: '#fff', fontWeight: '900', fontSize: 15 },
 
-    primaryBtn:      { backgroundColor: '#FF69B4', borderRadius: 16, paddingVertical: 17, alignItems: 'center', marginTop: 4 },
-    primaryBtnText:  { color: '#fff', fontWeight: '900', fontSize: 14 },
-    btnDisabled:     { opacity: 0.4 },
+    previewBox:   { height: 200, borderRadius: 16, overflow: 'hidden', marginBottom: 10, borderWidth: 2, borderColor: '#FF69B4' },
+    previewImage: { width: '100%', height: '100%' },
+    previewHint:  { fontSize: 12, color: t.colors.textSecondary, textAlign: 'center', marginBottom: 14 },
+    retakeBtn:    { alignItems: 'center', paddingVertical: 12, marginBottom: 8 },
+    retakeBtnText:{ color: t.colors.textSecondary, fontSize: 13, fontWeight: '600' },
 
-    backLinkBtn:  { alignItems: 'center', paddingVertical: 14 },
-    backLinkText: { color: t.colors.textSecondary, fontSize: 13 },
-
-    bigIcon:          { fontSize: 60, marginBottom: 16 },
-    notEligibleTitle: { fontSize: 20, fontWeight: '900', color: t.colors.text, marginBottom: 10, textAlign: 'center' },
-    notEligibleText:  { fontSize: 13, color: t.colors.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
+    bigIcon:           { fontSize: 60, marginBottom: 16 },
+    notEligibleTitle:  { fontSize: 20, fontWeight: '900', color: t.colors.text, marginBottom: 10, textAlign: 'center' },
+    notEligibleText:   { fontSize: 13, color: t.colors.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
 });
 
 export default PinkPassDriverScreen;

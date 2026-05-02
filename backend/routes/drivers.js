@@ -193,6 +193,7 @@ router.get('/me', auth, async (req, res) => {
                 phone:           driver.user?.phone,
                 email:           driver.user?.email,
                 gender:          driver.user?.gender,
+                profilePicture:  driver.user?.profilePicture,
                 joinedAt:        driver.user?.createdAt,
                 licenseNumber:   driver.licenseNumber,
                 cnic:            driver.cnic,
