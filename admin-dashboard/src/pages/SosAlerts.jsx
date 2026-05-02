@@ -28,7 +28,10 @@ export default function SosAlerts() {
     load();
 
     // Connect Socket.io for real-time SOS alerts
-    const socket = io('http://localhost:5000', { transports: ['websocket', 'polling'] });
+    const SOCKET_URL = window.location.hostname === 'localhost'
+      ? 'http://localhost:5000'
+      : 'https://safora-production-f5ce.up.railway.app';
+    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
     socketRef.current = socket;
 
     socket.on('connect', () => console.log('[Admin] Socket connected'));

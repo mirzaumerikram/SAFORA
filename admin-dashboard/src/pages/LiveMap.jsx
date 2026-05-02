@@ -13,7 +13,7 @@ export default function LiveMap() {
     <div className="page">
       <div className="page-head">
         <div>
-          <h2 className="page-title">Live Map — Sialkot</h2>
+          <h2 className="page-title">Live Map — Lahore</h2>
           <p className="page-sub">Real-time driver and ride positions</p>
         </div>
         {stats && (
@@ -26,7 +26,7 @@ export default function LiveMap() {
       <div className="map-full-card">
         <iframe
           title="Full Live Map"
-          src="https://www.openstreetmap.org/export/embed.html?bbox=74.4500,32.4400,74.6000,32.5500&layer=mapnik"
+          src="https://www.openstreetmap.org/export/embed.html?bbox=74.2000,31.3800,74.5500,31.7000&layer=mapnik"
           style={{ width: '100%', height: '100%', border: 'none' }}
         />
       </div>

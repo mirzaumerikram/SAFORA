@@ -3,13 +3,12 @@ import { Link } from 'react-router-dom';
 import { api } from '../services/api';
 import './Dashboard.css';
 
-const StatCard = ({ icon, value, label, change, color }) => (
+const StatCard = ({ icon, value, label, color }) => (
   <div className="stat-card">
     <div className="sc-top">
       <div className="sc-icon" style={{ background: color + '18' }}>{icon}</div>
-      <div className="sc-change">↑ {change}%</div>
     </div>
-    <div className="sc-value">{value ?? '—'}</div>
+    <div className="sc-value">{value ?? 0}</div>
     <div className="sc-label">{label}</div>
   </div>
 );
@@ -37,16 +36,9 @@ export default function Dashboard() {
     }).finally(() => setLoading(false));
   }, []);
 
-  // Demo data when backend is offline
-  const demoStats = { totalRides: 284, activeDrivers: 47, openAlerts: 3, totalUsers: 1284, activeRides: 63, pendingDriverApprovals: 5 };
-  const s = stats || demoStats;
-
-  const demoAlerts = [
-    { _id: '1', passenger: { name: 'Sara Malik' },   location: 'Gulberg III',  status: 'active',   createdAt: new Date(Date.now() - 2*60000).toISOString() },
-    { _id: '2', passenger: { name: 'Ayesha Noor' },  location: 'DHA Phase 5',  status: 'handling', createdAt: new Date(Date.now() - 18*60000).toISOString() },
-    { _id: '3', passenger: { name: 'Fatima Khan' },  location: 'Model Town',   status: 'resolved', createdAt: new Date(Date.now() - 60*60000).toISOString() },
-  ];
-  const displayAlerts = alerts.length ? alerts.slice(0, 5) : demoAlerts;
+  // Zero state when backend has no data yet
+  const s = stats || { totalRides: 0, activeDrivers: 0, openAlerts: 0, totalUsers: 0, activeRides: 0, pendingDriverApprovals: 0 };
+  const displayAlerts = alerts.slice(0, 5);
 
   const timeAgo = (iso) => {
     const diff = Math.floor((Date.now() - new Date(iso)) / 60000);
@@ -63,10 +55,10 @@ export default function Dashboard() {
 
       {/* Stat cards */}
       <div className="stats-row">
-        <StatCard icon="🚗" value={s.totalRides}   label="TOTAL RIDES TODAY"     change={12} color="#3498db" />
-        <StatCard icon="🟢" value={s.activeDrivers} label="ACTIVE DRIVERS"        change={5}  color="#27ae60" />
-        <StatCard icon="🚨" value={s.openAlerts}    label="SOS ALERTS TODAY"      change={2}  color="#e74c3c" />
-        <StatCard icon="👥" value={s.totalUsers}    label="REGISTERED PASSENGERS" change={8}  color="#9b59b6" />
+        <StatCard icon="🚗" value={s.totalRides}              label="TOTAL RIDES TODAY"     change={null} color="#3498db" />
+        <StatCard icon="🟢" value={s.activeDrivers}           label="ACTIVE DRIVERS"        change={null} color="#27ae60" />
+        <StatCard icon="🚨" value={s.openAlerts}              label="SOS ALERTS TODAY"      change={null} color="#e74c3c" />
+        <StatCard icon="👥" value={s.totalUsers}              label="REGISTERED PASSENGERS" change={null} color="#9b59b6" />
       </div>
 
       {/* Map + SOS row */}
@@ -74,13 +66,13 @@ export default function Dashboard() {
         {/* Live Map */}
         <div className="map-card">
           <div className="card-header">
-            <div className="ch-title">🗺️ Live Map — Sialkot</div>
+            <div className="ch-title">🗺️ Live Map — Lahore</div>
             <Link to="/live-map" className="ch-link">Open Full Map →</Link>
           </div>
           <div className="map-embed-wrap">
             <iframe
               title="Live Map"
-              src="https://www.openstreetmap.org/export/embed.html?bbox=74.4900,32.4700,74.5600,32.5200&layer=mapnik"
+              src="https://www.openstreetmap.org/export/embed.html?bbox=74.2500,31.4200,74.5000,31.6500&layer=mapnik"
               style={{ width: '100%', height: '100%', border: 'none', borderRadius: 12 }}
             />
             <div className="map-overlay-stats">
@@ -119,7 +111,7 @@ export default function Dashboard() {
               </div>
             ))}
             {displayAlerts.length === 0 && (
-              <div className="sos-empty">🛡️ No active alerts</div>
+              <div className="sos-empty">🛡️ No active SOS alerts — all clear</div>
             )}
           </div>
         </div>
