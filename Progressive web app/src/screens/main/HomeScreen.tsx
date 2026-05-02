@@ -58,19 +58,25 @@ const HomeScreen: React.FC = () => {
     const [homeAddr, setHomeAddr]   = useState('');
     const [workAddr, setWorkAddr]   = useState('');
 
-    // Load user name from AsyncStorage
+    // Load user data whenever screen comes into focus
     useEffect(() => {
-        AsyncStorage.getItem(STORAGE_KEYS.USER_DATA).then(raw => {
-            if (raw) {
-                const user = JSON.parse(raw);
-                const name: string = user?.name || '';
-                setFullName(name);
-                setUserName(name.split(' ')[0] || '');
-                setHomeAddr(user?.homeAddress || '');
-                setWorkAddr(user?.workAddress || '');
-            }
-        });
-    }, []);
+        const loadData = () => {
+            AsyncStorage.getItem(STORAGE_KEYS.USER_DATA).then(raw => {
+                if (raw) {
+                    const user = JSON.parse(raw);
+                    const name: string = user?.name || '';
+                    setFullName(name);
+                    setUserName(name.split(' ')[0] || '');
+                    setHomeAddr(user?.homeAddress || '');
+                    setWorkAddr(user?.workAddress || '');
+                }
+            });
+        };
+
+        loadData(); // Initial load
+        const unsubscribe = navigation.addListener('focus', loadData);
+        return unsubscribe;
+    }, [navigation]);
 
     // Derive user initial for avatar
     const userInitial = userName ? userName.charAt(0).toUpperCase() : 'A';
