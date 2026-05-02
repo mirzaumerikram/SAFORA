@@ -32,6 +32,15 @@ const rideTypes = [
         pink: false,
     },
     {
+        id: 'rickshaw',
+        name: 'Auto Rickshaw',
+        icon: '🛺',
+        price: 180,
+        desc: '3 Seats · 4 min away',
+        badge: '-1 min',
+        pink: false,
+    },
+    {
         id: 'standard',
         name: 'Comfort AC',
         icon: '🚗',
@@ -89,7 +98,8 @@ const RideSelectionScreen: React.FC = () => {
 
         // Multipliers
         let multiplier = 1.0;
-        if (typeId === 'standard') multiplier = 1.3;
+        if (typeId === 'rickshaw') multiplier = 1.1;
+        if (typeId === 'standard') multiplier = 1.35;
         if (typeId === 'pink-pass') multiplier = 1.25;
 
         // Surge (Rush Hour: 8-9 AM, 5-7 PM)
@@ -100,7 +110,7 @@ const RideSelectionScreen: React.FC = () => {
         const finalPrice = Math.round(baseFare * multiplier * surge);
         
         // Minimum price protection
-        return Math.max(finalPrice, typeId === 'eco' ? 100 : 180);
+        return Math.max(finalPrice, typeId === 'eco' ? 80 : typeId === 'rickshaw' ? 120 : 180);
     };
 
     // Update rideTypes with dynamic data
