@@ -25,11 +25,14 @@ interface Coordinates {
 }
 
 interface SaforaMapProps {
-    type?:             'home' | 'tracking';
+    type?:             'home' | 'tracking' | 'driver';
+    centerOnUser?:     boolean;
     driverLocation?:   Coordinates;
     pickupLocation?:   Coordinates;
     dropoffLocation?:  Coordinates;
     onLocationChange?: (location: Coordinates) => void;
+    onRouteInfo?:      (info: { distance: number; duration: number }) => void;
+    onStatusChange?:   (status: string) => void;
 }
 
 const LAHORE: Coordinates = { latitude: 31.5204, longitude: 74.3587 };
@@ -65,11 +68,13 @@ function loadGoogleMapsScript(apiKey: string): Promise<void> {
 
 const SaforaMap: React.FC<SaforaMapProps> = ({
     type = 'home',
+    centerOnUser = false,
     driverLocation,
     pickupLocation,
     dropoffLocation,
     onLocationChange,
     onRouteInfo,
+    onStatusChange,
 }) => {
     const mapDivRef   = useRef<HTMLDivElement | null>(null);
     const mapObjRef   = useRef<google.maps.Map | null>(null);
@@ -204,7 +209,7 @@ const SaforaMap: React.FC<SaforaMapProps> = ({
 
         const center = userLocation || LAHORE;
 
-        if (type === 'home') {
+        if (type === 'home' || type === 'driver' || centerOnUser) {
             addMarker(center, '●', '#F5C518');
             map.panTo({ lat: center.latitude, lng: center.longitude });
         }
