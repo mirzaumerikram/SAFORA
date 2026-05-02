@@ -73,6 +73,8 @@ const SaforaMap: React.FC<SaforaMapProps> = ({
     const mapDivRef   = useRef<HTMLDivElement | null>(null);
     const mapObjRef   = useRef<google.maps.Map | null>(null);
     const markersRef  = useRef<google.maps.Marker[]>([]);
+    const directionsServiceRef  = useRef<google.maps.DirectionsService | null>(null);
+    const directionsRendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
 
     const [userLocation, setUserLocation] = useState<Coordinates | null>(null);
     const [loading,      setLoading]      = useState(true);
@@ -150,6 +152,18 @@ const SaforaMap: React.FC<SaforaMapProps> = ({
             ],
         });
         mapObjRef.current = map;
+
+        // Init directions
+        directionsServiceRef.current  = new google.maps.DirectionsService();
+        directionsRendererRef.current = new google.maps.DirectionsRenderer({
+            map,
+            suppressMarkers: true,
+            polylineOptions: {
+                strokeColor: '#F5C518',
+                strokeWeight: 5,
+                strokeOpacity: 0.8,
+            }
+        });
     }, [mapReady, loading, userLocation]);
 
     // ── 4. Update markers whenever props change ───────────────────────────────
@@ -197,27 +211,50 @@ const SaforaMap: React.FC<SaforaMapProps> = ({
         if (dropoffLocation) addMarker(dropoffLocation, 'D', '#EF4444');
         if (driverLocation)  addMarker(driverLocation,  '🚗', '#F5C518');
 
-        // Draw route line between pickup and dropoff
-        if (pickupLocation && dropoffLocation && google.maps.Polyline && google.maps.LatLngBounds) {
-            const line = new google.maps.Polyline({
-                path: [
-                    { lat: pickupLocation.latitude,  lng: pickupLocation.longitude },
-                    { lat: dropoffLocation.latitude, lng: dropoffLocation.longitude },
-                ],
-                geodesic:    true,
-                strokeColor: '#F5C518',
-                strokeOpacity: 0.9,
-                strokeWeight: 4,
-                map,
-            });
-            // Store it so we can clear it later (piggyback on markersRef)
-            (markersRef.current as any[]).push({ setMap: (m: any) => line.setMap(m) });
+        // Clear previous directions
+        if (directionsRendererRef.current) {
+            try {
+                directionsRendererRef.current.setDirections({ routes: [] } as any);
+            } catch (e) {
+                // Fallback clear
+                directionsRendererRef.current.setMap(null);
+                directionsRendererRef.current.setMap(map);
+            }
+        }
 
-            // Fit bounds
-            const bounds = new google.maps.LatLngBounds();
-            bounds.extend({ lat: pickupLocation.latitude,  lng: pickupLocation.longitude });
-            bounds.extend({ lat: dropoffLocation.latitude, lng: dropoffLocation.longitude });
-            map.fitBounds(bounds, 80);
+        // Draw actual road route between pickup and dropoff
+        if (pickupLocation && dropoffLocation && directionsServiceRef.current && directionsRendererRef.current) {
+            console.log('[SaforaMap] Requesting route...', pickupLocation, dropoffLocation);
+            
+            directionsServiceRef.current.route({
+                origin:      { lat: pickupLocation.latitude,  lng: pickupLocation.longitude },
+                destination: { lat: dropoffLocation.latitude, lng: dropoffLocation.longitude },
+                travelMode:  google.maps.TravelMode.DRIVING,
+            }, (result, status) => {
+                if (status === google.maps.DirectionsStatus.OK && result) {
+                    console.log('[SaforaMap] Route found successfully');
+                    directionsRendererRef.current?.setDirections(result);
+                } else {
+                    console.error('[SaforaMap] Directions request failed. Status:', status);
+                    
+                    if (status === 'REQUEST_DENIED') {
+                        console.warn('[SaforaMap] Hint: Check if Directions API is enabled for THIS specific API key in Google Cloud Console.');
+                    }
+
+                    // Fallback to straight line if directions fail
+                    const line = new google.maps.Polyline({
+                        path: [
+                            { lat: pickupLocation.latitude,  lng: pickupLocation.longitude },
+                            { lat: dropoffLocation.latitude, lng: dropoffLocation.longitude },
+                        ],
+                        strokeColor: '#F5C518',
+                        strokeOpacity: 0.7,
+                        strokeWeight: 4,
+                        map,
+                    });
+                    (markersRef.current as any[]).push({ setMap: (m: any) => line.setMap(m) });
+                }
+            });
         }
     }, [mapReady, userLocation, type, pickupLocation, dropoffLocation, driverLocation]);
 

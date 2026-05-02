@@ -48,16 +48,46 @@ const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
     const [showPredictions, setShowPredictions] = useState(false);
     const debounceTimer = useRef<NodeJS.Timeout>();
 
-    // Google Places Autocomplete API
     const fetchPredictions = async (text: string) => {
         if (text.length < 3) {
             setPredictions([]);
             return;
         }
 
+        setLoading(true);
+        
+        // Try Fetch with Proxy first on Web - often more reliable than JS API for some keys
+        if (Platform.OS === 'web') {
+            try {
+                let url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(text)}&key=${apiKey}&components=country:pk&sessiontoken=SAFORA_SESSION`;
+                url = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.status === 'OK' && data.predictions) {
+                    const formatted = data.predictions.map((p: any) => ({
+                        place_id: p.place_id,
+                        description: p.description,
+                        main_text: p.structured_formatting.main_text,
+                        secondary_text: p.structured_formatting.secondary_text,
+                    }));
+                    setPredictions(formatted);
+                    setShowPredictions(true);
+                    setLoading(false);
+                    return;
+                } else if (data.status && data.status !== 'ZERO_RESULTS') {
+                    alert('[DEBUG] Proxy Fetch Status: ' + data.status);
+                    console.warn('[GooglePlaces] Proxy Fetch Status:', data.status);
+                }
+            } catch (err) {
+                console.warn('[GooglePlaces] Proxy Fetch error, trying JS API...');
+            }
+        }
+
+        // Try JS API
         if (Platform.OS === 'web' && (window as any).google?.maps?.places) {
             try {
-                setLoading(true);
                 const service = new (window as any).google.maps.places.AutocompleteService();
                 service.getPlacePredictions(
                     {
@@ -65,69 +95,48 @@ const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
                         componentRestrictions: { country: 'pk' },
                     },
                     (results: any, status: any) => {
-                        if (status !== 'OK') {
-                            alert('[DEBUG] Google Places Status: ' + status); 
+                        if (status === 'OK' && results) {
+                            const formatted = results.map((p: any) => ({
+                                place_id: p.place_id,
+                                description: p.description,
+                                main_text: p.structured_formatting.main_text,
+                                secondary_text: p.structured_formatting.secondary_text,
+                            }));
+                            setPredictions(formatted);
+                            setShowPredictions(true);
+                        } else {
                             if (status !== 'ZERO_RESULTS') {
-                                console.warn('[GooglePlaces] Error Status:', status);
+                                // alert('[DEBUG] Google Places Status: ' + status);
                             }
                             setPredictions([]);
-                            setLoading(false);
-                            return;
                         }
-                        if (!results) {
-                            setPredictions([]);
-                            setLoading(false);
-                            return;
-                        }
-                        const formatted = results.map((p: any) => ({
-                            place_id: p.place_id,
-                            description: p.description,
-                            main_text: p.structured_formatting.main_text,
-                            secondary_text: p.structured_formatting.secondary_text,
-                        }));
-                        setPredictions(formatted);
-                        setShowPredictions(true);
                         setLoading(false);
                     }
                 );
+                return;
             } catch (err) {
                 console.error('[GooglePlaces] Web Autocomplete error:', err);
-                setLoading(false);
             }
-            return;
         }
 
-        // Native fallback or Web if API not yet loaded
-        setLoading(true);
+        // Native fallback (iOS/Android)
         try {
-            let url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(text)}&key=${apiKey}&components=country:pk&sessiontoken=SAFORA_SESSION`;
-            
-            if (Platform.OS === 'web') {
-                url = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-            }
-
+            const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(text)}&key=${apiKey}&components=country:pk&sessiontoken=SAFORA_SESSION`;
             const response = await fetch(url);
-            if (!response.ok) throw new Error('Autocomplete failed');
-
             const data = await response.json();
-            if (data.status && data.status !== 'OK') {
-                alert('[DEBUG] Fetch Status: ' + data.status);
-            }
-            if (!data.predictions) {
-                setPredictions([]);
-                return;
-            }
-            const formattedPredictions: PlacePrediction[] = data.predictions.map(
-                (p: any) => ({
+            
+            if (data.status === 'OK' && data.predictions) {
+                const formatted = data.predictions.map((p: any) => ({
                     place_id: p.place_id,
                     description: p.description,
                     main_text: p.structured_formatting.main_text,
                     secondary_text: p.structured_formatting.secondary_text,
-                })
-            );
-
-            setPredictions(formattedPredictions);
-            setShowPredictions(true);
+                }));
+                setPredictions(formatted);
+                setShowPredictions(true);
+            } else {
+                setPredictions([]);
+            }
         } catch (err) {
             console.warn('[GooglePlaces] Native Autocomplete error:', err);
         } finally {
