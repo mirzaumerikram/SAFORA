@@ -83,12 +83,13 @@ const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
                     setShowPredictions(true);
                     setLoading(false);
                     return;
+                } else if (data.status === 'REQUEST_DENIED') {
+                    console.error('[GooglePlaces] API Key error or restricted:', data.error_message);
                 } else if (data.status && data.status !== 'ZERO_RESULTS') {
-                    alert('[DEBUG] Proxy Fetch Status: ' + data.status);
                     console.warn('[GooglePlaces] Proxy Fetch Status:', data.status);
                 }
             } catch (err) {
-                console.warn('[GooglePlaces] Proxy Fetch error, trying JS API...');
+                console.warn('[GooglePlaces] Proxy Fetch error:', err);
             }
         }
 

@@ -160,7 +160,10 @@ const ProfileScreen: React.FC = () => {
             async (pos) => {
                 const { latitude, longitude } = pos.coords;
                 try {
-                    const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_MAPS_API_KEY}`;
+                    let url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_MAPS_API_KEY}`;
+                    // Use proxy for web to avoid CORS issues
+                    url = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+                    
                     const response = await fetch(url);
                     const data = await response.json();
                     
