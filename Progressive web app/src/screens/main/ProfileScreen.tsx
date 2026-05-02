@@ -342,7 +342,7 @@ const ProfileScreen: React.FC = () => {
                             <Text style={s.avatarLetter}>{userInitial}</Text>
                         )}
                         <View style={s.editIconBadge}>
-                            <Text style={{ fontSize: 10 }}>📷</Text>
+                            <Text style={s.editIconText}>📷</Text>
                         </View>
                     </TouchableOpacity>
                     <Text style={s.userName}>{fullName || 'User Name'}</Text>
@@ -676,33 +676,44 @@ const makeStyles = (t: AppTheme) =>
             paddingVertical: 28,
         },
         avatarCircle: {
-            width: 88,
-            height: 88,
-            borderRadius: 44,
+            width: 100,
+            height: 100,
+            borderRadius: 50,
             backgroundColor: t.colors.primary,
             alignItems: 'center',
             justifyContent: 'center',
-            marginBottom: 14,
+            marginBottom: 16,
             position: 'relative',
-            overflow: 'hidden',
+            borderWidth: 3,
+            borderColor: t.colors.primary,
+            // Premium shadow
+            shadowColor: t.colors.primary,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 8,
+            elevation: 5,
         },
         avatarImage: {
             width: '100%',
             height: '100%',
-            borderRadius: 44,
+            borderRadius: 47,
         },
         editIconBadge: {
             position: 'absolute',
-            bottom: 0,
-            right: 0,
-            backgroundColor: t.colors.card,
-            width: 24,
-            height: 24,
-            borderRadius: 12,
+            bottom: 2,
+            right: 2,
+            backgroundColor: t.colors.secondary,
+            width: 32,
+            height: 32,
+            borderRadius: 16,
             alignItems: 'center',
             justifyContent: 'center',
-            borderWidth: 2,
-            borderColor: t.colors.primary,
+            borderWidth: 3,
+            borderColor: t.colors.background,
+            zIndex: 10,
+        },
+        editIconText: {
+            fontSize: 14,
         },
         avatarLetter: {
             fontSize: 38,
