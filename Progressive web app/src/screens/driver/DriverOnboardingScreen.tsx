@@ -49,6 +49,7 @@ const DriverOnboardingScreen: React.FC = () => {
         vehiclePlate: '',
     });
     const [errors, setErrors] = useState<Partial<Record<keyof FormData, boolean>>>({});
+    const [errorModal, setErrorModal] = useState<{ visible: boolean; msg: string }>({ visible: false, msg: '' });
 
     const set = (key: keyof FormData, val: string) => {
         setForm(prev => ({ ...prev, [key]: val }));
@@ -57,33 +58,51 @@ const DriverOnboardingScreen: React.FC = () => {
 
     const validateStep1 = () => {
         const newErrors: Partial<Record<keyof FormData, boolean>> = {};
-        if (!form.licenseNumber.trim()) newErrors.licenseNumber = true;
-        if (!/^\d{13}$/.test(form.cnic.replace(/-/g, ''))) newErrors.cnic = true;
-        if (!form.fullName.trim()) newErrors.fullName = true;
+        let msg = '';
+
+        if (!form.licenseNumber.trim()) {
+            newErrors.licenseNumber = true;
+            msg = 'Driving license number is required.';
+        } else if (!/^\d{13}$/.test(form.cnic.replace(/-/g, ''))) {
+            newErrors.cnic = true;
+            msg = 'CNIC must be 13 digits (e.g. 35201-1234567-1).';
+        } else if (!form.fullName.trim()) {
+            newErrors.fullName = true;
+            msg = 'Full name as per CNIC is required.';
+        }
 
         setErrors(newErrors);
         
         if (Object.keys(newErrors).length > 0) {
-            if (Platform.OS === 'web') {
-                window.alert('Please correct the red fields before continuing.');
-            } else {
-                Alert.alert('Missing Info', 'Please fill in all fields correctly.');
-            }
+            setErrorModal({ visible: true, msg });
             return false;
         }
         return true;
     };
 
     const validateStep2 = () => {
+        const newErrors: Partial<Record<keyof FormData, boolean>> = {};
+        let msg = '';
+
         if (!form.vehicleMake.trim() || !form.vehicleModel.trim()) {
-            Alert.alert('Missing Field', 'Please enter vehicle make and model.'); return false;
+            newErrors.vehicleMake = true;
+            newErrors.vehicleModel = true;
+            msg = 'Vehicle make and model are required.';
+        } else if (!form.vehiclePlate.trim()) {
+            newErrors.vehiclePlate = true;
+            msg = 'Vehicle registration plate is required.';
+        } else {
+            const year = parseInt(form.vehicleYear);
+            if (!year || year < 1990 || year > new Date().getFullYear() + 1) {
+                newErrors.vehicleYear = true;
+                msg = 'Please enter a valid vehicle year (1990 - 2026).';
+            }
         }
-        if (!form.vehiclePlate.trim()) {
-            Alert.alert('Missing Field', 'Please enter vehicle registration number.'); return false;
-        }
-        const year = parseInt(form.vehicleYear);
-        if (!year || year < 1990 || year > new Date().getFullYear() + 1) {
-            Alert.alert('Invalid Year', 'Enter a valid vehicle year.'); return false;
+
+        setErrors(newErrors);
+        if (Object.keys(newErrors).length > 0) {
+            setErrorModal({ visible: true, msg });
+            return false;
         }
         return true;
     };
@@ -124,6 +143,35 @@ const DriverOnboardingScreen: React.FC = () => {
 
     return (
         <View style={s.container}>
+            {/* ── Custom Error Modal ── */}
+            <Modal
+                visible={errorModal.visible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setErrorModal({ ...errorModal, visible: false })}
+            >
+                <View style={s.modalOverlay}>
+                    <TouchableOpacity 
+                        style={s.modalBackdrop} 
+                        activeOpacity={1} 
+                        onPress={() => setErrorModal({ ...errorModal, visible: false })} 
+                    />
+                    <View style={s.errorBox}>
+                        <View style={s.errorIconCircle}>
+                            <Text style={s.errorIcon}>⚠️</Text>
+                        </View>
+                        <Text style={styles.errorTitle}>Validation Error</Text>
+                        <Text style={styles.errorText}>{errorModal.msg}</Text>
+                        <TouchableOpacity 
+                            style={s.errorBtn}
+                            onPress={() => setErrorModal({ ...errorModal, visible: false })}
+                        >
+                            <Text style={s.errorBtnText}>Got it</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
             {/* Header */}
             <View style={s.header}>
                 <TouchableOpacity
@@ -493,6 +541,78 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
     },
     halfField: {
         flex: 1,
+    },
+
+    /* ── Modal & Errors ── */
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.85)',
+        justifyContent: 'center',
+        padding: 30,
+    },
+    modalBackdrop: {
+        ...StyleSheet.absoluteFillObject,
+    },
+    errorBox: {
+        backgroundColor: '#1A1A1A',
+        borderRadius: 24,
+        padding: 32,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(239,68,68,0.3)',
+    },
+    errorIconCircle: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        backgroundColor: 'rgba(239,68,68,0.15)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 20,
+    },
+    errorIcon: {
+        fontSize: 24,
+    },
+    errorTitle: {
+        fontSize: 18,
+        fontWeight: '900',
+        color: '#FFFFFF',
+        marginBottom: 10,
+    },
+    errorText: {
+        fontSize: 14,
+        color: '#A0A0A0',
+        textAlign: 'center',
+        lineHeight: 22,
+        marginBottom: 28,
+    },
+    errorBtn: {
+        backgroundColor: t.colors.primary,
+        borderRadius: 14,
+        paddingVertical: 14,
+        width: '100%',
+        alignItems: 'center',
+    },
+    errorBtnText: {
+        color: '#000000',
+        fontWeight: '800',
+        fontSize: 15,
+    },
+});
+
+const styles = StyleSheet.create({
+    errorTitle: {
+        fontSize: 18,
+        fontWeight: '900',
+        color: '#FFFFFF',
+        marginBottom: 10,
+    },
+    errorText: {
+        fontSize: 14,
+        color: '#A0A0A0',
+        textAlign: 'center',
+        lineHeight: 22,
+        marginBottom: 28,
     },
 });
 
