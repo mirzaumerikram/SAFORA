@@ -146,6 +146,11 @@ const ProfileScreen: React.FC = () => {
     // ─── Location Logic ───────────────────────────────────────────────────────
 
     const handleCurrentLocation = (type: 'home' | 'work') => {
+        if (!GOOGLE_MAPS_API_KEY) {
+            Alert.alert('Configuration Error', 'Google Maps API key is missing. Please check Vercel environment variables.');
+            return;
+        }
+
         if (!navigator.geolocation) {
             Alert.alert('Error', 'Geolocation is not supported by your browser.');
             return;
@@ -155,23 +160,23 @@ const ProfileScreen: React.FC = () => {
             async (pos) => {
                 const { latitude, longitude } = pos.coords;
                 try {
-                    // Use Google Reverse Geocoding to get address from coords
                     const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_MAPS_API_KEY}`;
                     const response = await fetch(url);
                     const data = await response.json();
+                    
                     if (data.status === 'OK' && data.results[0]) {
                         const addr = data.results[0].formatted_address;
                         if (type === 'home') setHomeAddress(addr);
                         else setWorkAddress(addr);
                     } else {
-                        Alert.alert('Error', 'Could not determine address.');
+                        Alert.alert('Location Error', `Google API returned: ${data.status || 'No results'}`);
                     }
                 } catch (e) {
-                    Alert.alert('Error', 'Failed to fetch address.');
+                    Alert.alert('Network Error', 'Failed to connect to Google Services.');
                 }
             },
-            () => Alert.alert('Error', 'Could not get your location. Please check permissions.'),
-            { enableHighAccuracy: true }
+            (err) => Alert.alert('GPS Error', `Could not get location: ${err.message}. Please enable GPS and allow permissions.`),
+            { enableHighAccuracy: true, timeout: 10000 }
         );
     };
 
@@ -394,11 +399,11 @@ const ProfileScreen: React.FC = () => {
                 <Text style={s.sectionLabel}>SAVED LOCATIONS</Text>
 
                 {/* Home Address */}
-                <View style={s.fieldBlock}>
+                <View style={[s.fieldBlock, { zIndex: 300 }]}>
                     <View style={s.labelRow}>
                         <Text style={s.fieldLabel}>HOME ADDRESS</Text>
                         <TouchableOpacity onPress={() => handleCurrentLocation('home')}>
-                            <Text style={s.currentLocLink}>📍 Use Current Location</Text>
+                            <Text style={s.currentLocLink}>📍 USE CURRENT LOCATION</Text>
                         </TouchableOpacity>
                     </View>
                     <GooglePlacesInput
@@ -411,11 +416,11 @@ const ProfileScreen: React.FC = () => {
                 </View>
 
                 {/* Work Address */}
-                <View style={s.fieldBlock}>
+                <View style={[s.fieldBlock, { zIndex: 200 }]}>
                     <View style={s.labelRow}>
                         <Text style={s.fieldLabel}>WORK ADDRESS</Text>
                         <TouchableOpacity onPress={() => handleCurrentLocation('work')}>
-                            <Text style={s.currentLocLink}>📍 Use Current Location</Text>
+                            <Text style={s.currentLocLink}>📍 USE CURRENT LOCATION</Text>
                         </TouchableOpacity>
                     </View>
                     <GooglePlacesInput
