@@ -109,6 +109,10 @@ router.get('/alerts/active', async (req, res) => {
     try {
         const alerts = await Alert.find({ status: 'active' })
             .populate('passenger', 'name phone')
+            .populate({
+                path: 'driver',
+                populate: { path: 'user', select: 'name phone' }
+            })
             .sort({ createdAt: -1 })
             .limit(50);
 
@@ -127,7 +131,10 @@ router.get('/rides/active', async (req, res) => {
             status: { $in: ['matched', 'accepted', 'started'] }
         })
         .populate('passenger', 'name phone')
-        .populate('driver')
+        .populate({
+            path: 'driver',
+            populate: { path: 'user', select: 'name phone' }
+        })
         .sort({ createdAt: -1 });
 
         res.json({ success: true, count: rides.length, rides });
