@@ -98,12 +98,56 @@ const DriverAppNavigator: React.FC = () => (
     </DriverStack.Navigator>
 );
 
+const linking = {
+    prefixes: [Platform.OS === 'web' ? window.location.origin : 'safora://'],
+    config: {
+        screens: {
+            // Auth Flow
+            Welcome:      'welcome',
+            Login:        'login',
+            Register:     'register',
+            VerifyOtp:    'verify-otp',
+            LanguageRole: 'setup',
+
+            // Passenger Flow (MainNavigator)
+            Home:            '',
+            Profile:         'profile',
+            PinkPass:        'pink-pass',
+            PinkPassCnic:    'pink-pass/cnic',
+            PinkPassCamera:  'pink-pass/test',
+            RideHistory:     'history',
+            Safety:          'safety',
+            Payment:         'payment',
+            Chat:            'chat',
+            BookingLocation: 'book',
+            RideSelection:   'select-ride',
+            Searching:       'searching',
+            Tracking:        'tracking',
+
+            // Driver Flow
+            DriverOnboarding: 'driver/onboarding',
+            DriverApp: {
+                screens: {
+                    DriverTabs:     'driver',
+                    RideRequest:    'driver/request',
+                    TripNav:        'driver/navigation',
+                    PinkPassDriver: 'driver/pink-pass',
+                    PinkPassLiveness: 'driver/pink-pass/test',
+                }
+            },
+
+            // Admin Flow
+            AdminHome: 'admin',
+        },
+    },
+};
+
 const AppNavigator: React.FC = () => {
     return (
         <ThemeProvider>
             <LanguageProvider>
                 <AuthProvider>
-                    <NavigationContainer>
+                    <NavigationContainer linking={linking}>
                         <RootNavigator />
                     </NavigationContainer>
                 </AuthProvider>
