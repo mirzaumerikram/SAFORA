@@ -12,9 +12,9 @@ import {
 
 const { width, height } = Dimensions.get('window');
 
-// ── Env key (must be EXPO_PUBLIC_ prefix to be bundled) ─────────────────────
-const MAPS_KEY: string =
-    (process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY as string) || '';
+// Google Maps JS API key — public browser key, safe to include in client code.
+// Restrict it by domain at: console.cloud.google.com → APIs → Credentials
+const MAPS_KEY = 'AIzaSyBbF5mP1xMstQI68UcyTS2JX9hibnafHRU';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
