@@ -91,7 +91,12 @@ const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
         // Native fallback or Web if API not yet loaded
         setLoading(true);
         try {
-            const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(text)}&key=${apiKey}&components=country:pk&sessiontoken=SAFORA_SESSION`;
+            let url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(text)}&key=${apiKey}&components=country:pk&sessiontoken=SAFORA_SESSION`;
+            
+            if (Platform.OS === 'web') {
+                url = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+            }
+
             const response = await fetch(url);
             if (!response.ok) throw new Error('Autocomplete failed');
 
@@ -163,7 +168,12 @@ const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
         }
 
         try {
-            const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&key=${apiKey}&fields=geometry,formatted_address`;
+            let url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&key=${apiKey}&fields=geometry,formatted_address`;
+            
+            if (Platform.OS === 'web') {
+                url = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+            }
+
             const response = await fetch(url);
             if (!response.ok) throw new Error('Place details failed');
 
@@ -186,18 +196,25 @@ const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
     };
 
     return (
-        <View style={s.container}>
+        <View style={[s.container, (showPredictions && predictions.length > 0) && { zIndex: 9999 }]}>
             {/* Input field */}
             <View style={s.inputWrapper}>
                 <Text style={s.icon}>{icon}</Text>
                 <TextInput
                     style={s.input}
                     placeholder={placeholder}
-                    placeholderTextColor={theme.colors.textSecondary}
+                    placeholderTextColor={theme.colors.placeholder}
                     value={input}
                     onChangeText={handleInputChange}
-                    onFocus={() => predictions.length > 0 && setShowPredictions(true)}
+                    onFocus={() => {
+                        if (predictions.length > 0) setShowPredictions(true);
+                    }}
+                    onBlur={() => {
+                        // Small delay to allow onPress of prediction items to fire
+                        setTimeout(() => setShowPredictions(false), 200);
+                    }}
                     editable={true}
+                    autoCorrect={false}
                 />
                 {loading && <ActivityIndicator size="small" color={theme.colors.primary} />}
             </View>
@@ -214,14 +231,14 @@ const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
                         renderItem={({ item }) => (
                             <TouchableOpacity
                                 style={s.predictionItem}
-                                onPress={() =>
-                                    handleSelectPlace(item.place_id, item.description)
-                                }
+                                onPress={() => {
+                                    handleSelectPlace(item.place_id, item.description);
+                                }}
                                 activeOpacity={0.7}
                             >
-                                <Text style={s.predictionMain}>{item.main_text}</Text>
+                                <Text style={s.predictionMain} numberOfLines={1}>{item.main_text}</Text>
                                 {item.secondary_text && (
-                                    <Text style={s.predictionSecondary}>
+                                    <Text style={s.predictionSecondary} numberOfLines={1}>
                                         {item.secondary_text}
                                     </Text>
                                 )}
@@ -238,52 +255,68 @@ const makeStyles = (theme: AppTheme) =>
     StyleSheet.create({
         container: {
             width: '100%',
+            position: 'relative',
         },
         inputWrapper: {
             flexDirection: 'row',
             alignItems: 'center',
-            backgroundColor: theme.colors.card,
-            borderRadius: 12,
-            paddingHorizontal: 12,
-            paddingVertical: 10,
-            borderWidth: 1,
+            backgroundColor: theme.colors.cardSecondary,
+            borderRadius: 14,
+            paddingHorizontal: 16,
+            height: 52,
+            borderWidth: 1.5,
             borderColor: theme.colors.border,
         },
         icon: {
-            fontSize: 20,
-            marginRight: 8,
+            fontSize: 18,
+            marginRight: 10,
         },
         input: {
             flex: 1,
-            fontSize: 16,
+            fontSize: 15,
             color: theme.colors.text,
-            fontFamily: 'Inter-Regular',
+            fontWeight: '500',
         },
         predictionsContainer: {
+            position: 'absolute',
+            top: 56,
+            left: 0,
+            right: 0,
             backgroundColor: theme.colors.card,
-            borderRadius: 12,
-            marginTop: 8,
-            borderWidth: 1,
+            borderRadius: 16,
+            borderWidth: 1.5,
             borderColor: theme.colors.border,
-            maxHeight: 250,
+            maxHeight: 280,
+            zIndex: 9999,
+            // Shadow for web
+            ...Platform.select({
+                web: {
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                },
+                default: {
+                    elevation: 10,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.2,
+                    shadowRadius: 10,
+                }
+            })
         },
         predictionItem: {
-            paddingVertical: 12,
-            paddingHorizontal: 12,
+            paddingVertical: 14,
+            paddingHorizontal: 16,
             borderBottomWidth: 1,
             borderBottomColor: theme.colors.border,
         },
         predictionMain: {
             fontSize: 14,
-            fontWeight: '600',
+            fontWeight: '700',
             color: theme.colors.text,
-            fontFamily: 'Inter-SemiBold',
         },
         predictionSecondary: {
             fontSize: 12,
             color: theme.colors.textSecondary,
             marginTop: 2,
-            fontFamily: 'Inter-Regular',
         },
     });
 
