@@ -278,7 +278,15 @@ const RegisterScreen: React.FC = () => {
 const makeStyles = (t: AppTheme) =>
     StyleSheet.create({
         root:   { flex: 1, backgroundColor: t.colors.background },
-        scroll: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 56, paddingBottom: 48 },
+        scroll: { 
+            flexGrow: 1, 
+            paddingHorizontal: 24, 
+            paddingTop: 56, 
+            paddingBottom: 80,
+            maxWidth: 500,
+            alignSelf: 'center',
+            width: '100%',
+        },
 
         backBtn: {
             width: 40, height: 40, borderRadius: 13,

@@ -219,7 +219,7 @@ const makeStyles = (t: AppTheme) => {
             maxWidth: 460,
             paddingHorizontal: 24,
             paddingTop: 52,
-            paddingBottom: 36,
+            paddingBottom: 80,
         },
 
         backBtn: {

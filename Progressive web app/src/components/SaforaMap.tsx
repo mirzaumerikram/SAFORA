@@ -234,9 +234,9 @@ const SaforaMap: React.FC<SaforaMapProps> = ({
 };
 
 const styles = StyleSheet.create({
-    container: { width, height, backgroundColor: '#e5e3df' },
+    container: { width: '100%', height: '100%', backgroundColor: '#e5e3df' },
     loading: {
-        width, height,
+        width: '100%', height: '100%',
         backgroundColor: '#e5e3df',
         alignItems: 'center',
         justifyContent: 'center',

@@ -256,13 +256,13 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
         alignItems: 'center',          // centre on wide screens
         paddingVertical: 0,
     },
-    inner: {
-        width: '100%',
-        maxWidth: 480,                 // cap width on desktop browsers
-        paddingHorizontal: 24,
-        paddingTop: 56,
-        paddingBottom: 48,
-    },
+        inner: {
+            width: '100%',
+            maxWidth: 480,                 // cap width on desktop browsers
+            paddingHorizontal: 24,
+            paddingTop: 56,
+            paddingBottom: 80,
+        },
 
     backBtn: {
         width: 40, height: 40, borderRadius: 13,

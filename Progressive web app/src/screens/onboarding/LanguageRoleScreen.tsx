@@ -142,7 +142,10 @@ const styles = StyleSheet.create({
         flexGrow: 1, 
         padding: 24, 
         paddingTop: 60,
-        paddingBottom: 40,
+        paddingBottom: 80,
+        alignSelf: 'center',
+        width: '100%',
+        maxWidth: 500,
     },
     header: { marginBottom: 32 },
     title: { 
