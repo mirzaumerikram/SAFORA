@@ -69,6 +69,7 @@ const SaforaMap: React.FC<SaforaMapProps> = ({
     pickupLocation,
     dropoffLocation,
     onLocationChange,
+    onRouteInfo,
 }) => {
     const mapDivRef   = useRef<HTMLDivElement | null>(null);
     const mapObjRef   = useRef<google.maps.Map | null>(null);
@@ -234,6 +235,19 @@ const SaforaMap: React.FC<SaforaMapProps> = ({
                 if (status === google.maps.DirectionsStatus.OK && result) {
                     console.log('[SaforaMap] Route found successfully');
                     directionsRendererRef.current?.setDirections(result);
+
+                    // Send distance/duration back to parent for pricing
+                    if (onRouteInfo && result.routes[0]?.legs[0]) {
+                        const leg = result.routes[0].legs[0];
+                        const distanceKm = (leg.distance?.value || 0) / 1000;
+                        const durationMins = (leg.duration?.value || 0) / 60;
+                        
+                        console.log(`[SaforaMap] Route: ${distanceKm.toFixed(2)}km, ${durationMins.toFixed(1)}mins`);
+                        onRouteInfo({
+                            distance: distanceKm,
+                            duration: durationMins
+                        });
+                    }
                 } else {
                     console.error('[SaforaMap] Directions request failed. Status:', status);
                     

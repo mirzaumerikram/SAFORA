@@ -70,10 +70,48 @@ const RideSelectionScreen: React.FC = () => {
     const [selected, setSelected] = useState<string>('eco');
     const [booking,  setBooking]  = useState<boolean>(false);
 
+    // Dynamic pricing state
+    const [routeInfo, setRouteInfo] = useState<{ distance: number; duration: number } | null>(null);
+
     const { theme } = useAppTheme();
     const s = useMemo(() => makeStyles(theme), [theme]);
 
-    const selectedRide = rideTypes.find(r => r.id === selected)!;
+    // -----------------------------------------------------------------------
+    // Pricing Logic (Predefined SAFORA Model)
+    // -----------------------------------------------------------------------
+    const getPricing = (typeId: string) => {
+        if (!routeInfo) return null;
+
+        const { distance, duration } = routeInfo;
+        
+        // Base SAFORA Formula: (Distance * 35) + (Duration * 5) + 50
+        const baseFare = (distance * 35) + (duration * 5) + 50;
+
+        // Multipliers
+        let multiplier = 1.0;
+        if (typeId === 'standard') multiplier = 1.3;
+        if (typeId === 'pink-pass') multiplier = 1.25;
+
+        // Surge (Rush Hour: 8-9 AM, 5-7 PM)
+        const hour = new Date().getHours();
+        const isRushHour = (hour === 8 || hour === 9 || hour === 17 || hour === 18);
+        const surge = isRushHour ? 1.5 : 1.0;
+
+        const finalPrice = Math.round(baseFare * multiplier * surge);
+        
+        // Minimum price protection
+        return Math.max(finalPrice, typeId === 'eco' ? 100 : 180);
+    };
+
+    // Update rideTypes with dynamic data
+    const dynamicRideTypes = useMemo(() => {
+        return rideTypes.map(ride => ({
+            ...ride,
+            price: getPricing(ride.id) || ride.price
+        }));
+    }, [routeInfo]);
+
+    const selectedRide = dynamicRideTypes.find(r => r.id === selected)!;
 
     // -----------------------------------------------------------------------
     // Confirm handler
@@ -125,6 +163,10 @@ const RideSelectionScreen: React.FC = () => {
                     type="home"
                     pickupLocation={pickupCoords}
                     dropoffLocation={dropoffCoords}
+                    onRouteInfo={(info) => {
+                        console.log('[RideSelection] Received route info:', info);
+                        setRouteInfo(info);
+                    }}
                 />
 
                 {/* Back button floating over map */}
@@ -159,7 +201,7 @@ const RideSelectionScreen: React.FC = () => {
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={s.rideList}
                 >
-                    {rideTypes.map((ride) => {
+                    {dynamicRideTypes.map((ride) => {
                         const isSelected = selected === ride.id;
                         const isPink = ride.pink;
 
