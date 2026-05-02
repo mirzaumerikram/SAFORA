@@ -129,7 +129,11 @@ const SaforaMap: React.FC<SaforaMapProps> = ({
             mapTypeControl:      false,
             streetViewControl:   false,
             fullscreenControl:   false,
-            zoomControlOptions:  { position: google.maps.ControlPosition.RIGHT_CENTER },
+            zoomControlOptions:  { 
+                position: (google.maps.ControlPosition && google.maps.ControlPosition.RIGHT_CENTER) 
+                          ? google.maps.ControlPosition.RIGHT_CENTER 
+                          : 7 // Fallback to 7 (RIGHT_CENTER's value)
+            },
             styles: [
                 { elementType: 'geometry',          stylers: [{ color: '#f5f5f5' }] },
                 { elementType: 'labels.icon',        stylers: [{ visibility: 'off' }] },
@@ -158,7 +162,9 @@ const SaforaMap: React.FC<SaforaMapProps> = ({
                 map,
                 label: { text: label, color: '#fff', fontWeight: '700', fontSize: '12px' },
                 icon: {
-                    path: google.maps.SymbolPath.CIRCLE,
+                    path: (google.maps.SymbolPath && google.maps.SymbolPath.CIRCLE)
+                          ? google.maps.SymbolPath.CIRCLE
+                          : 0, // Fallback to 0 (CIRCLE's value)
                     scale: 14,
                     fillColor: color,
                     fillOpacity: 1,
