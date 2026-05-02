@@ -71,6 +71,14 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    homeAddress: {
+        type: String,
+        default: ''
+    },
+    workAddress: {
+        type: String,
+        default: ''
+    },
     emergencyContacts: [{
         name: String,
         phone: String,
