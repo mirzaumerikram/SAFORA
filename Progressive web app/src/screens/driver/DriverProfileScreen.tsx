@@ -34,17 +34,17 @@ interface DriverProfile {
     joinedAt: string;
 }
 
-const PINK_STATUS_CONFIG = {
-    none:           { label: 'Not Applied',      color: theme.colors.textSecondary, bg: '#1A1A1A',                     icon: '—' },
-    pending_review: { label: 'Under Review',     color: '#FFA000',                  bg: 'rgba(255,160,0,0.1)',         icon: '⏳' },
-    approved:       { label: 'Certified',         color: '#00E676',                  bg: 'rgba(0,230,118,0.1)',         icon: '✓' },
-    rejected:       { label: 'Rejected',          color: theme.colors.danger,        bg: 'rgba(255,68,68,0.1)',         icon: '✗' },
-};
-
 const DriverProfileScreen: React.FC = () => {
     const navigation = useNavigation<any>();
     const { theme, toggleTheme, isDark } = useAppTheme();
     const s = makeStyles(theme);
+
+    const PINK_STATUS_CONFIG = {
+        none:           { label: 'Not Applied',      color: theme.colors.textSecondary, bg: theme.dark ? '#1A1A1A' : '#F5F5F5', icon: '—' },
+        pending_review: { label: 'Under Review',     color: '#FFA000',                  bg: 'rgba(255,160,0,0.1)',         icon: '⏳' },
+        approved:       { label: 'Certified',         color: '#00E676',                  bg: 'rgba(0,230,118,0.1)',         icon: '✓' },
+        rejected:       { label: 'Rejected',          color: theme.colors.danger,        bg: 'rgba(255,68,68,0.1)',         icon: '✗' },
+    };
 
     const [profile, setProfile]     = useState<DriverProfile | null>(null);
     const [loading, setLoading]     = useState(true);
