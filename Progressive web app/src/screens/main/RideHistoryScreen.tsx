@@ -33,41 +33,7 @@ interface Ride {
 
 // ─── Mock data (shown when API is unavailable) ────────────────────────────────
 
-const MOCK_RIDES: Ride[] = [
-    {
-        id: '1',
-        from: 'Gulberg II',
-        to: 'DHA Phase 5',
-        price: 'Rs 185',
-        status: 'completed',
-        driver: 'Ahmad Raza',
-        date: 'Today, 9:41 AM',
-        type: 'standard',
-        duration: '—',
-    },
-    {
-        id: '2',
-        from: 'Johar Town',
-        to: 'MM Alam Rd',
-        price: 'Rs 220',
-        status: 'completed',
-        driver: 'Bilal Ahmad',
-        date: 'Yesterday, 5:20 PM',
-        type: 'standard',
-        duration: '—',
-    },
-    {
-        id: '3',
-        from: 'Cantt',
-        to: 'Garden Town',
-        price: 'Rs 150',
-        status: 'cancelled',
-        driver: 'Hassan Rauf',
-        date: 'Apr 18, 2:15 PM',
-        type: 'standard',
-        duration: '—',
-    },
-];
+const MOCK_RIDES: Ride[] = [];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -116,7 +82,7 @@ const RideHistoryScreen: React.FC = () => {
         try {
             const raw = await AsyncStorage.getItem(STORAGE_KEYS.USER_DATA);
             if (!raw) {
-                setRides(MOCK_RIDES);
+                setRides([]);
                 setLoading(false);
                 setRefreshing(false);
                 return;
@@ -125,12 +91,11 @@ const RideHistoryScreen: React.FC = () => {
             const userId = user.id || user._id;
             const res: any = await apiService.get(`/rides/history/${userId}`);
             const mapped: Ride[] = (res.rides || []).map(mapRide);
-            setRides(mapped.length > 0 ? mapped : MOCK_RIDES);
+            setRides(mapped);
             setError('');
         } catch {
-            // Fall back to mock data so the screen always shows something useful
-            setRides(MOCK_RIDES);
-            setError('');
+            setRides([]);
+            setError('Failed to load history');
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -245,8 +210,18 @@ const RideHistoryScreen: React.FC = () => {
                 >
                     {filtered.length === 0 ? (
                         <View style={s.emptyState}>
-                            <Text style={s.emptyIcon}>🚗</Text>
-                            <Text style={s.emptyText}>{t.noRidesFound}</Text>
+                            <View style={s.emptyIconCircle}>
+                                <Text style={s.emptyIcon}>🚗</Text>
+                            </View>
+                            <Text style={s.emptyStateTitle}>No trips yet</Text>
+                            <Text style={s.emptyStateSub}>Your completed and cancelled rides will appear here.</Text>
+                            <TouchableOpacity 
+                                style={s.bookNowBtn} 
+                                onPress={() => navigation.navigate('Home')}
+                                activeOpacity={0.8}
+                            >
+                                <Text style={s.bookNowText}>Book Your First Ride</Text>
+                            </TouchableOpacity>
                         </View>
                     ) : (
                         filtered.map((ride, index) => (
@@ -573,15 +548,46 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
     },
     emptyState: {
         alignItems: 'center',
-        paddingTop: 60,
-        gap: 12,
+        paddingTop: 80,
+        paddingHorizontal: 40,
+    },
+    emptyIconCircle: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: t.colors.cardSecondary,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 20,
     },
     emptyIcon: {
-        fontSize: 40,
+        fontSize: 32,
     },
-    emptyText: {
+    emptyStateTitle: {
+        color: t.colors.text,
+        fontSize: 18,
+        fontWeight: '800',
+        marginBottom: 8,
+    },
+    emptyStateSub: {
         color: t.colors.textSecondary,
         fontSize: 14,
+        textAlign: 'center',
+        lineHeight: 20,
+        marginBottom: 32,
+    },
+    bookNowBtn: {
+        backgroundColor: t.colors.primary,
+        paddingHorizontal: 24,
+        paddingVertical: 14,
+        borderRadius: 14,
+        width: '100%',
+        alignItems: 'center',
+    },
+    bookNowText: {
+        color: '#000',
+        fontWeight: '800',
+        fontSize: 15,
     },
 });
 
