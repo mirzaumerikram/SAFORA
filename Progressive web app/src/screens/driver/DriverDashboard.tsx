@@ -53,19 +53,24 @@ const DriverDashboard: React.FC = () => {
     const socketConnected = useRef(false);
     const watchId = useRef<number | null>(null);
 
+    const toFirstName = (full: string) => {
+        const first = full.trim().split(' ')[0];
+        return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
+    };
+
     const loadDriver = async () => {
         try {
             const raw = await AsyncStorage.getItem(STORAGE_KEYS.USER_DATA);
             if (raw) {
                 const user = JSON.parse(raw);
                 setDriverId(user.id || user._id || '');
-                if (user.name) setDriverName(user.name);
+                if (user.name) setDriverName(toFirstName(user.name));
                 if (user.profilePicture) setProfilePicture(user.profilePicture);
             }
             // Fetch fresh profile from API
             const res: any = await apiService.get('/drivers/me');
             if (res.success && res.driver) {
-                setDriverName(res.driver.name || '');
+                if (res.driver.name) setDriverName(toFirstName(res.driver.name));
                 setEarnings(prev => ({ ...prev, rating: res.driver.rating?.toFixed(1) || '5.0' }));
                 if (res.driver.profilePicture) setProfilePicture(res.driver.profilePicture);
             }
@@ -477,10 +482,12 @@ const DriverDashboard: React.FC = () => {
 
                 {/* Mini Map Preview */}
                 <View style={s.mapPreviewCard}>
-                    <SaforaMap 
-                        type="driver" 
-                        centerOnUser={true}
-                    />
+                    <View style={{ flex: 1 }}>
+                        <SaforaMap
+                            type="home"
+                            centerOnUser={true}
+                        />
+                    </View>
                     <View style={s.mapOverlay}>
                         <Text style={s.mapOverlayText}>📍 Your Location — Live Map</Text>
                     </View>
@@ -858,18 +865,14 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
 
     // ── Mini Map Preview ──
     mapPreviewCard: {
-        height: 180,
+        height: 220,
         borderRadius: 20,
         overflow: 'hidden',
-        backgroundColor: '#1A1A2E',
+        backgroundColor: '#e5e3df',
         marginBottom: 16,
-        position: 'relative',
+        flexDirection: 'column',
     },
     mapOverlay: {
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
         backgroundColor: 'rgba(0,0,0,0.55)',
         paddingVertical: 10,
         paddingHorizontal: 14,
