@@ -519,6 +519,41 @@ router.post('/verify-firebase-token', async (req, res) => {
     }
 });
 
+// @route   POST /api/auth/fix-admin
+// @desc    Upsert the admin account in production (idempotent)
+// @access  Public (protected by ADMIN_SETUP_KEY)
+router.post('/fix-admin', async (req, res) => {
+    try {
+        const { setupKey } = req.body;
+        const expectedKey = process.env.ADMIN_SETUP_KEY || 'safora-admin-setup-2024';
+        if (setupKey !== expectedKey) {
+            return res.status(403).json({ message: 'Invalid setup key' });
+        }
+
+        const PHONE = '+923231783922';
+        const EMAIL = 'mirzaumerikram114@gmail.com';
+
+        // Remove any conflicting records
+        await User.deleteMany({ $or: [{ phone: PHONE }, { email: EMAIL }] });
+
+        // Create clean admin
+        const admin = new User({
+            name: 'SAFORA Admin',
+            phone: PHONE,
+            email: EMAIL,
+            role: 'admin',
+            gender: 'other',
+            verified: true,
+            emailVerified: true,
+        });
+        await admin.save();
+
+        res.json({ success: true, message: 'Admin account fixed', id: admin._id, phone: admin.phone, role: admin.role });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
 // @route   POST /api/auth/admin-setup
 // @desc    Admin setup endpoint — update admin email (uses shared secret key)
 // @access  Public (protected by ADMIN_SETUP_KEY in env)
