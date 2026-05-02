@@ -44,8 +44,8 @@ const DriverDashboard: React.FC = () => {
     const [activeRide, setActiveRide] = useState<IncomingRide | null>(null);
     const [actionLoading, setActionLoading] = useState(false);
     const [driverId, setDriverId]     = useState<string>('');
-    const [driverName, setDriverName] = useState<string>('Bilal');
-    const [earnings, setEarnings]     = useState({ today: 2450, trips: 14, rating: '4.5' });
+    const [driverName, setDriverName] = useState<string>('');
+    const [earnings, setEarnings]     = useState({ today: 0, trips: 0, rating: '5.0' });
     const socketConnected = useRef(false);
     const watchId = useRef<number | null>(null);
 
@@ -408,21 +408,16 @@ const DriverDashboard: React.FC = () => {
                     </View>
                 </View>
 
-                {/* Demo Button */}
+                {/* Support Card (Replaces the big simulation button) */}
                 <TouchableOpacity
-                    style={s.simulateBtn}
-                    activeOpacity={0.85}
-                    onPress={() => navigation.navigate('RideRequest', {
-                        rideId: 'demo-001',
-                        pickup: { address: 'DHA Phase 5, Lahore' },
-                        dropoff: { address: 'Gulberg III, Lahore' },
-                        estimatedPrice: 320,
-                        estimatedDuration: 18,
-                        distance: 7.2,
-                        type: 'standard',
-                    })}
+                    style={s.supportCard}
+                    onPress={() => Alert.alert('SAFORA Support', 'Our driver support team is available 24/7. Contact us via the help section.')}
                 >
-                    <Text style={s.simulateBtnText}>Simulate: New Ride Request →</Text>
+                    <Text style={s.supportIcon}>🎧</Text>
+                    <View style={s.supportTexts}>
+                        <Text style={s.supportTitle}>Driver Support</Text>
+                        <Text style={s.supportSubtitle}>Need help? Contact our team</Text>
+                    </View>
                 </TouchableOpacity>
             </ScrollView>
         </View>
@@ -709,19 +704,31 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
         fontWeight: '700',
     },
 
-    // ── Demo Simulate Button ──
-    simulateBtn: {
-        backgroundColor: t.colors.primary,
-        borderRadius: 16,
-        paddingVertical: 18,
+    supportCard: {
+        flexDirection: 'row',
         alignItems: 'center',
+        backgroundColor: t.dark ? '#1C1C1C' : '#F2F2F2',
+        borderRadius: 16,
+        padding: 18,
         marginBottom: 8,
+        gap: 14,
+        borderWidth: 1,
+        borderColor: t.colors.border,
     },
-    simulateBtnText: {
-        color: t.colors.black,
+    supportIcon: {
+        fontSize: 24,
+    },
+    supportTexts: {
+        flex: 1,
+    },
+    supportTitle: {
         fontSize: 15,
-        fontWeight: '900',
-        letterSpacing: 0.3,
+        fontWeight: '800',
+        color: t.colors.text,
+    },
+    supportSubtitle: {
+        fontSize: 12,
+        color: t.colors.textSecondary,
     },
 
     // ── Incoming Ride Modal ──

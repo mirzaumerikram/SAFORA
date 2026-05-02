@@ -28,19 +28,13 @@ const DriverEarningsScreen: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [summary, setSummary] = useState<EarningsSummary>({
-        today: 2450,
-        thisWeek: 14300,
-        thisMonth: 52800,
-        totalTrips: 148,
-        avgRating: 4.9,
+        today: 0,
+        thisWeek: 0,
+        thisMonth: 0,
+        totalTrips: 0,
+        avgRating: 5.0,
     });
-    const [trips, setTrips] = useState<TripRecord[]>([
-        { id: '1', pickup: 'Gulberg III', dropoff: 'DHA Phase 5', fare: 380, distance: 8.5, completedAt: '2026-04-04T10:30:00', passengerName: 'Ayesha K.' },
-        { id: '2', pickup: 'Johar Town', dropoff: 'Model Town', fare: 220, distance: 4.2, completedAt: '2026-04-04T09:00:00', passengerName: 'Sana R.' },
-        { id: '3', pickup: 'Liberty Market', dropoff: 'Bahria Town', fare: 650, distance: 14.1, completedAt: '2026-04-03T18:45:00', passengerName: 'Nadia M.' },
-        { id: '4', pickup: 'Cavalry Ground', dropoff: 'Allama Iqbal Airport', fare: 900, distance: 19.3, completedAt: '2026-04-03T15:20:00', passengerName: 'Hira F.' },
-        { id: '5', pickup: 'Cantt', dropoff: 'Gulshan Ravi', fare: 310, distance: 6.8, completedAt: '2026-04-03T12:10:00', passengerName: 'Maryam A.' },
-    ]);
+    const [trips, setTrips] = useState<TripRecord[]>([]);
 
     useEffect(() => {
         loadEarnings();
@@ -129,32 +123,40 @@ const DriverEarningsScreen: React.FC = () => {
             {/* Trip History */}
             <Text style={styles.sectionTitle}>Recent Trips</Text>
 
-            {trips.map((trip) => (
-                <View key={trip.id} style={styles.tripCard}>
-                    <View style={styles.tripHeader}>
-                        <Text style={styles.passengerName}>{trip.passengerName}</Text>
-                        <Text style={styles.tripFare}>RS {trip.fare}</Text>
-                    </View>
-
-                    <View style={styles.routeRow}>
-                        <View style={styles.routeDots}>
-                            <View style={styles.dotStart} />
-                            <View style={styles.routeLine} />
-                            <View style={styles.dotEnd} />
-                        </View>
-                        <View style={styles.routeLabels}>
-                            <Text style={styles.routeText}>{trip.pickup}</Text>
-                            <Text style={styles.routeText}>{trip.dropoff}</Text>
-                        </View>
-                    </View>
-
-                    <View style={styles.tripMeta}>
-                        <Text style={styles.metaText}>{trip.distance} km</Text>
-                        <Text style={styles.metaDot}>·</Text>
-                        <Text style={styles.metaText}>{formatDate(trip.completedAt)} {formatTime(trip.completedAt)}</Text>
-                    </View>
+            {trips.length === 0 ? (
+                <View style={styles.emptyCard}>
+                    <Text style={styles.emptyIcon}>💰</Text>
+                    <Text style={styles.emptyTitle}>No earnings yet</Text>
+                    <Text style={styles.emptySub}>Complete your first ride to see your earnings history here.</Text>
                 </View>
-            ))}
+            ) : (
+                trips.map((trip) => (
+                    <View key={trip.id} style={styles.tripCard}>
+                        <View style={styles.tripHeader}>
+                            <Text style={styles.passengerName}>{trip.passengerName}</Text>
+                            <Text style={styles.tripFare}>RS {trip.fare}</Text>
+                        </View>
+
+                        <View style={styles.routeRow}>
+                            <View style={styles.routeDots}>
+                                <View style={styles.dotStart} />
+                                <View style={styles.routeLine} />
+                                <View style={styles.dotEnd} />
+                            </View>
+                            <View style={styles.routeLabels}>
+                                <Text style={styles.routeText}>{trip.pickup}</Text>
+                                <Text style={styles.routeText}>{trip.dropoff}</Text>
+                            </View>
+                        </View>
+
+                        <View style={styles.tripMeta}>
+                            <Text style={styles.metaText}>{trip.distance} km</Text>
+                            <Text style={styles.metaDot}>·</Text>
+                            <Text style={styles.metaText}>{formatDate(trip.completedAt)} {formatTime(trip.completedAt)}</Text>
+                        </View>
+                    </View>
+                ))
+            )}
 
             <View style={{ height: 40 }} />
         </ScrollView>
@@ -332,6 +334,32 @@ const styles = StyleSheet.create({
     },
     metaDot: {
         color: '#555',
+    },
+    emptyCard: {
+        marginHorizontal: 16,
+        backgroundColor: theme.colors.card,
+        borderRadius: 24,
+        padding: 40,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#1e1e1e',
+        marginTop: 10,
+    },
+    emptyIcon: {
+        fontSize: 48,
+        marginBottom: 16,
+    },
+    emptyTitle: {
+        fontSize: 18,
+        fontWeight: '800',
+        color: theme.colors.text,
+        marginBottom: 8,
+    },
+    emptySub: {
+        fontSize: 14,
+        color: theme.colors.textSecondary,
+        textAlign: 'center',
+        lineHeight: 20,
     },
 });
 
