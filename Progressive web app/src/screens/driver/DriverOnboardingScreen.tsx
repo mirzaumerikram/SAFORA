@@ -289,7 +289,7 @@ const DriverOnboardingScreen: React.FC = () => {
                             <View style={s.halfField}>
                                 <Text style={s.sectionLabel}>MAKE</Text>
                                 <TextInput
-                                    style={s.input}
+                                    style={[s.input, errors.vehicleMake && s.inputError]}
                                     placeholder="e.g. Toyota"
                                     placeholderTextColor={theme.colors.placeholder}
                                     value={form.vehicleMake}
@@ -299,7 +299,7 @@ const DriverOnboardingScreen: React.FC = () => {
                             <View style={s.halfField}>
                                 <Text style={s.sectionLabel}>MODEL</Text>
                                 <TextInput
-                                    style={s.input}
+                                    style={[s.input, errors.vehicleModel && s.inputError]}
                                     placeholder="e.g. Corolla"
                                     placeholderTextColor={theme.colors.placeholder}
                                     value={form.vehicleModel}
@@ -313,7 +313,7 @@ const DriverOnboardingScreen: React.FC = () => {
                             <View style={s.halfField}>
                                 <Text style={s.sectionLabel}>YEAR</Text>
                                 <TextInput
-                                    style={s.input}
+                                    style={[s.input, errors.vehicleYear && s.inputError]}
                                     placeholder="YYYY"
                                     placeholderTextColor={theme.colors.placeholder}
                                     value={form.vehicleYear}
@@ -325,7 +325,7 @@ const DriverOnboardingScreen: React.FC = () => {
                             <View style={s.halfField}>
                                 <Text style={s.sectionLabel}>COLOR</Text>
                                 <TextInput
-                                    style={s.input}
+                                    style={[s.input, errors.vehicleColor && s.inputError]}
                                     placeholder="e.g. White"
                                     placeholderTextColor={theme.colors.placeholder}
                                     value={form.vehicleColor}
@@ -337,7 +337,7 @@ const DriverOnboardingScreen: React.FC = () => {
                         {/* Plate */}
                         <Text style={s.sectionLabel}>REGISTRATION PLATE</Text>
                         <TextInput
-                            style={s.input}
+                            style={[s.input, errors.vehiclePlate && s.inputError]}
                             placeholder="ABC-1234"
                             placeholderTextColor={theme.colors.placeholder}
                             value={form.vehiclePlate}
