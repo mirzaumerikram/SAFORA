@@ -65,7 +65,16 @@ const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
                         componentRestrictions: { country: 'pk' },
                     },
                     (results: any, status: any) => {
-                        if (status !== 'OK' || !results) {
+                        if (status !== 'OK') {
+                            // alert('[Debug] Places Status: ' + status); // Uncomment to see on device
+                            if (status !== 'ZERO_RESULTS') {
+                                console.warn('[GooglePlaces] Error Status:', status);
+                            }
+                            setPredictions([]);
+                            setLoading(false);
+                            return;
+                        }
+                        if (!results) {
                             setPredictions([]);
                             setLoading(false);
                             return;

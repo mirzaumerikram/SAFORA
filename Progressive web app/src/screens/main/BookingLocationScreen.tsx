@@ -139,7 +139,7 @@ const BookingLocationScreen: React.FC = () => {
                     keyboardShouldPersistTaps="handled"
                 >
                     {/* Pickup Location */}
-                    <View style={s.locationSection}>
+                    <View style={[s.locationSection, { zIndex: 200 }]}>
                         <Text style={s.locationLabel}>Pickup Location</Text>
                         <GooglePlacesInput
                             placeholder="Enter pickup location"
@@ -167,7 +167,7 @@ const BookingLocationScreen: React.FC = () => {
                     </TouchableOpacity>
 
                     {/* Dropoff Location */}
-                    <View style={s.locationSection}>
+                    <View style={[s.locationSection, { zIndex: 100 }]}>
                         <Text style={s.locationLabel}>Destination</Text>
                         <GooglePlacesInput
                             placeholder="Enter destination"
@@ -269,7 +269,8 @@ const makeStyles = (theme: AppTheme) =>
             fontFamily: 'Inter-Bold',
         },
         inputContainer: {
-            paddingBottom: 16,
+            paddingBottom: 100,
+            flexGrow: 1,
         },
         locationSection: {
             marginBottom: 12,
