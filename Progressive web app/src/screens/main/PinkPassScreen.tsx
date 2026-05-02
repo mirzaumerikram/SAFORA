@@ -12,12 +12,11 @@ import apiService from '../../services/api';
 
 type PassStatus = 'loading' | 'active' | 'pending' | 'eligible' | 'ineligible';
 
-const REQUIREMENTS = [
-    'Female driver (verified via CNIC)',
-    'Valid driving license (2+ years)',
-    'Clean safety record on SAFORA',
-    'Background check cleared',
-    'Vehicle in good condition',
+const PASSENGER_REQUIREMENTS = [
+    'Female identity (verified via AI)',
+    'Clear CNIC photo (Front)',
+    'Live liveness test (Blink check)',
+    'Profile photo matches CNIC',
 ];
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -27,40 +26,33 @@ const PinkPassScreen: React.FC = () => {
     const { theme }        = useAppTheme();
     const s                = useMemo(() => makeStyles(theme), [theme]);
 
-    const [status, setStatus]   = useState<PassStatus>('loading');
-    const [applying, setApplying] = useState(false);
+    const [status, setStatus]     = useState<PassStatus>('loading');
+    const [isFemale, setIsFemale] = useState(false);
 
     useEffect(() => { fetchStatus(); }, []);
 
     const fetchStatus = async () => {
         try {
             const res: any = await apiService.get('/pink-pass/status');
+            setIsFemale(res?.gender === 'female');
+            
             if (res?.pinkPassVerified) setStatus('active');
             else if (res?.applied)     setStatus('pending');
-            else if (res?.eligible)    setStatus('eligible');
+            else if (res?.gender === 'female') setStatus('eligible');
             else                       setStatus('ineligible');
         } catch {
-            // Demo: show eligible state
-            setStatus('eligible');
+            setStatus('eligible'); // Fallback for demo
         }
     };
 
-    const handleApply = async () => {
-        setApplying(true);
-        try {
-            await apiService.post('/pink-pass/apply', {});
-            setStatus('pending');
-        } catch {
-            setStatus('pending'); // demo
-        } finally {
-            setApplying(false);
-        }
+    const handleApply = () => {
+        navigation.navigate('PinkPassCnic');
     };
 
     if (status === 'loading') {
         return (
             <View style={s.center}>
-                <ActivityIndicator size="large" color={theme.colors.primary} />
+                <ActivityIndicator size="large" color={theme.colors.secondary} />
             </View>
         );
     }
@@ -83,13 +75,13 @@ const PinkPassScreen: React.FC = () => {
 
             {/* Badge */}
             <View style={s.infoBadge}>
-                <Text style={s.infoBadgeText}>INFO</Text>
+                <Text style={s.infoBadgeText}>SAFE RIDES</Text>
             </View>
 
             {/* Title */}
-            <Text style={s.title}>PINK PASS{'\n'}APPLICATION</Text>
+            <Text style={s.title}>PINK PASS{'\n'}VERIFICATION</Text>
             <Text style={s.subtitle}>
-                Pink Pass is exclusively for verified female drivers providing safe rides for women passengers.
+                Pink Pass allows verified female passengers to book rides exclusively with our top-rated female driver partners.
             </Text>
 
             {/* Active state */}
@@ -97,8 +89,8 @@ const PinkPassScreen: React.FC = () => {
                 <View style={s.activeCard}>
                     <Text style={s.activeIcon}>✓</Text>
                     <View style={s.activeTexts}>
-                        <Text style={s.activeName}>Pink Pass Active</Text>
-                        <Text style={s.activeSub}>Your badge is visible on your profile</Text>
+                        <Text style={s.activeName}>Verified Passenger</Text>
+                        <Text style={s.activeSub}>You can now book Pink Pass rides</Text>
                     </View>
                 </View>
             )}
@@ -108,22 +100,20 @@ const PinkPassScreen: React.FC = () => {
                 <View style={s.pendingCard}>
                     <Text style={s.pendingIcon}>⏳</Text>
                     <View>
-                        <Text style={s.pendingTitle}>Application Under Review</Text>
-                        <Text style={s.pendingSub}>We'll notify you within 2–3 business days</Text>
+                        <Text style={s.pendingTitle}>Verification in Progress</Text>
+                        <Text style={s.pendingSub}>Our AI is analyzing your liveness test</Text>
                     </View>
                 </View>
             )}
 
-            {/* Eligibility requirements */}
-            {(status === 'eligible' || status === 'ineligible') && (
+            {/* Requirements */}
+            {(status === 'eligible' || status === 'active') && (
                 <View style={s.requirementsCard}>
-                    <Text style={s.requirementsTitle}>Eligibility Requirements</Text>
-                    {REQUIREMENTS.map((req, i) => (
+                    <Text style={s.requirementsTitle}>Verification Steps</Text>
+                    {PASSENGER_REQUIREMENTS.map((req, i) => (
                         <View key={i} style={s.reqRow}>
-                            <View style={[s.reqCheck, status === 'ineligible' && i > 1 && s.reqCheckFail]}>
-                                <Text style={s.reqCheckText}>
-                                    {status === 'ineligible' && i > 1 ? '✕' : '✓'}
-                                </Text>
+                            <View style={s.reqCheck}>
+                                <Text style={s.reqCheckText}>✓</Text>
                             </View>
                             <Text style={s.reqText}>{req}</Text>
                         </View>
@@ -131,11 +121,21 @@ const PinkPassScreen: React.FC = () => {
                 </View>
             )}
 
+            {/* Ineligible state */}
+            {status === 'ineligible' && (
+                <View style={[s.noticeCard, { borderColor: theme.colors.danger }]}>
+                    <Text style={s.noticeIcon}>⚠️</Text>
+                    <Text style={[s.noticeText, { color: theme.colors.danger }]}>
+                        Pink Pass is currently only available for female users to ensure a safe environment.
+                    </Text>
+                </View>
+            )}
+
             {/* Info notice */}
             <View style={s.noticeCard}>
                 <Text style={s.noticeIcon}>🔒</Text>
                 <Text style={s.noticeText}>
-                    Your gender will be verified through your CNIC. Pink Pass badge will appear on your profile upon approval.
+                    Your biometric data is processed securely and deleted after verification. We value your privacy.
                 </Text>
             </View>
 
@@ -145,26 +145,12 @@ const PinkPassScreen: React.FC = () => {
                     style={s.applyBtn}
                     activeOpacity={0.85}
                     onPress={handleApply}
-                    disabled={applying}
                 >
-                    {applying
-                        ? <ActivityIndicator color="#FFF" />
-                        : <Text style={s.applyBtnText}>Apply for Pink Pass →</Text>
-                    }
+                    <Text style={s.applyBtnText}>Start Verification Test →</Text>
                 </TouchableOpacity>
-            )}
-
-            {status === 'ineligible' && (
-                <View style={s.ineligibleNote}>
-                    <Text style={s.ineligibleText}>
-                        You don't meet all requirements yet. Complete your driver profile to qualify.
-                    </Text>
-                </View>
             )}
         </ScrollView>
     );
-};
-
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const makeStyles = (t: AppTheme) => StyleSheet.create({

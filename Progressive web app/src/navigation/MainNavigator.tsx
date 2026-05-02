@@ -11,6 +11,7 @@ import SafetyScreen from '../screens/main/SafetyScreen';
 import ProfileScreen from '../screens/main/ProfileScreen';
 import RideHistoryScreen from '../screens/main/RideHistoryScreen';
 import PinkPassScreen from '../screens/main/PinkPassScreen';
+import PinkPassCnicScreen from '../screens/main/PinkPassCnicScreen';
 import PinkPassCameraScreen from '../screens/main/PinkPassCameraScreen';
 import PaymentScreen from '../screens/main/PaymentScreen';
 import ChatScreen from '../screens/main/ChatScreen';
@@ -39,6 +40,7 @@ const MainNavigator: React.FC = () => {
             <Stack.Screen name="Profile" component={ProfileScreen} />
             <Stack.Screen name="RideHistory" component={RideHistoryScreen} />
             <Stack.Screen name="PinkPass" component={PinkPassScreen} />
+            <Stack.Screen name="PinkPassCnic" component={PinkPassCnicScreen} />
             <Stack.Screen name="PinkPassCamera" component={PinkPassCameraScreen} />
             <Stack.Screen name="Payment" component={PaymentScreen} />
             <Stack.Screen name="Chat" component={ChatScreen} />

@@ -1,24 +1,9 @@
-/**
- * PinkPassCameraScreen — EAR (Eye Aspect Ratio) liveness detection
- *
- * On web: Uses browser <video> + face-api.js (loaded dynamically) to detect
- *         facial landmarks and compute EAR. A blink below the threshold
- *         confirms the user is a live person, not a photo.
- *
- * Flow:
- *   1. Request camera permission
- *   2. Stream webcam into <video> element
- *   3. Load face-api.js models from CDN
- *   4. Detect landmarks every 200ms → compute EAR
- *   5. When a blink is detected (EAR < 0.25) → mark liveness PASSED
- *   6. POST hash to backend → navigate to PinkPass success
- */
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity,
     ActivityIndicator, Platform, StatusBar,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAppTheme } from '../../context/ThemeContext';
 import { AppTheme } from '../../utils/theme';
 import apiService from '../../services/api';
@@ -45,12 +30,16 @@ const EAR_THRESHOLD = 0.25; // below this = blink detected
 
 const PinkPassCameraScreen: React.FC = () => {
     const navigation = useNavigation<any>();
+    const route      = useRoute<any>();
+    const cnicsBase64 = route.params?.cnicsBase64 ?? null;
+    
     const { theme }  = useAppTheme();
     const s          = useMemo(() => makeStyles(theme), [theme]);
 
     const videoRef     = useRef<HTMLVideoElement | null>(null);
     const intervalRef  = useRef<any>(null);
     const streamRef    = useRef<MediaStream | null>(null);
+    const framesRef    = useRef<string[]>([]);
 
     const [step, setStep]           = useState<'loading' | 'ready' | 'detecting' | 'passed' | 'failed' | 'submitting'>('loading');
     const [blinkCount, setBlinkCount] = useState(0);
@@ -61,26 +50,28 @@ const PinkPassCameraScreen: React.FC = () => {
 
     // ── Load face-api.js from CDN ─────────────────────────────────────────────
     useEffect(() => {
-        if (Platform.OS !== 'web') { setStep('failed'); setMessage('Camera liveness only supported in browser.'); return; }
+        if (Platform.OS !== 'web') { 
+            setStep('failed'); 
+            setMessage('Camera liveness only supported in browser.'); 
+            return; 
+        }
         loadFaceApi();
         return cleanup;
     }, []);
 
     const loadFaceApi = async () => {
         try {
-            // Inject face-api script if not already loaded
             if (!(window as any).faceapi) {
                 await new Promise<void>((resolve, reject) => {
-                    const s = document.createElement('script');
-                    s.src = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js';
-                    s.onload  = () => resolve();
-                    s.onerror = () => reject(new Error('face-api.js load failed'));
-                    document.head.appendChild(s);
+                    const sc = document.createElement('script');
+                    sc.src = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js';
+                    sc.onload  = () => resolve();
+                    sc.onerror = () => reject(new Error('face-api.js load failed'));
+                    document.head.appendChild(sc);
                 });
             }
 
             const faceapi = (window as any).faceapi;
-            // Load tiny models from jsdelivr CDN
             const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights';
             await Promise.all([
                 faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
@@ -110,6 +101,7 @@ const PinkPassCameraScreen: React.FC = () => {
     const startDetection = () => {
         setStep('detecting');
         setMessage('Look at the camera and blink naturally…');
+        framesRef.current = [];
         let blinkFrame = false;
         let blinks = 0;
 
@@ -124,6 +116,17 @@ const PinkPassCameraScreen: React.FC = () => {
                     .withFaceLandmarks(true);
 
                 if (!detection) return;
+
+                // Capture frame for backend verification
+                const canvas = document.createElement('canvas');
+                canvas.width = videoRef.current.videoWidth;
+                canvas.height = videoRef.current.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(videoRef.current, 0, 0);
+                const frameB64 = canvas.toDataURL('image/jpeg', 0.5);
+                if (framesRef.current.length < 15) {
+                    framesRef.current.push(frameB64);
+                }
 
                 const pts = detection.landmarks.positions;
                 const leftEye  = LEFT_EYE.map(i => pts[i]);
@@ -149,21 +152,23 @@ const PinkPassCameraScreen: React.FC = () => {
 
     const submitLiveness = async () => {
         try {
-            // POST liveness confirmation to backend
-            await (apiService as any).post('/pink-pass/liveness', {
-                livenessHash:  btoa(`SAFORA-LIVE-${Date.now()}`),
-                blinkCount:    BLINKS_REQUIRED,
-                earThreshold:  EAR_THRESHOLD,
-                status:        'passed',
+            setMessage('Verifying with AI…');
+            const res: any = await apiService.post('/pink-pass/enroll', {
+                cnics:          cnicsBase64,
+                livenessFrames: framesRef.current,
             });
-            setStep('passed');
-            setMessage('Liveness confirmed! Pink Pass application submitted.');
-            setTimeout(() => navigation.navigate('PinkPass'), 2000);
-        } catch {
-            // Even if API fails, mark passed for demo
-            setStep('passed');
-            setMessage('Liveness confirmed! Pink Pass application submitted.');
-            setTimeout(() => navigation.navigate('PinkPass'), 2000);
+
+            if (res.success) {
+                setStep('passed');
+                setMessage('Verification successful! Pink Pass activated.');
+                setTimeout(() => navigation.navigate('PinkPass'), 2500);
+            } else {
+                setStep('failed');
+                setMessage(res.reason || 'Verification failed. Please try again.');
+            }
+        } catch (err: any) {
+            setStep('failed');
+            setMessage(err.response?.data?.message || 'Network error. Please try again.');
         }
     };
 
@@ -172,13 +177,10 @@ const PinkPassCameraScreen: React.FC = () => {
         if (streamRef.current)   streamRef.current.getTracks().forEach(t => t.stop());
     };
 
-    // ── Render ─────────────────────────────────────────────────────────────────
-
     return (
         <View style={s.root}>
             <StatusBar barStyle="light-content" backgroundColor="#0A0A0A" />
 
-            {/* Header */}
             <View style={s.header}>
                 <TouchableOpacity style={s.backBtn} onPress={() => { cleanup(); navigation.goBack(); }}>
                     <Text style={s.backText}>←</Text>
@@ -187,7 +189,6 @@ const PinkPassCameraScreen: React.FC = () => {
                 <View style={s.pinkBadge}><Text style={s.pinkBadgeText}>🎀 PINK PASS</Text></View>
             </View>
 
-            {/* Camera view (web only) */}
             {Platform.OS === 'web' && (
                 <View style={s.cameraBox}>
                     {/* @ts-ignore */}
@@ -198,14 +199,12 @@ const PinkPassCameraScreen: React.FC = () => {
                         playsInline
                         style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 20, transform: 'scaleX(-1)' }}
                     />
-                    {/* Overlay frame */}
                     <View style={s.faceFrame} pointerEvents="none">
                         <View style={[s.corner, s.tl]} />
                         <View style={[s.corner, s.tr]} />
                         <View style={[s.corner, s.bl]} />
                         <View style={[s.corner, s.br]} />
                     </View>
-                    {/* EAR display */}
                     {earDisplay !== null && step === 'detecting' && (
                         <View style={s.earBadge}>
                             <Text style={s.earText}>EAR {earDisplay}</Text>
@@ -214,9 +213,7 @@ const PinkPassCameraScreen: React.FC = () => {
                 </View>
             )}
 
-            {/* Instructions */}
             <View style={s.infoBox}>
-                {/* Blink progress */}
                 {step === 'detecting' && (
                     <View style={s.blinkRow}>
                         {Array.from({ length: BLINKS_REQUIRED }, (_, i) => (
@@ -234,7 +231,6 @@ const PinkPassCameraScreen: React.FC = () => {
                     {message}
                 </Text>
 
-                {/* Action button */}
                 {step === 'loading' && <ActivityIndicator color="#EC4899" size="large" />}
 
                 {step === 'ready' && (
@@ -258,16 +254,13 @@ const PinkPassCameraScreen: React.FC = () => {
                     </TouchableOpacity>
                 )}
 
-                {/* Privacy note */}
                 <Text style={s.privacyNote}>
-                    🔒 Video never leaves your device. Only a liveness hash is sent to SAFORA servers. PDPB 2023 compliant.
+                    🔒 Video never leaves your device. Only a liveness hash and frames are analyzed for verification.
                 </Text>
             </View>
         </View>
     );
 };
-
-// ── Styles ────────────────────────────────────────────────────────────────────
 
 const makeStyles = (t: AppTheme) => StyleSheet.create({
     root:   { flex: 1, backgroundColor: '#0A0A0A' },
@@ -277,7 +270,6 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
     headerTitle: { flex: 1, fontSize: 18, fontWeight: '800', color: '#FFF' },
     pinkBadge: { backgroundColor: 'rgba(236,72,153,0.2)', borderColor: 'rgba(236,72,153,0.5)', borderWidth: 1, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 },
     pinkBadgeText: { fontSize: 11, fontWeight: '800', color: '#EC4899' },
-
     cameraBox: { marginHorizontal: 20, height: 320, borderRadius: 20, overflow: 'hidden', backgroundColor: '#111', position: 'relative' },
     faceFrame: { position: 'absolute', top: 30, left: 60, right: 60, bottom: 30 },
     corner:    { position: 'absolute', width: 24, height: 24, borderColor: '#EC4899', borderWidth: 3 },
@@ -287,7 +279,6 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
     br: { bottom: 0, right: 0,  borderLeftWidth: 0,  borderTopWidth: 0 },
     earBadge: { position: 'absolute', bottom: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.7)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
     earText:  { fontSize: 11, color: '#EC4899', fontWeight: '700' },
-
     infoBox: { flex: 1, backgroundColor: '#111', marginTop: 16, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, gap: 16 },
     blinkRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     blinkDot: { width: 18, height: 18, borderRadius: 9, backgroundColor: '#333', borderWidth: 2, borderColor: '#EC4899' },

@@ -13,73 +13,58 @@ const upload = multer({
 });
 
 // @route   POST /api/pink-pass/enroll
-// @desc    Enroll user in Pink Pass program
+// @desc    Enroll passenger in Pink Pass program (CNIC + Liveness)
 // @access  Private (Female passengers only)
-router.post('/enroll', auth, upload.single('video'), async (req, res) => {
+router.post('/enroll', auth, async (req, res) => {
     try {
         const userId = req.user.userId;
-
-        // Check if user is female
         const user = await User.findById(userId);
-        if (!user) {
-            return res.status(404).json({ message: 'User not found' });
-        }
-
+        
+        if (!user) return res.status(404).json({ message: 'User not found' });
         if (user.gender !== 'female') {
             return res.status(403).json({ message: 'Pink Pass is only available for female passengers' });
         }
 
-        if (user.pinkPassVerified) {
-            return res.status(400).json({ message: 'Already enrolled in Pink Pass' });
+        const { cnics, livenessFrames } = req.body;
+        if (!cnics || !livenessFrames) {
+            return res.status(400).json({ message: 'CNIC and liveness frames are required' });
         }
 
-        if (!req.file) {
-            return res.status(400).json({ message: 'Video file is required' });
-        }
-
-        // Send video to AI service for liveness verification
+        // Call AI service
         const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:5001';
-
-        // Convert video buffer to base64
-        const videoBase64 = req.file.buffer.toString('base64');
-
         const verificationResponse = await axios.post(
-            `${aiServiceUrl}/api/pink-pass/verify`,
+            `${aiServiceUrl}/api/pink-pass/verify-frames`,
             {
-                video: videoBase64,
+                frames: livenessFrames,
+                cnic:   cnics,
                 userId: userId
             },
-            {
-                headers: { 'Content-Type': 'application/json' }
-            }
+            { timeout: 30000 }
         );
 
-        const { verified, confidence, reason } = verificationResponse.data;
+        const { verified, liveness, cnic } = verificationResponse.data;
 
         if (verified) {
-            // Update user's Pink Pass status
             user.pinkPassVerified = true;
+            user.pinkPassStatus = 'approved';
             await user.save();
 
             res.json({
                 success: true,
-                message: 'Pink Pass verification successful',
-                confidence: confidence
+                message: 'Pink Pass verified and activated!',
+                confidence: liveness.confidence
             });
         } else {
             res.status(400).json({
                 success: false,
-                message: 'Pink Pass verification failed',
-                reason: reason
+                message: 'Verification failed',
+                reason: cnic?.verified === false ? 'CNIC gender mismatch or invalid card' : 'Liveness check failed'
             });
         }
 
     } catch (error) {
         console.error('Pink Pass enrollment error:', error);
-        res.status(500).json({
-            message: 'Server error during Pink Pass enrollment',
-            error: error.message
-        });
+        res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
 
