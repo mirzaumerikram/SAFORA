@@ -100,14 +100,16 @@ const HomeScreen: React.FC = () => {
         {
             icon: '🏢',
             label: 'Work',
-            subtitle: 'DHA Phase 5',
+            subtitle: 'Add Address',
             bg: theme.colors.primary,
+            route: 'Profile', // Send to profile to set address
         },
         {
             icon: '🏠',
             label: 'Home',
-            subtitle: 'Gulberg II',
+            subtitle: 'Add Address',
             bg: theme.colors.cardSecondary,
+            route: 'Profile', // Send to profile to set address
         },
     ];
 
