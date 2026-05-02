@@ -119,6 +119,41 @@ router.post('/demo-verify', auth, async (req, res) => {
     }
 });
 
+// @route   POST /api/pink-pass/driver/apply
+// @desc    Female driver applies for Pink Pass — CNIC photo only (web-friendly)
+// @access  Private (Driver)
+router.post('/driver/apply', auth, async (req, res) => {
+    try {
+        const Driver = require('../models/Driver');
+        const userId = req.user.userId;
+
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        if (user.gender !== 'female') {
+            return res.status(403).json({ success: false, message: 'Pink Pass for drivers is only available for female drivers.' });
+        }
+
+        const driver = await Driver.findOne({ user: userId });
+        if (!driver) return res.status(404).json({ success: false, message: 'Driver profile not found. Complete registration first.' });
+
+        if (driver.pinkPassStatus === 'approved') {
+            return res.status(400).json({ success: false, message: 'You are already a certified Pink Pass driver.' });
+        }
+
+        const { cnicImage } = req.body;
+        if (!cnicImage) return res.status(400).json({ success: false, message: 'CNIC photo is required.' });
+
+        driver.pinkPassStatus    = 'pending_review';
+        driver.pinkPassAppliedAt = new Date();
+        await driver.save();
+
+        res.json({ success: true, message: 'Application submitted. Admin will review within 24 hours.' });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
 // @route   POST /api/pink-pass/driver-apply
 // @desc    Female driver applies for Pink Pass — sends CNIC + liveness frames to AI service
 // @access  Private (Driver)

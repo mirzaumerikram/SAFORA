@@ -230,6 +230,26 @@ router.patch('/profile', auth, async (req, res) => {
     }
 });
 
+// @route   POST /api/drivers/update-profile
+// @desc    Update driver's user record: name, gender, profilePicture
+// @access  Private (Driver)
+router.post('/update-profile', auth, async (req, res) => {
+    try {
+        const { name, gender, profilePicture } = req.body;
+        const update = {};
+        if (name)           update.name = name.trim();
+        if (gender)         update.gender = gender;
+        if (profilePicture) update.profilePicture = profilePicture;
+
+        const user = await User.findByIdAndUpdate(req.user.userId, update, { new: true });
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        res.json({ success: true, name: user.name, gender: user.gender, profilePicture: user.profilePicture });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
 // @route   GET /api/drivers/earnings
 // @desc    Get driver earnings stats + recent rides
 // @access  Private (Driver)
