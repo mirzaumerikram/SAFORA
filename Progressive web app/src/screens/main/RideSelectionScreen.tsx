@@ -54,12 +54,19 @@ const rideTypes = [
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
+interface Coordinates {
+    latitude: number;
+    longitude: number;
+}
+
 const RideSelectionScreen: React.FC = () => {
     const navigation = useNavigation<any>();
     const route = useRoute<any>();
 
     const [pickup]  = useState<string>(route.params?.pickup  || 'Gulberg II');
     const [dropoff] = useState<string>(route.params?.dropoff || 'DHA Phase 5');
+    const [pickupCoords] = useState<Coordinates>(route.params?.pickupCoords || { latitude: 31.5204, longitude: 74.3587 });
+    const [dropoffCoords] = useState<Coordinates>(route.params?.dropoffCoords || { latitude: 31.4504, longitude: 74.2667 });
     const [selected, setSelected] = useState<string>('eco');
     const [booking,  setBooking]  = useState<boolean>(false);
 
@@ -75,15 +82,16 @@ const RideSelectionScreen: React.FC = () => {
         setBooking(true);
         try {
             await apiService.post('/rides/book', {
-                pickupLocation:  { address: pickup,  lat: 31.5204, lng: 74.3587 },
-                dropoffLocation: { address: dropoff, lat: 31.4504, lng: 74.2667 },
+                pickupLocation:  { address: pickup,  lat: pickupCoords.latitude, lng: pickupCoords.longitude },
+                dropoffLocation: { address: dropoff, lat: dropoffCoords.latitude, lng: dropoffCoords.longitude },
                 type: selected,
             });
 
             navigation.navigate('Searching', {
                 pickup,
                 dropoff,
-                distance: '8.2 km',
+                pickupCoords,
+                dropoffCoords,
             });
         } catch (err: any) {
             // Network / backend unreachable — still proceed for demo
@@ -95,7 +103,8 @@ const RideSelectionScreen: React.FC = () => {
                 navigation.navigate('Searching', {
                     pickup,
                     dropoff,
-                    distance: '8.2 km',
+                    pickupCoords,
+                    dropoffCoords,
                 });
             } else {
                 SaforaAlert('Booking Failed', err.message || 'Please try again.');
@@ -112,7 +121,11 @@ const RideSelectionScreen: React.FC = () => {
         <View style={s.root}>
             {/* ── MAP (top ~45%) ─────────────────────────────────────── */}
             <View style={s.mapWrapper}>
-                <SaforaMap type="home" />
+                <SaforaMap 
+                    type="home"
+                    pickupLocation={pickupCoords}
+                    dropoffLocation={dropoffCoords}
+                />
 
                 {/* Back button floating over map */}
                 <TouchableOpacity

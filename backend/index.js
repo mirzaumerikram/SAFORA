@@ -60,6 +60,9 @@ app.use(express.urlencoded({ extended: true }));
 // Connect to MongoDB
 connectDB();
 
+// Connect to Redis (graceful fallback if not configured)
+const { redis, cacheDriverLocation } = require('./config/redis');
+
 // Socket.io connection
 io.on('connection', (socket) => {
   console.log('New client connected:', socket.id);
@@ -77,10 +80,13 @@ io.on('connection', (socket) => {
   });
 
   // Driver broadcasts live GPS location during a trip → relay to passenger's ride room only
-  socket.on('driver:location-update', async ({ rideId, lat, lng }) => {
+  socket.on('driver:location-update', async ({ rideId, driverId, lat, lng }) => {
     if (rideId) {
       // 1. Relay live location to passenger
       socket.to(`ride-${rideId}`).emit('driver:location', { lat, lng });
+
+      // 1b. Cache location in Redis (30s TTL) for quick dashboard lookups
+      if (driverId) cacheDriverLocation(driverId, lat, lng).catch(() => {});
 
       // 2. SafetySentinel — check for route deviation / suspicious stops
       try {

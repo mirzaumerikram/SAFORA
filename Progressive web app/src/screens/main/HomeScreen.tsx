@@ -112,7 +112,7 @@ const HomeScreen: React.FC = () => {
     ];
 
     const handleSearchPress = () => {
-        navigation.navigate('RideSelection');
+        navigation.navigate('BookingLocation');
     };
 
     const handleTabPress = (tab: Tab) => {

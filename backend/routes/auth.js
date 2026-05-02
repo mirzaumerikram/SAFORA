@@ -149,8 +149,19 @@ router.post('/complete-profile', auth, async (req, res) => {
         const { name, email, gender, cnic, role } = req.body;
         if (!name) return res.status(400).json({ message: 'Name is required' });
 
+        // Validate CNIC format if provided (Pakistani format: XXXXX-XXXXXXX-X)
+        if (cnic && !/^\d{5}-\d{7}-\d{1}$/.test(cnic)) {
+            return res.status(400).json({ message: 'CNIC must be in format XXXXX-XXXXXXX-X (13 digits)' });
+        }
+
         const user = await User.findById(req.user.userId);
         if (!user) return res.status(404).json({ message: 'User not found' });
+
+        // Check CNIC uniqueness if provided
+        if (cnic) {
+            const cnicTaken = await User.findOne({ cnic, _id: { $ne: user._id } });
+            if (cnicTaken) return res.status(400).json({ message: 'This CNIC is already registered to another account' });
+        }
 
         // Check email uniqueness if provided
         if (email && email !== user.email) {

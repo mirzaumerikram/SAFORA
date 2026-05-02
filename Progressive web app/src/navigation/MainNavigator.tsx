@@ -1,6 +1,7 @@
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import HomeScreen from '../screens/main/HomeScreen';
+import BookingLocationScreen from '../screens/main/BookingLocationScreen';
 import RideSelectionScreen from '../screens/main/RideSelectionScreen';
 import TrackingScreen from '../screens/main/TrackingScreen';
 import DriverDashboard from '../screens/driver/DriverDashboard';
@@ -27,6 +28,7 @@ const MainNavigator: React.FC = () => {
                 cardStyle: { backgroundColor: theme.colors.background },
             }}>
             <Stack.Screen name="Home" component={HomeScreen} />
+            <Stack.Screen name="BookingLocation" component={BookingLocationScreen} />
             <Stack.Screen name="RideSelection" component={RideSelectionScreen} />
             <Stack.Screen name="Searching" component={SearchingScreen} />
             <Stack.Screen name="Tracking" component={TrackingScreen} />

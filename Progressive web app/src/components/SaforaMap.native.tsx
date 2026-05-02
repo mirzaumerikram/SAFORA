@@ -55,7 +55,7 @@ const SaforaMap: React.FC<SaforaMapProps> = ({
         return (
             <MapView
                 ref={mapRef}
-                provider={undefined}
+                provider={PROVIDER_GOOGLE}
                 style={styles.map}
                 initialRegion={{ ...center, latitudeDelta: 0.015, longitudeDelta: 0.0121 }}
                 customMapStyle={darkMapStyle}
@@ -77,7 +77,7 @@ const SaforaMap: React.FC<SaforaMapProps> = ({
     return (
         <MapView
             ref={mapRef}
-            provider={undefined}
+            provider={PROVIDER_GOOGLE}
             style={styles.map}
             initialRegion={{ ...driverCoord, latitudeDelta: 0.02, longitudeDelta: 0.02 }}
             customMapStyle={darkMapStyle}

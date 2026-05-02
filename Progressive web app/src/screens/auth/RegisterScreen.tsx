@@ -47,9 +47,31 @@ const RegisterScreen: React.FC = () => {
     const [name,   setName]   = useState('');
     const [email,  setEmail]  = useState('');
     const [cnic,   setCnic]   = useState('');
+    const [cnicError, setCnicError] = useState('');
     const [gender, setGender] = useState<Gender>('male');
     const [agreed, setAgreed] = useState(false);
     const [loading, setLoading] = useState(false);
+
+    // ── CNIC helpers ──────────────────────────────────────────────────────────
+    // Pakistani CNIC format: XXXXX-XXXXXXX-X (13 digits, 15 chars with dashes)
+    const CNIC_REGEX = /^\d{5}-\d{7}-\d{1}$/;
+
+    const formatCnic = (raw: string) => {
+        const digits = raw.replace(/\D/g, '').slice(0, 13);
+        if (digits.length <= 5)  return digits;
+        if (digits.length <= 12) return `${digits.slice(0,5)}-${digits.slice(5)}`;
+        return `${digits.slice(0,5)}-${digits.slice(5,12)}-${digits.slice(12)}`;
+    };
+
+    const handleCnicChange = (text: string) => {
+        const formatted = formatCnic(text);
+        setCnic(formatted);
+        if (formatted && !CNIC_REGEX.test(formatted)) {
+            setCnicError('Format must be XXXXX-XXXXXXX-X');
+        } else {
+            setCnicError('');
+        }
+    };
 
     // ── Submit ────────────────────────────────────────────────────────────────
     const handleRegister = async () => {
@@ -58,6 +80,9 @@ const RegisterScreen: React.FC = () => {
         }
         if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             SaforaAlert('Invalid Email', 'Please enter a valid email address.'); return;
+        }
+        if (cnic && !CNIC_REGEX.test(cnic)) {
+            SaforaAlert('Invalid CNIC', 'CNIC must be in format XXXXX-XXXXXXX-X (13 digits).'); return;
         }
         if (!agreed) {
             SaforaAlert('Terms Required', 'Please accept the Terms & Conditions to continue.'); return;
@@ -108,26 +133,31 @@ const RegisterScreen: React.FC = () => {
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
             >
-                {/* Back */}
-                <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
-                    <Text style={s.backText}>←</Text>
+                {/* Back Button */}
+                <TouchableOpacity 
+                    style={s.backBtn} 
+                    onPress={() => navigation.goBack()}
+                    activeOpacity={0.7}
+                >
+                    <Text style={s.backIcon}>← Back</Text>
                 </TouchableOpacity>
 
                 {/* Badge */}
                 <View style={[s.badge, isDriver && s.badgeDriver]}>
+                    <Text style={s.badgeEmoji}>{isDriver ? '🚗' : '🧍'}</Text>
                     <Text style={[s.badgeText, isDriver && s.badgeTextDriver]}>
-                        {isDriver ? '🚗  CREATE DRIVER ACCOUNT' : '🧍  CREATE ACCOUNT'}
+                        {isDriver ? 'BECOME A DRIVER' : 'CREATE ACCOUNT'}
                     </Text>
                 </View>
 
                 {/* Title */}
                 <Text style={[s.title, isUrdu && s.rtl]}>
-                    {t.registerTitle || 'JOIN SAFORA'}
+                    {isDriver ? 'Earn with SAFORA' : 'Join SAFORA'}
                 </Text>
                 <Text style={[s.subtitle, isUrdu && s.rtl]}>
                     {isDriver
-                        ? 'Complete your profile to start earning on SAFORA.'
-                        : 'Create your account to start riding safely.'}
+                        ? 'Complete your profile to start earning safely on SAFORA.'
+                        : 'Create your account to ride safely across Pakistan.'}
                 </Text>
 
                 {/* Phone (pre-filled, read-only) */}
@@ -183,14 +213,15 @@ const RegisterScreen: React.FC = () => {
                 {/* CNIC */}
                 <Text style={s.label}>CNIC NUMBER <Text style={s.optional}>(optional)</Text></Text>
                 <TextInput
-                    style={s.input}
+                    style={[s.input, cnicError ? s.inputError : null]}
                     placeholder="XXXXX-XXXXXXX-X"
                     placeholderTextColor={theme.colors.placeholder}
                     value={cnic}
-                    onChangeText={setCnic}
+                    onChangeText={handleCnicChange}
                     keyboardType="number-pad"
                     maxLength={15}
                 />
+                {cnicError ? <Text style={s.fieldError}>{cnicError}</Text> : null}
 
                 {/* Terms */}
                 <TouchableOpacity
@@ -256,15 +287,37 @@ const makeStyles = (t: AppTheme) =>
             marginBottom: 28,
             borderWidth: 1, borderColor: t.colors.border,
         },
+        backBtn: {
+            width: 'auto',
+            paddingHorizontal: 12,
+            paddingVertical: 10,
+            borderRadius: 10,
+            backgroundColor: t.colors.card,
+            borderWidth: 1,
+            borderColor: t.colors.border,
+            marginBottom: 16,
+            alignSelf: 'flex-start',
+        },
+        backIcon: {
+            fontSize: 14,
+            fontWeight: '600',
+            color: t.colors.text,
+        },
         backText: { fontSize: 20, color: t.colors.text, fontWeight: '600' },
 
         badge: {
+            flexDirection: 'row',
+            alignItems: 'center',
             alignSelf: 'flex-start',
             backgroundColor: 'rgba(245,197,24,0.1)',
             borderColor: 'rgba(245,197,24,0.35)',
             borderWidth: 1.5, borderRadius: 22,
             paddingHorizontal: 14, paddingVertical: 6,
             marginBottom: 18,
+            gap: 6,
+        },
+        badgeEmoji: {
+            fontSize: 14,
         },
         badgeDriver: {
             backgroundColor: 'rgba(34,197,94,0.1)',
@@ -318,7 +371,15 @@ const makeStyles = (t: AppTheme) =>
             borderWidth: 1.5, borderColor: t.colors.border,
             borderRadius: 14, paddingHorizontal: 16,
             fontSize: 15, color: t.colors.text,
-            marginBottom: 20,
+            marginBottom: 4,
+        },
+        inputError: {
+            borderColor: '#EF4444',
+            marginBottom: 0,
+        },
+        fieldError: {
+            fontSize: 11, color: '#EF4444', fontWeight: '600',
+            marginBottom: 16, marginTop: 4, paddingHorizontal: 4,
         },
 
         genderRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },

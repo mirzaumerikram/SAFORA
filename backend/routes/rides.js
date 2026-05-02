@@ -3,6 +3,7 @@ const router = express.Router();
 const Ride = require('../models/Ride');
 const Driver = require('../models/Driver');
 const axios = require('axios');
+const { RideStateMachine } = require('../utils/RideStateMachine');
 const { auth, authorize } = require('../middleware/auth');
 
 // @route   POST /api/rides/request
@@ -161,12 +162,16 @@ router.patch('/:id/status', auth, authorize('driver'), async (req, res) => {
             return res.status(404).json({ message: 'Ride not found' });
         }
 
-        ride.status = status;
-        if (status === 'started') {
-            ride.startedAt = new Date();
-        } else if (status === 'completed') {
-            ride.completedAt = new Date();
+        // State Pattern — validate transition before applying
+        try {
+            RideStateMachine.validateTransition(ride.status, status);
+        } catch (stateErr) {
+            return res.status(400).json({ message: stateErr.message });
         }
+
+        ride.status = status;
+        if (status === 'started')    ride.startedAt   = new Date();
+        if (status === 'completed')  ride.completedAt = new Date();
 
         await ride.save();
 

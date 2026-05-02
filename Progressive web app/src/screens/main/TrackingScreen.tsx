@@ -16,7 +16,7 @@ const TrackingScreen: React.FC = () => {
     const navigation = useNavigation<any>();
     const route = useRoute<any>();
     const { theme: liveTheme } = useAppTheme();
-    const { rideId, estimatedPrice, pickup, dropoff } = route.params || {};
+    const { rideId, estimatedPrice, pickup, dropoff, pickupCoords, dropoffCoords } = route.params || {};
 
     const [status, setStatus]               = useState('ARRIVING');
     const [socketStatus, setSocketStatus]   = useState<'connecting' | 'live' | 'offline'>('connecting');
@@ -148,7 +148,12 @@ const TrackingScreen: React.FC = () => {
 
     return (
         <View style={styles.container}>
-            <SaforaMap type="tracking" driverLocation={driverLocation ?? undefined} />
+            <SaforaMap 
+                type="tracking" 
+                driverLocation={driverLocation ?? undefined}
+                pickupLocation={pickupCoords}
+                dropoffLocation={dropoffCoords}
+            />
 
             {/* SafetySentinel Deviation Alert Modal */}
             <Modal visible={!!deviationAlert} transparent animationType="slide">
