@@ -79,6 +79,10 @@ const userSchema = new mongoose.Schema({
         type: String,
         default: ''
     },
+    profilePicture: {
+        type: String,
+        default: ''
+    },
     emergencyContacts: [{
         name: String,
         phone: String,

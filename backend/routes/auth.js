@@ -347,7 +347,7 @@ router.post('/verify-otp', otpVerifyLimiter, async (req, res) => {
 // @access  Private
 router.patch('/profile', auth, async (req, res) => {
     try {
-        const { name, email, gender, homeAddress, workAddress } = req.body;
+        const { name, email, gender, homeAddress, workAddress, profilePicture } = req.body;
         const user = await User.findById(req.user.userId);
         if (!user) return res.status(404).json({ message: 'User not found' });
 
@@ -355,6 +355,7 @@ router.patch('/profile', auth, async (req, res) => {
         if (gender)              user.gender = gender.toLowerCase();
         if (homeAddress !== undefined) user.homeAddress = homeAddress;
         if (workAddress !== undefined) user.workAddress = workAddress;
+        if (profilePicture !== undefined) user.profilePicture = profilePicture;
         
         if (email && email.trim()) {
             const exists = await User.findOne({ email: email.toLowerCase(), _id: { $ne: user._id } });

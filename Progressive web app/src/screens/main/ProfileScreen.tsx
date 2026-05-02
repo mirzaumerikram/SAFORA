@@ -35,6 +35,7 @@ interface UserData {
     pinkPassActive?: boolean;
     homeAddress?: string;
     workAddress?: string;
+    profilePicture?: string;
     emergencyContacts?: { _id?: string; name: string; phone: string; relation?: string }[];
 }
 
@@ -58,8 +59,10 @@ const ProfileScreen: React.FC = () => {
 
     // ── Editable personal-info fields ─────────────────────────────────────────
     const [fullName, setFullName] = useState('');
+    const [phone, setPhone] = useState('');
     const [email, setEmail] = useState('');
-    const [gender, setGender] = useState<'female' | 'male' | ''>('');
+    const [gender, setGender] = useState<'male' | 'female'>('male');
+    const [profilePicture, setProfilePicture] = useState('');
     const [homeAddress, setHomeAddress] = useState('');
     const [workAddress, setWorkAddress] = useState('');
     const [isSavingProfile, setIsSavingProfile] = useState(false);
@@ -104,15 +107,14 @@ const ProfileScreen: React.FC = () => {
         setUser(data);
         setFullName(data.name || '');
         setEmail(data.email || '');
+        setPhone(data.phone || '');
         if (data.gender) {
-            const g = data.gender.toLowerCase();
-            if (g === 'female' || g === 'male') {
-                setGender(g as 'female' | 'male');
-            }
+            setGender(data.gender.toLowerCase() === 'female' ? 'female' : 'male');
         }
         setHomeAddress(data.homeAddress || '');
         setWorkAddress(data.workAddress || '');
-        if (data.emergencyContacts) setEmergencyContacts(data.emergencyContacts);
+        setProfilePicture(data.profilePicture || '');
+        setEmergencyContacts(data.emergencyContacts || []);
     };
 
     // ─── Save personal info ───────────────────────────────────────────────────
@@ -127,9 +129,10 @@ const ProfileScreen: React.FC = () => {
             const response = await apiService.patch('/auth/profile', {
                 name: fullName.trim(),
                 email: email.trim(),
-                gender: gender, // already lowercase
+                gender: gender,
                 homeAddress: homeAddress.trim(),
                 workAddress: workAddress.trim(),
+                profilePicture: profilePicture
             });
             if (response.success && response.user) {
                 // Update local state but preserve what we just typed if server returns empty (safety)
@@ -148,6 +151,29 @@ const ProfileScreen: React.FC = () => {
             Alert.alert('Error', e.message || 'Could not save profile.');
         } finally {
             setIsSavingProfile(false);
+        }
+    };
+
+    // ─── Photo Upload Logic ───────────────────────────────────────────────────
+
+    const handlePhotoUpload = () => {
+        if (Platform.OS === 'web') {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.onchange = (e: any) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event: any) => {
+                        setProfilePicture(event.target.result); // Base64 string
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+            input.click();
+        } else {
+            Alert.alert('Coming Soon', 'Photo upload for native app is being integrated.');
         }
     };
 
@@ -284,9 +310,7 @@ const ProfileScreen: React.FC = () => {
 
     // ─── Derived display values ───────────────────────────────────────────────
 
-    const displayName = user.name || 'SAFORA User';
-    const displayPhone = user.phone || 'Not provided';
-    const avatarLetter = displayName.charAt(0).toUpperCase();
+    const userInitial = (fullName || 'S').charAt(0).toUpperCase();
     const hasPinkPass = !!user.pinkPassActive;
 
     // ─── Render ───────────────────────────────────────────────────────────────
@@ -311,11 +335,18 @@ const ProfileScreen: React.FC = () => {
 
                 {/* ── Avatar + name + phone ─────────────────────────────── */}
                 <View style={s.avatarSection}>
-                    <View style={s.avatarCircle}>
-                        <Text style={s.avatarLetter}>{avatarLetter}</Text>
-                    </View>
-                    <Text style={s.userName}>{displayName}</Text>
-                    <Text style={s.userPhone}>{displayPhone}</Text>
+                    <TouchableOpacity style={s.avatarCircle} onPress={handlePhotoUpload} activeOpacity={0.8}>
+                        {profilePicture ? (
+                            <Image source={{ uri: profilePicture }} style={s.avatarImage} />
+                        ) : (
+                            <Text style={s.avatarLetter}>{userInitial}</Text>
+                        )}
+                        <View style={s.editIconBadge}>
+                            <Text style={{ fontSize: 10 }}>📷</Text>
+                        </View>
+                    </TouchableOpacity>
+                    <Text style={s.userName}>{fullName || 'User Name'}</Text>
+                    <Text style={s.userPhone}>{phone}</Text>
                     {hasPinkPass && (
                         <View style={s.pinkBadge}>
                             <Text style={s.pinkBadgeText}>Pink Pass Active</Text>
@@ -652,6 +683,26 @@ const makeStyles = (t: AppTheme) =>
             alignItems: 'center',
             justifyContent: 'center',
             marginBottom: 14,
+            position: 'relative',
+            overflow: 'hidden',
+        },
+        avatarImage: {
+            width: '100%',
+            height: '100%',
+            borderRadius: 44,
+        },
+        editIconBadge: {
+            position: 'absolute',
+            bottom: 0,
+            right: 0,
+            backgroundColor: t.colors.card,
+            width: 24,
+            height: 24,
+            borderRadius: 12,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: 2,
+            borderColor: t.colors.primary,
         },
         avatarLetter: {
             fontSize: 38,
