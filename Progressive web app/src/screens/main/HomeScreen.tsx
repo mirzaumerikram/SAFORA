@@ -85,11 +85,12 @@ const HomeScreen: React.FC = () => {
     const userInitial = userName ? userName.charAt(0).toUpperCase() : 'A';
 
     // Greeting based on time of day
-    const greeting = (() => {
+    const { greetingText, emoji } = (() => {
         const h = new Date().getHours();
-        if (h < 12) return 'Good morning';
-        if (h < 17) return 'Good afternoon';
-        return 'Good evening';
+        if (h >= 5 && h < 12) return { greetingText: 'Good morning', emoji: '☀️' };
+        if (h >= 12 && h < 17) return { greetingText: 'Good afternoon', emoji: '🌤️' };
+        if (h >= 17 && h < 21) return { greetingText: 'Good evening', emoji: '🌅' };
+        return { greetingText: 'Good night', emoji: '🌙' };
     })();
 
     // Menu items
@@ -163,7 +164,7 @@ const HomeScreen: React.FC = () => {
                         </TouchableOpacity>
 
                         <Text style={s.greetingText}>
-                            {greeting}, {fullName || 'Ayesha Khan'} 👋
+                            {greetingText}, {fullName || 'Ali'} {emoji}
                         </Text>
                     </View>
 
