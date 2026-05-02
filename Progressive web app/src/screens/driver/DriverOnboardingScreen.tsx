@@ -48,19 +48,28 @@ const DriverOnboardingScreen: React.FC = () => {
         vehicleColor: '',
         vehiclePlate: '',
     });
+    const [errors, setErrors] = useState<Partial<Record<keyof FormData, boolean>>>({});
 
-    const set = (key: keyof FormData, val: string) =>
+    const set = (key: keyof FormData, val: string) => {
         setForm(prev => ({ ...prev, [key]: val }));
+        if (errors[key]) setErrors(prev => ({ ...prev, [key]: false }));
+    };
 
     const validateStep1 = () => {
-        if (!form.licenseNumber.trim()) {
-            Alert.alert('Missing Field', 'Please enter your driving license number.'); return false;
-        }
-        if (!/^\d{13}$/.test(form.cnic.replace(/-/g, ''))) {
-            Alert.alert('Invalid CNIC', 'CNIC must be 13 digits (e.g. 35201-1234567-1).'); return false;
-        }
-        if (!form.fullName.trim()) {
-            Alert.alert('Missing Field', 'Please enter your full name as on CNIC.'); return false;
+        const newErrors: Partial<Record<keyof FormData, boolean>> = {};
+        if (!form.licenseNumber.trim()) newErrors.licenseNumber = true;
+        if (!/^\d{13}$/.test(form.cnic.replace(/-/g, ''))) newErrors.cnic = true;
+        if (!form.fullName.trim()) newErrors.fullName = true;
+
+        setErrors(newErrors);
+        
+        if (Object.keys(newErrors).length > 0) {
+            if (Platform.OS === 'web') {
+                window.alert('Please correct the red fields before continuing.');
+            } else {
+                Alert.alert('Missing Info', 'Please fill in all fields correctly.');
+            }
+            return false;
         }
         return true;
     };
@@ -150,7 +159,7 @@ const DriverOnboardingScreen: React.FC = () => {
                         {/* Driving License Number */}
                         <Text style={s.sectionLabel}>DRIVING LICENSE NUMBER</Text>
                         <TextInput
-                            style={s.input}
+                            style={[s.input, errors.licenseNumber && s.inputError]}
                             placeholder="DL-XXXX-XXXXXX"
                             placeholderTextColor={theme.colors.placeholder}
                             value={form.licenseNumber}
@@ -161,7 +170,7 @@ const DriverOnboardingScreen: React.FC = () => {
                         {/* CNIC Number */}
                         <Text style={s.sectionLabel}>CNIC NUMBER</Text>
                         <TextInput
-                            style={s.input}
+                            style={[s.input, errors.cnic && s.inputError]}
                             placeholder="XXXXX-XXXXXXX-X"
                             placeholderTextColor={theme.colors.placeholder}
                             value={form.cnic}
@@ -173,7 +182,7 @@ const DriverOnboardingScreen: React.FC = () => {
                         {/* Full Name */}
                         <Text style={s.sectionLabel}>FULL NAME (AS ON CNIC)</Text>
                         <TextInput
-                            style={s.input}
+                            style={[s.input, errors.fullName && s.inputError]}
                             placeholder="Your Full Name"
                             placeholderTextColor={theme.colors.placeholder}
                             value={form.fullName}
@@ -410,6 +419,10 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
         fontSize: 15,
         borderWidth: 1,
         borderColor: t.colors.border,
+    },
+    inputError: {
+        borderColor: t.colors.danger,
+        backgroundColor: 'rgba(239,68,68,0.05)',
     },
 
     /* ── Info card ── */
