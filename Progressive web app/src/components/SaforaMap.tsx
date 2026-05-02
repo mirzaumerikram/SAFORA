@@ -12,9 +12,10 @@ import {
 
 const { width, height } = Dimensions.get('window');
 
-// Key loaded from environment — set EXPO_PUBLIC_GOOGLE_MAPS_API_KEY in .env (local)
-// and in Vercel Environment Variables (production). Never commit .env to git.
-const MAPS_KEY: string = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '';
+// Maps API key — also in app.json for native builds (already public in the bundle)
+const MAPS_KEY: string =
+    process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ||
+    'AIzaSyBbF5mP1xMstQI68UcyTS2JX9hibnafHRU';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -47,7 +48,7 @@ function loadGoogleMapsScript(apiKey: string): Promise<void> {
 
         _mapsLoading = true;
         const script = document.createElement('script');
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&loading=async`;
         script.async = true;
         script.defer = true;
         script.onload = () => {
