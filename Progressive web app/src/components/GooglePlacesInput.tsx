@@ -66,7 +66,7 @@ const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
                     },
                     (results: any, status: any) => {
                         if (status !== 'OK') {
-                            // alert('[Debug] Places Status: ' + status); // Uncomment to see on device
+                            alert('[DEBUG] Google Places Status: ' + status); 
                             if (status !== 'ZERO_RESULTS') {
                                 console.warn('[GooglePlaces] Error Status:', status);
                             }
@@ -110,6 +110,9 @@ const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
             if (!response.ok) throw new Error('Autocomplete failed');
 
             const data = await response.json();
+            if (data.status && data.status !== 'OK') {
+                alert('[DEBUG] Fetch Status: ' + data.status);
+            }
             if (!data.predictions) {
                 setPredictions([]);
                 return;

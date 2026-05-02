@@ -241,6 +241,7 @@ const LoginScreen: React.FC = () => {
                         </Text>
                     </View>
 
+                    <Text style={s.version}>Build v1.0.8</Text>
                 </View>
             </ScrollView>
         </KeyboardAvoidingView>
@@ -351,6 +352,7 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
 
     hintBox: { alignItems: 'center', paddingHorizontal: 8 },
     hintText: { fontSize: 13, color: t.colors.textSecondary, textAlign: 'center', lineHeight: 20 },
+    version: { fontSize: 10, color: t.colors.textSecondary, textAlign: 'center', marginTop: 40, opacity: 0.5 },
 });
 
 export default LoginScreen;
