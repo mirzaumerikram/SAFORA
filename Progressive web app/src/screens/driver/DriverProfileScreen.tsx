@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity,
     ScrollView, ActivityIndicator, Platform, Alert,
@@ -49,11 +49,9 @@ const DriverProfileScreen: React.FC = () => {
     const [profilePicture, setProfilePicture] = useState('');
 
     // Name editing
-    const [editingName, setEditingName]   = useState(false);
-    const [nameInput, setNameInput]       = useState('');
-    const [savingName, setSavingName]     = useState(false);
-
-    const fileInputRef = useRef<any>(null);
+    const [editingName, setEditingName] = useState(false);
+    const [nameInput, setNameInput]     = useState('');
+    const [savingName, setSavingName]   = useState(false);
 
     const loadProfile = useCallback(async () => {
         try {
@@ -134,46 +132,58 @@ const DriverProfileScreen: React.FC = () => {
         }
     };
 
-    // ── Photo upload ──
+    // ── Photo upload — same pattern as passenger ProfileScreen ──
     const handlePhotoPress = () => {
-        if (Platform.OS === 'web') {
-            fileInputRef.current?.click();
-        } else {
+        if (Platform.OS !== 'web') {
             Alert.alert('Upload Photo', 'This feature is available on web.');
+            return;
         }
-    };
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.onchange = async (e: any) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async (event: any) => {
+                // Compress to 400×400 max (same as passenger)
+                const img = new window.Image();
+                img.src = event.target.result;
+                img.onload = async () => {
+                    const canvas = document.createElement('canvas');
+                    const MAX = 400;
+                    let w = img.width, h = img.height;
+                    if (w > h) { if (w > MAX) { h *= MAX / w; w = MAX; } }
+                    else       { if (h > MAX) { w *= MAX / h; h = MAX; } }
+                    canvas.width = w; canvas.height = h;
+                    canvas.getContext('2d')?.drawImage(img, 0, 0, w, h);
+                    const compressed = canvas.toDataURL('image/jpeg', 0.7);
 
-    const handleFileChange = async (e: any) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        // Show immediately via local URL
-        const localUrl = URL.createObjectURL(file);
-        setProfilePicture(localUrl);
-        setPhotoUploading(true);
-
-        const reader = new FileReader();
-        reader.onload = async (ev) => {
-            const base64 = ev.target?.result as string;
-            try {
-                const res: any = await apiService.post('/drivers/update-profile', { profilePicture: base64 });
-                if (res.success) {
-                    setProfilePicture(base64);
-                    const raw = await AsyncStorage.getItem(STORAGE_KEYS.USER_DATA);
-                    if (raw) {
-                        const u = JSON.parse(raw);
-                        u.profilePicture = base64;
-                        await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(u));
+                    // Show immediately
+                    setProfilePicture(compressed);
+                    setPhotoUploading(true);
+                    try {
+                        const res: any = await apiService.post('/drivers/update-profile', { profilePicture: compressed });
+                        if (res.success) {
+                            const raw = await AsyncStorage.getItem(STORAGE_KEYS.USER_DATA);
+                            if (raw) {
+                                const u = JSON.parse(raw);
+                                u.profilePicture = compressed;
+                                await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(u));
+                            }
+                        } else {
+                            Alert.alert('Upload Failed', 'Could not save photo. Try again.');
+                        }
+                    } catch (err: any) {
+                        Alert.alert('Upload Failed', err.message || 'Network error.');
+                    } finally {
+                        setPhotoUploading(false);
                     }
-                }
-            } catch (err: any) {
-                Alert.alert('Upload Failed', err.message || 'Could not upload photo.');
-                setProfilePicture(''); // revert
-            } finally {
-                setPhotoUploading(false);
-            }
+                };
+            };
+            reader.readAsDataURL(file);
         };
-        reader.readAsDataURL(file);
+        input.click();
     };
 
     // ── Logout ──
@@ -217,18 +227,6 @@ const DriverProfileScreen: React.FC = () => {
                 />
             }
         >
-            {/* Hidden file input */}
-            {Platform.OS === 'web' && (
-                // @ts-ignore
-                <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    style={{ display: 'none' }}
-                    onChange={handleFileChange}
-                />
-            )}
-
             <View style={s.header}>
                 <Text style={s.headerTitle}>MY PROFILE</Text>
             </View>
