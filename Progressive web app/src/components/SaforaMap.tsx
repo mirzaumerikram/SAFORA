@@ -123,6 +123,12 @@ const SaforaMap: React.FC<SaforaMapProps> = ({
 
         const center = userLocation || LAHORE;
 
+        // Final safety check: if the script is "loaded" but the object isn't ready
+        if (typeof google === 'undefined' || !google.maps || !google.maps.Map) {
+            console.warn('[SaforaMap] Google Maps API not fully initialized yet.');
+            return;
+        }
+
         const map = new google.maps.Map(mapDivRef.current, {
             center:    { lat: center.latitude, lng: center.longitude },
             zoom:      15,
@@ -151,6 +157,11 @@ const SaforaMap: React.FC<SaforaMapProps> = ({
         if (Platform.OS !== 'web') return;
         const map = mapObjRef.current;
         if (!map) return;
+
+        // Final safety check
+        if (typeof google === 'undefined' || !google.maps || !google.maps.Marker) {
+            return;
+        }
 
         // Clear old markers
         markersRef.current.forEach(m => m.setMap(null));
@@ -187,7 +198,7 @@ const SaforaMap: React.FC<SaforaMapProps> = ({
         if (driverLocation)  addMarker(driverLocation,  '🚗', '#F5C518');
 
         // Draw route line between pickup and dropoff
-        if (pickupLocation && dropoffLocation) {
+        if (pickupLocation && dropoffLocation && google.maps.Polyline && google.maps.LatLngBounds) {
             const line = new google.maps.Polyline({
                 path: [
                     { lat: pickupLocation.latitude,  lng: pickupLocation.longitude },
