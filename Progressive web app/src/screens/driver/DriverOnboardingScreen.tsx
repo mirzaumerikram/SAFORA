@@ -60,9 +60,9 @@ const DriverOnboardingScreen: React.FC = () => {
         const newErrors: Partial<Record<keyof FormData, boolean>> = {};
         let msg = '';
 
-        if (!form.licenseNumber.trim()) {
+        if (form.licenseNumber.trim().length < 5) {
             newErrors.licenseNumber = true;
-            msg = 'Driving license number is required.';
+            msg = 'Please enter a valid Driving License number (e.g. DL-1234-5678).';
         } else if (!/^\d{13}$/.test(form.cnic.replace(/-/g, ''))) {
             newErrors.cnic = true;
             msg = 'CNIC must be 13 digits (e.g. 35201-1234567-1).';
