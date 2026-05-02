@@ -48,7 +48,7 @@ const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
 
     // Sync input if initialValue changes externally
     useEffect(() => {
-        if (initialValue) setInput(initialValue);
+        setInput(initialValue);
     }, [initialValue]);
     const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
     const [loading, setLoading] = useState(false);
