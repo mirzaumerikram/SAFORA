@@ -95,8 +95,11 @@ const ProfileScreen: React.FC = () => {
         setUser(data);
         setFullName(data.name || '');
         setEmail(data.email || '');
-        if (data.gender === 'female' || data.gender === 'male') {
-            setGender(data.gender);
+        if (data.gender) {
+            const g = data.gender.toLowerCase();
+            if (g === 'female' || g === 'male') {
+                setGender(g as 'female' | 'male');
+            }
         }
         if (data.emergencyContacts) setEmergencyContacts(data.emergencyContacts);
     };
@@ -113,13 +116,13 @@ const ProfileScreen: React.FC = () => {
             const response = await apiService.patch('/auth/profile', {
                 name: fullName.trim(),
                 email: email.trim(),
-                gender: gender.toLowerCase(),
+                gender: gender, // already lowercase
             });
-            if (response.success) {
-                const updated = { ...user, name: fullName.trim(), email: email.trim(), gender };
-                setUser(updated);
-                await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(updated));
-                Alert.alert('Saved', 'Your profile has been updated.');
+            if (response.success && response.user) {
+                // Update local state with the actual user returned from server
+                applyUserData(response.user);
+                await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(response.user));
+                Alert.alert('Success', 'Profile updated successfully!');
             }
         } catch (e: any) {
             Alert.alert('Error', e.message || 'Could not save profile.');

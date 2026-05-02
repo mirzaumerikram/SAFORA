@@ -99,7 +99,7 @@ const DriverAppNavigator: React.FC = () => (
 );
 
 const linking = {
-    prefixes: [Platform.OS === 'web' ? window.location.origin : 'safora://'],
+    prefixes: ['/'],
     config: {
         screens: {
             // Auth Flow
