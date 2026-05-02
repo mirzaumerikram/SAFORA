@@ -151,6 +151,8 @@ const PinkPassScreen: React.FC = () => {
             )}
         </ScrollView>
     );
+};
+
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const makeStyles = (t: AppTheme) => StyleSheet.create({
