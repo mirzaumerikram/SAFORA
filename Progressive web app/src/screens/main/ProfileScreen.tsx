@@ -19,6 +19,10 @@ import { useAuth } from '../../context/AuthContext';
 import { STORAGE_KEYS } from '../../utils/constants';
 import { useLanguage } from '../../context/LanguageContext';
 import apiService from '../../services/api';
+import GooglePlacesInput from '../../components/GooglePlacesInput';
+
+// Get Google Maps API key from environment
+const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,7 +35,7 @@ interface UserData {
     pinkPassActive?: boolean;
     homeAddress?: string;
     workAddress?: string;
-    emergencyContacts?: { _id?: string; name: string; phone: string; relationship?: string }[];
+    emergencyContacts?: { _id?: string; name: string; phone: string; relation?: string }[];
 }
 
 // Avatar background colours for contact initials (cycles through)
@@ -137,6 +141,38 @@ const ProfileScreen: React.FC = () => {
         } finally {
             setIsSavingProfile(false);
         }
+    };
+
+    // ─── Location Logic ───────────────────────────────────────────────────────
+
+    const handleCurrentLocation = (type: 'home' | 'work') => {
+        if (!navigator.geolocation) {
+            Alert.alert('Error', 'Geolocation is not supported by your browser.');
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            async (pos) => {
+                const { latitude, longitude } = pos.coords;
+                try {
+                    // Use Google Reverse Geocoding to get address from coords
+                    const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_MAPS_API_KEY}`;
+                    const response = await fetch(url);
+                    const data = await response.json();
+                    if (data.status === 'OK' && data.results[0]) {
+                        const addr = data.results[0].formatted_address;
+                        if (type === 'home') setHomeAddress(addr);
+                        else setWorkAddress(addr);
+                    } else {
+                        Alert.alert('Error', 'Could not determine address.');
+                    }
+                } catch (e) {
+                    Alert.alert('Error', 'Failed to fetch address.');
+                }
+            },
+            () => Alert.alert('Error', 'Could not get your location. Please check permissions.'),
+            { enableHighAccuracy: true }
+        );
     };
 
     // ─── Add emergency contact ────────────────────────────────────────────────
@@ -359,25 +395,35 @@ const ProfileScreen: React.FC = () => {
 
                 {/* Home Address */}
                 <View style={s.fieldBlock}>
-                    <Text style={s.fieldLabel}>HOME ADDRESS</Text>
-                    <TextInput
-                        style={s.fieldInput}
-                        value={homeAddress}
-                        onChangeText={setHomeAddress}
-                        placeholder="e.g. Gulberg III, Lahore"
-                        placeholderTextColor={theme.colors.placeholder}
+                    <View style={s.labelRow}>
+                        <Text style={s.fieldLabel}>HOME ADDRESS</Text>
+                        <TouchableOpacity onPress={() => handleCurrentLocation('home')}>
+                            <Text style={s.currentLocLink}>📍 Use Current Location</Text>
+                        </TouchableOpacity>
+                    </View>
+                    <GooglePlacesInput
+                        placeholder="Search for your home"
+                        apiKey={GOOGLE_MAPS_API_KEY}
+                        initialValue={homeAddress}
+                        onPlaceSelected={(p) => setHomeAddress(p.address)}
+                        icon="🏠"
                     />
                 </View>
 
                 {/* Work Address */}
                 <View style={s.fieldBlock}>
-                    <Text style={s.fieldLabel}>WORK ADDRESS</Text>
-                    <TextInput
-                        style={s.fieldInput}
-                        value={workAddress}
-                        onChangeText={setWorkAddress}
-                        placeholder="e.g. DHA Phase 5, Lahore"
-                        placeholderTextColor={theme.colors.placeholder}
+                    <View style={s.labelRow}>
+                        <Text style={s.fieldLabel}>WORK ADDRESS</Text>
+                        <TouchableOpacity onPress={() => handleCurrentLocation('work')}>
+                            <Text style={s.currentLocLink}>📍 Use Current Location</Text>
+                        </TouchableOpacity>
+                    </View>
+                    <GooglePlacesInput
+                        placeholder="Search for your work"
+                        apiKey={GOOGLE_MAPS_API_KEY}
+                        initialValue={workAddress}
+                        onPlaceSelected={(p) => setWorkAddress(p.address)}
+                        icon="🏢"
                     />
                 </View>
 
@@ -871,6 +917,19 @@ const makeStyles = (t: AppTheme) =>
             color: t.colors.black,
             fontWeight: '800',
             fontSize: 13,
+        },
+        labelRow: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 8,
+        },
+        currentLocLink: {
+            fontSize: 11,
+            fontWeight: '800',
+            color: t.colors.secondary,
+            textTransform: 'uppercase',
+            letterSpacing: 0.5,
         },
     });
 

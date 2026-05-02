@@ -31,6 +31,7 @@ interface GooglePlacesInputProps {
     onPlaceSelected: (place: PlaceDetails) => void;
     apiKey: string;
     icon?: string;
+    initialValue?: string;
 }
 
 const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
@@ -38,11 +39,17 @@ const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
     onPlaceSelected,
     apiKey,
     icon = '📍',
+    initialValue = '',
 }) => {
     const { theme } = useAppTheme();
     const s = makeStyles(theme);
 
-    const [input, setInput] = useState('');
+    const [input, setInput] = useState(initialValue);
+
+    // Sync input if initialValue changes externally
+    useEffect(() => {
+        if (initialValue) setInput(initialValue);
+    }, [initialValue]);
     const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
     const [loading, setLoading] = useState(false);
     const [showPredictions, setShowPredictions] = useState(false);
