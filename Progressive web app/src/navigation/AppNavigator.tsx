@@ -13,6 +13,7 @@ import PinkPassDriverScreen from '../screens/driver/PinkPassDriverScreen';
 import PinkPassLivenessScreen from '../screens/driver/PinkPassLivenessScreen';
 import RideRequestScreen from '../screens/driver/RideRequestScreen';
 import TripNavScreen from '../screens/driver/TripNavScreen';
+import RatePassengerScreen from '../screens/driver/RatePassengerScreen';
 import ChatScreen from '../screens/main/ChatScreen';
 
 import { AuthProvider, useAuth } from '../context/AuthContext';
@@ -92,6 +93,7 @@ const DriverAppNavigator: React.FC = () => (
         <DriverStack.Screen name="DriverTabs"       component={DriverNavigator} />
         <DriverStack.Screen name="RideRequest"      component={RideRequestScreen} />
         <DriverStack.Screen name="TripNav"          component={TripNavScreen} />
+        <DriverStack.Screen name="RatePassenger"    component={RatePassengerScreen} />
         <DriverStack.Screen name="PinkPassDriver"   component={PinkPassDriverScreen} />
         <DriverStack.Screen name="PinkPassLiveness" component={PinkPassLivenessScreen} />
         <DriverStack.Screen name="Chat"             component={ChatScreen} />
@@ -133,6 +135,7 @@ const linking = {
                     TripNav:        'driver/navigation',
                     PinkPassDriver: 'driver/pink-pass',
                     PinkPassLiveness: 'driver/pink-pass/test',
+                    RatePassenger: 'driver/rate',
                 }
             },
 
