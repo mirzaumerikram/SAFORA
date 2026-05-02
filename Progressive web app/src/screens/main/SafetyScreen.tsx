@@ -59,6 +59,47 @@ const SafetyScreen: React.FC = () => {
     const [newPhone, setNewPhone]         = useState('');
     const [newRelation, setNewRelation]   = useState('');
 
+    // Report modal state
+    const [showReportModal, setShowReportModal] = useState(false);
+    const [reportText, setReportText]           = useState('');
+    const [isReporting, setIsReporting]         = useState(false);
+
+    // Insurance modal state
+    const [showInsuranceModal, setShowInsuranceModal] = useState(false);
+
+    // ── Safety Features handlers ────────────────────────────────────────────────
+    
+    const handleShareTrip = async () => {
+        if (Platform.OS === 'web') {
+            try {
+                await navigator.share({
+                    title: 'My SAFORA Trip',
+                    text: 'Hey, I am sharing my live SAFORA trip location with you.',
+                    url: 'https://safora.me/track/demo-trip'
+                });
+            } catch (e) {
+                Alert.alert('Share', 'Link copied to clipboard: https://safora.me/track/demo-trip');
+            }
+        } else {
+            Alert.alert('Share', 'Sharing live trip location…');
+        }
+    };
+
+    const handleSendReport = async () => {
+        if (!reportText.trim()) return;
+        setIsReporting(true);
+        try {
+            await apiService.post('/safety/report', { message: reportText });
+            Alert.alert('Success', 'Your report has been sent anonymously to our safety team.');
+            setReportText('');
+            setShowReportModal(false);
+        } catch (e) {
+            Alert.alert('Error', 'Failed to send report. Please try again.');
+        } finally {
+            setIsReporting(false);
+        }
+    };
+
     // Load real contacts on mount
     React.useEffect(() => {
         const loadContacts = async () => {
@@ -333,19 +374,27 @@ const SafetyScreen: React.FC = () => {
                         icon: '📍',
                         title: 'Share Live Trip',
                         desc: 'Share location with trusted contacts',
+                        onPress: handleShareTrip
                     },
                     {
                         icon: '🕵️',
                         title: 'Anonymous Reporting',
                         desc: 'Report issues safely & confidentially',
+                        onPress: () => setShowReportModal(true)
                     },
                     {
                         icon: '💳',
                         title: 'SIM Insurance',
                         desc: 'Coverage per ride, every time',
+                        onPress: () => setShowInsuranceModal(true)
                     },
                 ].map((feature, i) => (
-                    <View key={i} style={s.featureCard}>
+                    <TouchableOpacity 
+                        key={i} 
+                        style={s.featureCard} 
+                        onPress={feature.onPress}
+                        activeOpacity={0.7}
+                    >
                         <View style={s.featureIconWrap}>
                             <Text style={s.featureIcon}>{feature.icon}</Text>
                         </View>
@@ -354,7 +403,7 @@ const SafetyScreen: React.FC = () => {
                             <Text style={s.featureDesc}>{feature.desc}</Text>
                         </View>
                         <Text style={s.featureChevron}>›</Text>
-                    </View>
+                    </TouchableOpacity>
                 ))}
 
                 <View style={{ height: 32 }} />
@@ -428,6 +477,89 @@ const SafetyScreen: React.FC = () => {
                         </View>
                     </View>
                 </KeyboardAvoidingView>
+            </Modal>
+
+            {/* ── Anonymous Report Modal ────────────────────────────────────── */}
+            <Modal
+                visible={showReportModal}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowReportModal(false)}
+            >
+                <View style={s.reportOverlay}>
+                    <View style={s.reportBox}>
+                        <Text style={s.modalTitle}>Anonymous Report</Text>
+                        <Text style={s.modalSub}>Your identity will not be shared with the driver.</Text>
+                        
+                        <TextInput
+                            style={[s.modalInput, { height: 120, textAlignVertical: 'top', paddingTop: 12 }]}
+                            placeholder="What happened? (e.g. Unusual behavior, route deviation...)"
+                            placeholderTextColor={theme.colors.placeholder}
+                            multiline
+                            value={reportText}
+                            onChangeText={setReportText}
+                        />
+
+                        <View style={s.modalActions}>
+                            <TouchableOpacity
+                                style={s.modalCancelBtn}
+                                onPress={() => setShowReportModal(false)}
+                            >
+                                <Text style={s.modalCancelText}>Cancel</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[s.modalSaveBtn, { backgroundColor: theme.colors.primary }]}
+                                onPress={handleSendReport}
+                                disabled={isReporting}
+                            >
+                                {isReporting ? (
+                                    <ActivityIndicator color="#000" size="small" />
+                                ) : (
+                                    <Text style={[s.modalSaveText, { color: '#000' }]}>Send Report</Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* ── Insurance Info Modal ──────────────────────────────────────── */}
+            <Modal
+                visible={showInsuranceModal}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setShowInsuranceModal(false)}
+            >
+                <View style={s.modalOverlay}>
+                    <TouchableOpacity style={s.modalBackdrop} onPress={() => setShowInsuranceModal(false)} />
+                    <View style={s.modalSheet}>
+                        <View style={s.modalHandle} />
+                        <Text style={s.modalTitle}>SIM Insurance Coverage</Text>
+                        <Text style={s.insurancePara}>
+                            SAFORA provides accidental insurance coverage for every ride you take. This is automatically activated when your ride starts.
+                        </Text>
+                        <View style={s.insurancePoint}>
+                            <Text style={s.insuranceDot}>•</Text>
+                            <Text style={s.insuranceText}>Up to PKR 50,000 Medical Coverage</Text>
+                        </View>
+                        <View style={s.insurancePoint}>
+                            <Text style={s.insuranceDot}>•</Text>
+                            <Text style={s.insuranceText}>Accidental Life Insurance</Text>
+                        </View>
+                        <View style={s.insurancePoint}>
+                            <Text style={s.insuranceDot}>•</Text>
+                            <Text style={s.insuranceText}>24/7 Claim Support Team</Text>
+                        </View>
+                        
+                        <TouchableOpacity
+                            style={[s.modalSaveBtn, { width: '100%', marginTop: 24, backgroundColor: theme.colors.primary }]}
+                            onPress={() => setShowInsuranceModal(false)}
+                        >
+                            <Text style={[s.modalSaveText, { color: '#000' }]}>Got it</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
             </Modal>
 
         </View>
@@ -880,6 +1012,42 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
         fontSize: 14,
         fontWeight: '800',
         color: t.colors.black,
+    },
+
+    // Report/Insurance Specific
+    reportOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        justifyContent: 'center',
+        padding: 20,
+    },
+    reportBox: {
+        backgroundColor: t.colors.card,
+        borderRadius: 20,
+        padding: 24,
+        borderWidth: 1,
+        borderColor: t.colors.border,
+    },
+    insurancePara: {
+        color: t.colors.textSecondary,
+        fontSize: 14,
+        lineHeight: 22,
+        marginBottom: 16,
+    },
+    insurancePoint: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 10,
+    },
+    insuranceDot: {
+        color: t.colors.primary,
+        fontSize: 18,
+        marginRight: 8,
+    },
+    insuranceText: {
+        color: t.colors.text,
+        fontSize: 14,
+        fontWeight: '600',
     },
 });
 
