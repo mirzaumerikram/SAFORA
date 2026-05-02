@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity,
     ScrollView, ActivityIndicator, Platform, Alert,
-    RefreshControl,
+    RefreshControl, Image,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -46,20 +46,28 @@ const DriverProfileScreen: React.FC = () => {
         rejected:       { label: 'Rejected',          color: theme.colors.danger,        bg: 'rgba(255,68,68,0.1)',         icon: '✗' },
     };
 
-    const [profile, setProfile]     = useState<DriverProfile | null>(null);
-    const [loading, setLoading]     = useState(true);
+    const [profile, setProfile]       = useState<DriverProfile | null>(null);
+    const [loading, setLoading]       = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const [localUser, setLocalUser] = useState<any>(null);
-    const [updating, setUpdating] = useState(false);
+    const [localUser, setLocalUser]   = useState<any>(null);
+    const [updating, setUpdating]     = useState(false);
+    const [photoUploading, setPhotoUploading] = useState(false);
+    const [profilePicture, setProfilePicture] = useState('');
+    const fileInputRef = useRef<any>(null);
 
     const loadProfile = useCallback(async () => {
         try {
             const raw = await AsyncStorage.getItem(STORAGE_KEYS.USER_DATA);
-            if (raw) setLocalUser(JSON.parse(raw));
+            if (raw) {
+                const u = JSON.parse(raw);
+                setLocalUser(u);
+                if (u.profilePicture) setProfilePicture(u.profilePicture);
+            }
 
             const res: any = await apiService.get('/drivers/me');
             if (res.success) {
                 setProfile(res.driver);
+                if (res.driver.profilePicture) setProfilePicture(res.driver.profilePicture);
                 // Sync gender to localUser if missing
                 if (res.driver.gender && raw) {
                     const u = JSON.parse(raw);
@@ -87,6 +95,45 @@ const DriverProfileScreen: React.FC = () => {
             Alert.alert('Update Failed', e.message);
         } finally {
             setUpdating(false);
+        }
+    };
+
+    const handlePhotoPress = () => {
+        if (Platform.OS === 'web') {
+            fileInputRef.current?.click();
+        } else {
+            Alert.alert('Upload Photo', 'Choose a clear profile photo from your gallery.');
+        }
+    };
+
+    const handleFileChange = async (e: any) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setPhotoUploading(true);
+        try {
+            const reader = new FileReader();
+            reader.onload = async (ev) => {
+                const base64 = ev.target?.result as string;
+                try {
+                    const res: any = await apiService.post('/drivers/update-profile', { profilePicture: base64 });
+                    if (res.success) {
+                        setProfilePicture(base64);
+                        const raw = await AsyncStorage.getItem(STORAGE_KEYS.USER_DATA);
+                        if (raw) {
+                            const u = JSON.parse(raw);
+                            u.profilePicture = base64;
+                            await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(u));
+                        }
+                    }
+                } catch (err: any) {
+                    Alert.alert('Upload Failed', err.message || 'Could not upload photo');
+                } finally {
+                    setPhotoUploading(false);
+                }
+            };
+            reader.readAsDataURL(file);
+        } catch {
+            setPhotoUploading(false);
         }
     };
 
@@ -144,11 +191,38 @@ const DriverProfileScreen: React.FC = () => {
 
             {/* Avatar + Name */}
             <View style={s.avatarSection}>
-                <View style={s.avatar}>
-                    <Text style={s.avatarText}>
-                        {(profile?.name ?? localUser?.name ?? 'D').charAt(0).toUpperCase()}
-                    </Text>
-                </View>
+                {/* Hidden file input for web photo upload */}
+                {Platform.OS === 'web' && (
+                    // @ts-ignore
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        onChange={handleFileChange}
+                    />
+                )}
+                <TouchableOpacity
+                    style={s.avatarContainer}
+                    onPress={handlePhotoPress}
+                    activeOpacity={0.8}
+                >
+                    <View style={s.avatar}>
+                        {profilePicture ? (
+                            <Image source={{ uri: profilePicture }} style={s.avatarPhoto} />
+                        ) : (
+                            <Text style={s.avatarText}>
+                                {(profile?.name ?? localUser?.name ?? 'D').charAt(0).toUpperCase()}
+                            </Text>
+                        )}
+                    </View>
+                    <View style={s.editIconContainer}>
+                        {photoUploading
+                            ? <ActivityIndicator size="small" color={theme.colors.black} />
+                            : <Text style={s.editIcon}>📷</Text>
+                        }
+                    </View>
+                </TouchableOpacity>
                 <Text style={s.driverName}>{profile?.name ?? localUser?.name ?? 'Driver'}</Text>
                 <Text style={s.driverPhone}>{profile?.phone ?? localUser?.phone ?? ''}</Text>
 
@@ -330,8 +404,6 @@ const DriverProfileScreen: React.FC = () => {
             <TouchableOpacity style={s.logoutBtn} onPress={handleLogout}>
                 <Text style={s.logoutText}>Log Out</Text>
             </TouchableOpacity>
-
-            <Text style={s.version}>SAFORA Driver v1.0 · FYP26-CS-G11</Text>
         </ScrollView>
     );
 };
@@ -347,14 +419,23 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
     headerTitle:  { fontSize: 13, fontWeight: '900', color: t.colors.text, letterSpacing: 3 },
 
     avatarSection:{ alignItems: 'center', paddingVertical: 24, paddingHorizontal: 20 },
+    avatarContainer: { position: 'relative', marginBottom: 12 },
     avatar:       {
-        width: 80, height: 80, borderRadius: 40,
+        width: 100, height: 100, borderRadius: 50,
         backgroundColor: t.colors.primary, alignItems: 'center', justifyContent: 'center',
-        marginBottom: 12,
+        borderWidth: 4, borderColor: t.colors.card, overflow: 'hidden',
     },
-    avatarText:   { fontSize: 32, fontWeight: '900', color: t.colors.black },
-    driverName:   { fontSize: 20, fontWeight: '900', color: t.colors.text, marginBottom: 4 },
-    driverPhone:  { fontSize: 13, color: t.colors.textSecondary, marginBottom: 16 },
+    avatarPhoto:  { width: 100, height: 100, borderRadius: 50 },
+    editIconContainer: {
+        position: 'absolute', bottom: 0, right: 0,
+        backgroundColor: t.colors.primary, width: 32, height: 32,
+        borderRadius: 16, alignItems: 'center', justifyContent: 'center',
+        borderWidth: 3, borderColor: t.colors.card,
+    },
+    editIcon: { fontSize: 14 },
+    avatarText:   { fontSize: 40, fontWeight: '900', color: t.colors.black },
+    driverName:   { fontSize: 22, fontWeight: '900', color: t.colors.text, marginBottom: 4 },
+    driverPhone:  { fontSize: 14, color: t.colors.textSecondary, marginBottom: 16 },
     ratingRow:    { flexDirection: 'row', gap: 8 },
     ratingPill:   {
         flexDirection: 'row', alignItems: 'center', gap: 5,

@@ -3,7 +3,7 @@ import {
     View, Text, StyleSheet, TouchableOpacity,
     Switch, Modal, ActivityIndicator,
     Dimensions, Alert, Platform, PermissionsAndroid,
-    ScrollView,
+    ScrollView, Pressable, Image,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -17,6 +17,7 @@ import { AppTheme } from '../../utils/theme';
 import socketService from '../../services/socket.service';
 import apiService from '../../services/api';
 import { STORAGE_KEYS } from '../../utils/constants';
+import { useAuth } from '../../context/AuthContext';
 
 const { width } = Dimensions.get('window');
 
@@ -36,31 +37,46 @@ interface IncomingRide {
 const DriverDashboard: React.FC = () => {
     const navigation = useNavigation<any>();
     const { theme } = useAppTheme();
+    const { logout } = useAuth();
     const s = useMemo(() => makeStyles(theme), [theme]);
 
-    const [isOnline, setIsOnline]     = useState(false);
-    const [rideStatus, setRideStatus] = useState<RideStatus>('idle');
-    const [incoming, setIncoming]     = useState<IncomingRide | null>(null);
-    const [activeRide, setActiveRide] = useState<IncomingRide | null>(null);
+    const [isOnline, setIsOnline]         = useState(false);
+    const [rideStatus, setRideStatus]     = useState<RideStatus>('idle');
+    const [incoming, setIncoming]         = useState<IncomingRide | null>(null);
+    const [activeRide, setActiveRide]     = useState<IncomingRide | null>(null);
     const [actionLoading, setActionLoading] = useState(false);
-    const [driverId, setDriverId]     = useState<string>('');
-    const [driverName, setDriverName] = useState<string>('');
-    const [earnings, setEarnings]     = useState({ today: 0, trips: 0, rating: '5.0' });
+    const [driverId, setDriverId]         = useState<string>('');
+    const [driverName, setDriverName]     = useState<string>('');
+    const [profilePicture, setProfilePicture] = useState<string>('');
+    const [earnings, setEarnings]         = useState({ today: 0, trips: 0, rating: '5.0' });
+    const [menuOpen, setMenuOpen]         = useState(false);
     const socketConnected = useRef(false);
     const watchId = useRef<number | null>(null);
 
-    useEffect(() => {
-        AsyncStorage.getItem(STORAGE_KEYS.USER_DATA).then(raw => {
+    const loadDriver = async () => {
+        try {
+            const raw = await AsyncStorage.getItem(STORAGE_KEYS.USER_DATA);
             if (raw) {
                 const user = JSON.parse(raw);
                 setDriverId(user.id || user._id || '');
-                if (user.name) {
-                    const first = user.name.split(' ')[0];
-                    setDriverName(first.charAt(0).toUpperCase() + first.slice(1).toLowerCase());
-                }
+                if (user.name) setDriverName(user.name);
+                if (user.profilePicture) setProfilePicture(user.profilePicture);
             }
-        });
-    }, []);
+            // Fetch fresh profile from API
+            const res: any = await apiService.get('/drivers/me');
+            if (res.success && res.driver) {
+                setDriverName(res.driver.name || '');
+                setEarnings(prev => ({ ...prev, rating: res.driver.rating?.toFixed(1) || '5.0' }));
+                if (res.driver.profilePicture) setProfilePicture(res.driver.profilePicture);
+            }
+        } catch { /* use cached data */ }
+    };
+
+    useEffect(() => {
+        loadDriver();
+        const unsub = navigation.addListener('focus', loadDriver);
+        return unsub;
+    }, [navigation]);
 
     // Connect socket and listen for ride requests when going online
     const handleToggleOnline = async (value: boolean) => {
@@ -195,10 +211,49 @@ const DriverDashboard: React.FC = () => {
         }
     };
 
-    const initial = driverName.charAt(0).toUpperCase();
+    const initial = driverName ? driverName.charAt(0).toUpperCase() : 'D';
+
+    const menuItems = [
+        { icon: '👤', label: 'My Profile',   onPress: () => navigation.navigate('DriverProfile'), danger: false },
+        { icon: '💰', label: 'Earnings',      onPress: () => navigation.navigate('DriverEarnings'), danger: false },
+        { icon: '🎀', label: 'Pink Pass',     onPress: () => navigation.navigate('PinkPassDriver'), danger: false },
+        { icon: '🚪', label: 'Log Out',       onPress: () => logout(),                              danger: true  },
+    ];
 
     return (
         <View style={s.container}>
+            {/* ── Hamburger Menu Modal ── */}
+            <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
+                <Pressable style={s.menuOverlay} onPress={() => setMenuOpen(false)}>
+                    <Pressable style={s.menuPanel} onPress={e => e.stopPropagation()}>
+                        <View style={s.menuHeader}>
+                            <View style={s.menuBrand}>
+                                <Text style={s.menuBrandIcon}>🛡️</Text>
+                                <Text style={s.menuBrandName}>SAFORA</Text>
+                            </View>
+                            <TouchableOpacity style={s.menuCloseBtn} onPress={() => setMenuOpen(false)}>
+                                <Text style={s.menuCloseText}>✕</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={s.menuGreeting}>Hello, {driverName || 'Driver'} 👋</Text>
+                        <View style={s.menuItems}>
+                            {menuItems.map((item, i) => (
+                                <TouchableOpacity
+                                    key={i}
+                                    style={[s.menuItem, item.danger && s.menuItemDanger]}
+                                    onPress={() => { setMenuOpen(false); item.onPress(); }}
+                                    activeOpacity={0.75}
+                                >
+                                    <Text style={s.menuItemIcon}>{item.icon}</Text>
+                                    <Text style={[s.menuItemLabel, item.danger && s.menuItemLabelDanger]}>{item.label}</Text>
+                                    <Text style={s.menuItemArrow}>›</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    </Pressable>
+                </Pressable>
+            </Modal>
+
             {/* ── Incoming Ride Modal ── */}
             <Modal visible={rideStatus === 'incoming'} transparent animationType="slide">
                 <View style={s.modalOverlay}>
@@ -285,9 +340,26 @@ const DriverDashboard: React.FC = () => {
 
                 {/* Header Row */}
                 <View style={s.headerRow}>
-                    <Text style={s.greeting}>Hello, {driverName} 👋</Text>
-                    <View style={s.avatarCircle}>
-                        <Text style={s.avatarInitial}>{initial}</Text>
+                    <Text style={s.greeting}>Hello, {driverName || 'Driver'} 👋</Text>
+                    <View style={s.headerRight}>
+                        <TouchableOpacity
+                            style={s.avatarCircle}
+                            onPress={() => navigation.navigate('DriverProfile')}
+                            activeOpacity={0.8}
+                        >
+                            {profilePicture ? (
+                                <Image source={{ uri: profilePicture }} style={s.avatarImage} />
+                            ) : (
+                                <Text style={s.avatarInitial}>{initial}</Text>
+                            )}
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={s.hamburgerBtn}
+                            onPress={() => setMenuOpen(true)}
+                            activeOpacity={0.85}
+                        >
+                            <Text style={s.hamburgerIcon}>☰</Text>
+                        </TouchableOpacity>
                     </View>
                 </View>
 
@@ -468,6 +540,12 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
         flex: 1,
         flexWrap: 'wrap',
     },
+    headerRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        marginLeft: 12,
+    },
     avatarCircle: {
         width: 48,
         height: 48,
@@ -475,12 +553,104 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
         backgroundColor: t.colors.primary,
         alignItems: 'center',
         justifyContent: 'center',
-        marginLeft: 12,
+        overflow: 'hidden',
+    },
+    avatarImage: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
     },
     avatarInitial: {
         fontSize: 20,
         fontWeight: '900',
         color: t.colors.black,
+    },
+    hamburgerBtn: {
+        width: 42,
+        height: 42,
+        borderRadius: 21,
+        backgroundColor: t.dark ? '#2A2A2A' : '#F0F0F0',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: t.colors.border,
+    },
+    hamburgerIcon: {
+        fontSize: 18,
+        color: t.colors.text,
+    },
+
+    // ── Hamburger Menu ──
+    menuOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
+    },
+    menuPanel: {
+        backgroundColor: t.colors.card,
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        padding: 24,
+        paddingBottom: 48,
+    },
+    menuHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 8,
+    },
+    menuBrand: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    menuBrandIcon: { fontSize: 20 },
+    menuBrandName: {
+        fontSize: 18,
+        fontWeight: '900',
+        color: t.colors.text,
+        letterSpacing: 1,
+    },
+    menuCloseBtn: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: t.dark ? '#333' : '#EEE',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    menuCloseText: { fontSize: 14, color: t.colors.text, fontWeight: '700' },
+    menuGreeting: {
+        fontSize: 14,
+        color: t.colors.textSecondary,
+        marginBottom: 20,
+    },
+    menuItems: { gap: 4 },
+    menuItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        borderRadius: 14,
+        backgroundColor: t.dark ? '#1C1C1C' : '#F7F7F7',
+        marginBottom: 6,
+        gap: 14,
+    },
+    menuItemDanger: {
+        backgroundColor: 'rgba(255,68,68,0.08)',
+    },
+    menuItemIcon: { fontSize: 18 },
+    menuItemLabel: {
+        flex: 1,
+        fontSize: 15,
+        fontWeight: '700',
+        color: t.colors.text,
+    },
+    menuItemLabelDanger: { color: t.colors.danger },
+    menuItemArrow: {
+        fontSize: 20,
+        color: t.colors.textSecondary,
+        fontWeight: '300',
     },
 
     // ── Status Card ──
