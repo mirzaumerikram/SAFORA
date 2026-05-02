@@ -29,7 +29,9 @@ interface UserData {
     role?: string;
     gender?: string;
     pinkPassActive?: boolean;
-    emergencyContacts?: { _id?: string; name: string; phone: string; relation?: string }[];
+    homeAddress?: string;
+    workAddress?: string;
+    emergencyContacts?: { _id?: string; name: string; phone: string; relationship?: string }[];
 }
 
 // Avatar background colours for contact initials (cycles through)
@@ -54,6 +56,8 @@ const ProfileScreen: React.FC = () => {
     const [fullName, setFullName] = useState('');
     const [email, setEmail] = useState('');
     const [gender, setGender] = useState<'female' | 'male' | ''>('');
+    const [homeAddress, setHomeAddress] = useState('');
+    const [workAddress, setWorkAddress] = useState('');
     const [isSavingProfile, setIsSavingProfile] = useState(false);
 
     // ── Add-contact modal state ───────────────────────────────────────────────
@@ -101,6 +105,8 @@ const ProfileScreen: React.FC = () => {
                 setGender(g as 'female' | 'male');
             }
         }
+        setHomeAddress(data.homeAddress || '');
+        setWorkAddress(data.workAddress || '');
         if (data.emergencyContacts) setEmergencyContacts(data.emergencyContacts);
     };
 
@@ -117,6 +123,8 @@ const ProfileScreen: React.FC = () => {
                 name: fullName.trim(),
                 email: email.trim(),
                 gender: gender, // already lowercase
+                homeAddress: homeAddress.trim(),
+                workAddress: workAddress.trim(),
             });
             if (response.success && response.user) {
                 // Update local state with the actual user returned from server
@@ -344,6 +352,33 @@ const ProfileScreen: React.FC = () => {
                             </Text>
                         </TouchableOpacity>
                     </View>
+                </View>
+
+                {/* ── Saved Locations ───────────────────────────────────── */}
+                <Text style={s.sectionLabel}>SAVED LOCATIONS</Text>
+
+                {/* Home Address */}
+                <View style={s.fieldBlock}>
+                    <Text style={s.fieldLabel}>HOME ADDRESS</Text>
+                    <TextInput
+                        style={s.fieldInput}
+                        value={homeAddress}
+                        onChangeText={setHomeAddress}
+                        placeholder="e.g. Gulberg III, Lahore"
+                        placeholderTextColor={theme.colors.placeholder}
+                    />
+                </View>
+
+                {/* Work Address */}
+                <View style={s.fieldBlock}>
+                    <Text style={s.fieldLabel}>WORK ADDRESS</Text>
+                    <TextInput
+                        style={s.fieldInput}
+                        value={workAddress}
+                        onChangeText={setWorkAddress}
+                        placeholder="e.g. DHA Phase 5, Lahore"
+                        placeholderTextColor={theme.colors.placeholder}
+                    />
                 </View>
 
                 {/* Save Changes button */}

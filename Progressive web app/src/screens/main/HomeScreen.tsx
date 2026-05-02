@@ -55,6 +55,8 @@ const HomeScreen: React.FC = () => {
     const [fullName, setFullName]   = useState('');
     const [menuOpen, setMenuOpen]   = useState(false);
     const [activeTab, setActiveTab] = useState<TabId>('ride');
+    const [homeAddr, setHomeAddr]   = useState('');
+    const [workAddr, setWorkAddr]   = useState('');
 
     // Load user name from AsyncStorage
     useEffect(() => {
@@ -64,6 +66,8 @@ const HomeScreen: React.FC = () => {
                 const name: string = user?.name || '';
                 setFullName(name);
                 setUserName(name.split(' ')[0] || '');
+                setHomeAddr(user?.homeAddress || '');
+                setWorkAddr(user?.workAddress || '');
             }
         });
     }, []);
@@ -100,16 +104,16 @@ const HomeScreen: React.FC = () => {
         {
             icon: '🏢',
             label: 'Work',
-            subtitle: 'Add Address',
+            subtitle: workAddr || 'Add Address',
             bg: theme.colors.primary,
-            route: 'Profile', // Send to profile to set address
+            route: 'Profile', // Send to profile to set/change address
         },
         {
             icon: '🏠',
             label: 'Home',
-            subtitle: 'Add Address',
+            subtitle: homeAddr || 'Add Address',
             bg: theme.colors.cardSecondary,
-            route: 'Profile', // Send to profile to set address
+            route: 'Profile', // Send to profile to set/change address
         },
     ];
 
