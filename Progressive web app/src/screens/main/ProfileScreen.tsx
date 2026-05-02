@@ -140,7 +140,8 @@ const ProfileScreen: React.FC = () => {
                 const updatedUser = {
                     ...response.user,
                     homeAddress: response.user.homeAddress || homeAddress,
-                    workAddress: response.user.workAddress || workAddress
+                    workAddress: response.user.workAddress || workAddress,
+                    profilePicture: response.user.profilePicture || profilePicture
                 };
                 
                 applyUserData(updatedUser);
