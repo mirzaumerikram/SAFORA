@@ -57,11 +57,13 @@ const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
 
         setLoading(true);
         try {
-            const response = await fetch(
-                `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(
-                    text
-                )}&key=${apiKey}&components=country:pk&sessiontoken=SAFORA_SESSION`
-            );
+            let url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(text)}&key=${apiKey}&components=country:pk&sessiontoken=SAFORA_SESSION`;
+            
+            if (Platform.OS === 'web') {
+                url = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+            }
+
+            const response = await fetch(url);
 
             if (!response.ok) throw new Error('Autocomplete failed');
 
@@ -100,9 +102,13 @@ const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
     // Get place details (coordinates + formatted address)
     const handleSelectPlace = async (placeId: string, description: string) => {
         try {
-            const response = await fetch(
-                `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&key=${apiKey}&fields=geometry,formatted_address`
-            );
+            let url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&key=${apiKey}&fields=geometry,formatted_address`;
+            
+            if (Platform.OS === 'web') {
+                url = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+            }
+
+            const response = await fetch(url);
 
             if (!response.ok) throw new Error('Place details failed');
 
@@ -149,6 +155,7 @@ const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
                         keyExtractor={(item) => item.place_id}
                         scrollEnabled={true}
                         nestedScrollEnabled={true}
+                        keyboardShouldPersistTaps="handled"
                         renderItem={({ item }) => (
                             <TouchableOpacity
                                 style={s.predictionItem}

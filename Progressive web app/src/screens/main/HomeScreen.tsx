@@ -132,7 +132,7 @@ const HomeScreen: React.FC = () => {
             </View>
 
             {/* ── Full-screen overlay ── */}
-            <View style={s.overlay}>
+            <View style={s.overlay} pointerEvents="box-none">
 
                 {/* ── Top header ── */}
                 <View style={s.header}>
@@ -173,7 +173,7 @@ const HomeScreen: React.FC = () => {
                 </View>
 
                 {/* Spacer — pushes bottom sheet to bottom */}
-                <View style={s.flex1} />
+                <View style={s.flex1} pointerEvents="none" />
 
                 {/* ── Bottom white card ── */}
                 <View style={s.bottomCard}>
@@ -335,6 +335,7 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'flex-start',
         justifyContent: 'space-between',
+        zIndex: 10,
     },
 
     headerLeft: {

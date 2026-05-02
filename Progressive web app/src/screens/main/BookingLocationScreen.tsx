@@ -136,6 +136,7 @@ const BookingLocationScreen: React.FC = () => {
                 <ScrollView
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={s.inputContainer}
+                    keyboardShouldPersistTaps="handled"
                 >
                     {/* Pickup Location */}
                     <View style={s.locationSection}>

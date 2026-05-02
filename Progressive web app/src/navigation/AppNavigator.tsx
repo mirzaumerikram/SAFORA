@@ -50,20 +50,14 @@ const RootNavigator: React.FC = () => {
     }
 
     if (!isAuthenticated) {
-        return (
-            <NavigationContainer>
-                <AuthNavigator />
-            </NavigationContainer>
-        );
+        return <AuthNavigator />;
     }
 
     if (userRole === 'admin') {
         return (
-            <NavigationContainer>
-                <RootStack.Navigator screenOptions={{ headerShown: false }}>
-                    <RootStack.Screen name="AdminHome" component={AdminDashboard} />
-                </RootStack.Navigator>
-            </NavigationContainer>
+            <RootStack.Navigator screenOptions={{ headerShown: false }}>
+                <RootStack.Screen name="AdminHome" component={AdminDashboard} />
+            </RootStack.Navigator>
         );
     }
 
@@ -71,31 +65,23 @@ const RootNavigator: React.FC = () => {
         // Driver has not completed vehicle registration yet
         if (driverRegistered === false) {
             return (
-                <NavigationContainer>
-                    <RootStack.Navigator screenOptions={{ headerShown: false }}>
-                        <RootStack.Screen name="DriverOnboarding" component={DriverOnboardingScreen} />
-                        {/* Allow navigation back to driver app after onboarding */}
-                        <RootStack.Screen name="DriverApp" component={DriverAppNavigator} />
-                    </RootStack.Navigator>
-                </NavigationContainer>
+                <RootStack.Navigator screenOptions={{ headerShown: false }}>
+                    <RootStack.Screen name="DriverOnboarding" component={DriverOnboardingScreen} />
+                    {/* Allow navigation back to driver app after onboarding */}
+                    <RootStack.Screen name="DriverApp" component={DriverAppNavigator} />
+                </RootStack.Navigator>
             );
         }
 
         return (
-            <NavigationContainer>
-                <RootStack.Navigator screenOptions={{ headerShown: false }}>
-                    <RootStack.Screen name="DriverApp" component={DriverAppNavigator} />
-                </RootStack.Navigator>
-            </NavigationContainer>
+            <RootStack.Navigator screenOptions={{ headerShown: false }}>
+                <RootStack.Screen name="DriverApp" component={DriverAppNavigator} />
+            </RootStack.Navigator>
         );
     }
 
     // Default: passenger
-    return (
-        <NavigationContainer>
-            <MainNavigator />
-        </NavigationContainer>
-    );
+    return <MainNavigator />;
 };
 
 // Full driver stack: tabs + Pink Pass screens
@@ -117,7 +103,9 @@ const AppNavigator: React.FC = () => {
         <ThemeProvider>
             <LanguageProvider>
                 <AuthProvider>
-                    <RootNavigator />
+                    <NavigationContainer>
+                        <RootNavigator />
+                    </NavigationContainer>
                 </AuthProvider>
             </LanguageProvider>
         </ThemeProvider>
