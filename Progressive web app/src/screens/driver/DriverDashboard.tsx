@@ -54,7 +54,10 @@ const DriverDashboard: React.FC = () => {
             if (raw) {
                 const user = JSON.parse(raw);
                 setDriverId(user.id || user._id || '');
-                if (user.name) setDriverName(user.name.split(' ')[0]);
+                if (user.name) {
+                    const first = user.name.split(' ')[0];
+                    setDriverName(first.charAt(0).toUpperCase() + first.slice(1).toLowerCase());
+                }
             }
         });
     }, []);
@@ -402,9 +405,12 @@ const DriverDashboard: React.FC = () => {
 
                 {/* Mini Map Preview */}
                 <View style={s.mapPreviewCard}>
-                    <SaforaMap type="home" />
+                    <SaforaMap 
+                        type="driver" 
+                        centerOnUser={true}
+                    />
                     <View style={s.mapOverlay}>
-                        <Text style={s.mapOverlayText}>📍 Lahore — Live Map</Text>
+                        <Text style={s.mapOverlayText}>📍 Your Location — Live Map</Text>
                     </View>
                 </View>
 

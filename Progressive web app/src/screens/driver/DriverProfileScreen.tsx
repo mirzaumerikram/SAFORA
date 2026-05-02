@@ -6,7 +6,8 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import theme from '../../utils/theme';
+import { useAppTheme } from '../../context/ThemeContext';
+import { AppTheme } from '../../utils/theme';
 import apiService from '../../services/api';
 import { STORAGE_KEYS } from '../../utils/constants';
 
@@ -42,10 +43,14 @@ const PINK_STATUS_CONFIG = {
 
 const DriverProfileScreen: React.FC = () => {
     const navigation = useNavigation<any>();
+    const { theme, toggleTheme, isDark } = useAppTheme();
+    const s = makeStyles(theme);
+
     const [profile, setProfile]     = useState<DriverProfile | null>(null);
     const [loading, setLoading]     = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [localUser, setLocalUser] = useState<any>(null);
+    const [updating, setUpdating] = useState(false);
 
     const loadProfile = useCallback(async () => {
         try {
@@ -53,7 +58,16 @@ const DriverProfileScreen: React.FC = () => {
             if (raw) setLocalUser(JSON.parse(raw));
 
             const res: any = await apiService.get('/drivers/me');
-            if (res.success) setProfile(res.driver);
+            if (res.success) {
+                setProfile(res.driver);
+                // Sync gender to localUser if missing
+                if (res.driver.gender && raw) {
+                    const u = JSON.parse(raw);
+                    u.gender = res.driver.gender;
+                    await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(u));
+                    setLocalUser(u);
+                }
+            }
         } catch (e) {
             console.log('[Profile] load error:', e);
         } finally {
@@ -61,6 +75,20 @@ const DriverProfileScreen: React.FC = () => {
             setRefreshing(false);
         }
     }, []);
+
+    const updateGender = async (gender: string) => {
+        setUpdating(true);
+        try {
+            const res: any = await apiService.post('/drivers/update-profile', { gender });
+            if (res.success) {
+                await loadProfile();
+            }
+        } catch (e: any) {
+            Alert.alert('Update Failed', e.message);
+        } finally {
+            setUpdating(false);
+        }
+    };
 
     useEffect(() => { loadProfile(); }, [loadProfile]);
 
@@ -86,7 +114,7 @@ const DriverProfileScreen: React.FC = () => {
 
     if (loading) {
         return (
-            <View style={styles.centered}>
+            <View style={s.centered}>
                 <ActivityIndicator size="large" color={theme.colors.primary} />
             </View>
         );
@@ -98,8 +126,8 @@ const DriverProfileScreen: React.FC = () => {
 
     return (
         <ScrollView
-            style={styles.container}
-            contentContainerStyle={styles.scroll}
+            style={s.container}
+            contentContainerStyle={s.scroll}
             showsVerticalScrollIndicator={false}
             refreshControl={
                 <RefreshControl
@@ -110,78 +138,119 @@ const DriverProfileScreen: React.FC = () => {
             }
         >
             {/* Header */}
-            <View style={styles.header}>
-                <Text style={styles.headerTitle}>MY PROFILE</Text>
+            <View style={s.header}>
+                <Text style={s.headerTitle}>MY PROFILE</Text>
             </View>
 
             {/* Avatar + Name */}
-            <View style={styles.avatarSection}>
-                <View style={styles.avatar}>
-                    <Text style={styles.avatarText}>
+            <View style={s.avatarSection}>
+                <View style={s.avatar}>
+                    <Text style={s.avatarText}>
                         {(profile?.name ?? localUser?.name ?? 'D').charAt(0).toUpperCase()}
                     </Text>
                 </View>
-                <Text style={styles.driverName}>{profile?.name ?? localUser?.name ?? 'Driver'}</Text>
-                <Text style={styles.driverPhone}>{profile?.phone ?? localUser?.phone ?? ''}</Text>
+                <Text style={s.driverName}>{profile?.name ?? localUser?.name ?? 'Driver'}</Text>
+                <Text style={s.driverPhone}>{profile?.phone ?? localUser?.phone ?? ''}</Text>
 
                 {/* Rating row */}
-                <View style={styles.ratingRow}>
-                    <View style={styles.ratingPill}>
-                        <Text style={styles.ratingIcon}>⭐</Text>
-                        <Text style={styles.ratingVal}>{profile?.rating?.toFixed(1) ?? '5.0'}</Text>
+                <View style={s.ratingRow}>
+                    <View style={s.ratingPill}>
+                        <Text style={s.ratingIcon}>⭐</Text>
+                        <Text style={s.ratingVal}>{profile?.rating?.toFixed(1) ?? '5.0'}</Text>
                     </View>
-                    <View style={styles.ratingPill}>
-                        <Text style={styles.ratingIcon}>🚗</Text>
-                        <Text style={styles.ratingVal}>{profile?.totalRides ?? 0} rides</Text>
+                    <View style={s.ratingPill}>
+                        <Text style={s.ratingIcon}>🚗</Text>
+                        <Text style={s.ratingVal}>{profile?.totalRides ?? 0} rides</Text>
                     </View>
-                    <View style={styles.ratingPill}>
-                        <Text style={styles.ratingIcon}>💰</Text>
-                        <Text style={styles.ratingVal}>RS {profile?.totalEarnings ?? 0}</Text>
+                    <View style={s.ratingPill}>
+                        <Text style={s.ratingIcon}>💰</Text>
+                        <Text style={s.ratingVal}>RS {profile?.totalEarnings ?? 0}</Text>
+                    </View>
+                </View>
+            </View>
+
+            {/* App Settings Card */}
+            <View style={s.sectionCard}>
+                <Text style={s.sectionTitle}>App Preferences</Text>
+                
+                {/* Theme Toggle */}
+                <View style={s.infoRow}>
+                    <Text style={s.infoLabel}>App Theme</Text>
+                    <TouchableOpacity 
+                        style={s.themePill} 
+                        onPress={toggleTheme}
+                    >
+                        <Text style={s.themePillText}>
+                            {isDark ? '🌙 Dark Mode' : '☀️ Light Mode'}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+
+                <View style={s.divider} />
+
+                {/* Gender Toggle */}
+                <View style={s.infoRow}>
+                    <Text style={s.infoLabel}>Gender</Text>
+                    <View style={s.genderRow}>
+                        <TouchableOpacity 
+                            style={[s.genderBtn, profile?.gender === 'male' && s.genderBtnActive]}
+                            onPress={() => updateGender('male')}
+                            disabled={updating}
+                        >
+                            <Text style={[s.genderBtnText, profile?.gender === 'male' && s.genderBtnTextActive]}>Male</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity 
+                            style={[s.genderBtn, profile?.gender === 'female' && s.genderBtnActive]}
+                            onPress={() => updateGender('female')}
+                            disabled={updating}
+                        >
+                            <Text style={[s.genderBtnText, profile?.gender === 'female' && s.genderBtnTextActive]}>Female</Text>
+                        </TouchableOpacity>
                     </View>
                 </View>
             </View>
 
             {/* Pink Pass Card */}
-            <View style={styles.sectionCard}>
-                <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Pink Pass Status</Text>
-                    <View style={[styles.statusBadge, { backgroundColor: pinkCfg.bg }]}>
-                        <Text style={[styles.statusText, { color: pinkCfg.color }]}>
+            <View style={s.sectionCard}>
+                <View style={s.sectionHeader}>
+                    <Text style={s.sectionTitle}>Pink Pass Status</Text>
+                    <View style={[s.statusBadge, { backgroundColor: pinkCfg.bg }]}>
+                        <Text style={[s.statusText, { color: pinkCfg.color }]}>
                             {pinkCfg.icon} {pinkCfg.label}
                         </Text>
                     </View>
                 </View>
 
                 {profile?.pinkPassStatus === 'approved' && (
-                    <Text style={styles.pinkCertText}>
+                    <Text style={s.pinkCertText}>
                         You are a certified Pink Pass driver. You will receive Pink Pass ride requests from female passengers.
                     </Text>
                 )}
 
                 {profile?.pinkPassStatus === 'pending_review' && (
-                    <Text style={styles.pinkPendingText}>
+                    <Text style={s.pinkPendingText}>
                         Your application is being reviewed by our team. This typically takes 24-48 hours.
                     </Text>
                 )}
 
                 {profile?.pinkPassStatus === 'rejected' && (
-                    <Text style={styles.pinkRejectedText}>
+                    <Text style={s.pinkRejectedText}>
                         Your application was rejected. Please re-apply with a clearer CNIC photo and ensure you are in good lighting during the liveness test.
                     </Text>
                 )}
 
                 {!isFemale && profile?.pinkPassStatus === 'none' && (
-                    <Text style={styles.pinkInfoText}>
+                    <Text style={s.pinkInfoText}>
                         Pink Pass is exclusively for verified female drivers. Gender must be set to Female in your profile.
                     </Text>
                 )}
 
                 {canApplyPinkPass && (
                     <TouchableOpacity
-                        style={styles.pinkPassBtn}
+                        style={s.pinkPassBtn}
                         onPress={() => navigation.navigate('PinkPassDriver')}
                     >
-                        <Text style={styles.pinkPassBtnText}>
+                        <Text style={s.pinkPassBtnText}>
                             {profile?.pinkPassStatus === 'rejected' ? '↺ Re-Apply' : '🎀 Apply for Pink Pass'}
                         </Text>
                     </TouchableOpacity>
@@ -189,12 +258,12 @@ const DriverProfileScreen: React.FC = () => {
             </View>
 
             {/* Account Status */}
-            <View style={styles.sectionCard}>
-                <Text style={styles.sectionTitle}>Account Status</Text>
-                <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Background Check</Text>
+            <View style={s.sectionCard}>
+                <Text style={s.sectionTitle}>Account Status</Text>
+                <View style={s.infoRow}>
+                    <Text style={s.infoLabel}>Background Check</Text>
                     <Text style={[
-                        styles.infoVal,
+                        s.infoVal,
                         profile?.backgroundCheck?.status === 'approved'
                             ? { color: theme.colors.success }
                             : { color: '#FFA000' }
@@ -202,10 +271,10 @@ const DriverProfileScreen: React.FC = () => {
                         {profile?.backgroundCheck?.status === 'approved' ? '✓ Approved' : '⏳ Pending'}
                     </Text>
                 </View>
-                <View style={styles.divider} />
-                <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Member Since</Text>
-                    <Text style={styles.infoVal}>
+                <View style={s.divider} />
+                <View style={s.infoRow}>
+                    <Text style={s.infoLabel}>Member Since</Text>
+                    <Text style={s.infoVal}>
                         {profile?.joinedAt
                             ? new Date(profile.joinedAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
                             : '—'}
@@ -214,16 +283,16 @@ const DriverProfileScreen: React.FC = () => {
             </View>
 
             {/* License & Documents */}
-            <View style={styles.sectionCard}>
-                <Text style={styles.sectionTitle}>Documents</Text>
-                <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>License Number</Text>
-                    <Text style={styles.infoVal}>{profile?.licenseNumber ?? '—'}</Text>
+            <View style={s.sectionCard}>
+                <Text style={s.sectionTitle}>Documents</Text>
+                <View style={s.infoRow}>
+                    <Text style={s.infoLabel}>License Number</Text>
+                    <Text style={s.infoVal}>{profile?.licenseNumber ?? '—'}</Text>
                 </View>
-                <View style={styles.divider} />
-                <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>CNIC</Text>
-                    <Text style={styles.infoVal}>
+                <View style={s.divider} />
+                <View style={s.infoRow}>
+                    <Text style={s.infoLabel}>CNIC</Text>
+                    <Text style={s.infoVal}>
                         {profile?.cnic ? `••••••••${profile.cnic.slice(-3)}` : '—'}
                     </Text>
                 </View>
@@ -231,85 +300,85 @@ const DriverProfileScreen: React.FC = () => {
 
             {/* Vehicle Info */}
             {profile?.vehicle && (
-                <View style={styles.sectionCard}>
-                    <Text style={styles.sectionTitle}>Vehicle</Text>
-                    <View style={styles.vehicleGrid}>
-                        <View style={styles.vehicleItem}>
-                            <Text style={styles.vehicleLabel}>MAKE</Text>
-                            <Text style={styles.vehicleVal}>{profile.vehicle.make}</Text>
+                <View style={s.sectionCard}>
+                    <Text style={s.sectionTitle}>Vehicle</Text>
+                    <View style={s.vehicleGrid}>
+                        <View style={s.vehicleItem}>
+                            <Text style={s.vehicleLabel}>MAKE</Text>
+                            <Text style={s.vehicleVal}>{profile.vehicle.make}</Text>
                         </View>
-                        <View style={styles.vehicleItem}>
-                            <Text style={styles.vehicleLabel}>MODEL</Text>
-                            <Text style={styles.vehicleVal}>{profile.vehicle.model}</Text>
+                        <View style={s.vehicleItem}>
+                            <Text style={s.vehicleLabel}>MODEL</Text>
+                            <Text style={s.vehicleVal}>{profile.vehicle.model}</Text>
                         </View>
-                        <View style={styles.vehicleItem}>
-                            <Text style={styles.vehicleLabel}>YEAR</Text>
-                            <Text style={styles.vehicleVal}>{profile.vehicle.year}</Text>
+                        <View style={s.vehicleItem}>
+                            <Text style={s.vehicleLabel}>YEAR</Text>
+                            <Text style={s.vehicleVal}>{profile.vehicle.year}</Text>
                         </View>
-                        <View style={styles.vehicleItem}>
-                            <Text style={styles.vehicleLabel}>COLOR</Text>
-                            <Text style={styles.vehicleVal}>{profile.vehicle.color}</Text>
+                        <View style={s.vehicleItem}>
+                            <Text style={s.vehicleLabel}>COLOR</Text>
+                            <Text style={s.vehicleVal}>{profile.vehicle.color}</Text>
                         </View>
                     </View>
-                    <View style={styles.plateBox}>
-                        <Text style={styles.plateText}>{profile.vehicle.plateNumber}</Text>
+                    <View style={s.plateBox}>
+                        <Text style={s.plateText}>{profile.vehicle.plateNumber}</Text>
                     </View>
                 </View>
             )}
 
             {/* Logout */}
-            <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-                <Text style={styles.logoutText}>Log Out</Text>
+            <TouchableOpacity style={s.logoutBtn} onPress={handleLogout}>
+                <Text style={s.logoutText}>Log Out</Text>
             </TouchableOpacity>
 
-            <Text style={styles.version}>SAFORA Driver v1.0 · FYP26-CS-G11</Text>
+            <Text style={s.version}>SAFORA Driver v1.0 · FYP26-CS-G11</Text>
         </ScrollView>
     );
 };
 
-const styles = StyleSheet.create({
-    container:    { flex: 1, backgroundColor: theme.colors.background },
+const makeStyles = (t: AppTheme) => StyleSheet.create({
+    container:    { flex: 1, backgroundColor: t.colors.background },
     scroll:       { paddingBottom: 40 },
-    centered:     { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background },
+    centered:     { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: t.colors.background },
     header:       {
         paddingTop: Platform.OS === 'ios' ? 54 : 44,
         paddingHorizontal: 20, paddingBottom: 8, alignItems: 'center',
     },
-    headerTitle:  { fontSize: 13, fontWeight: '900', color: theme.colors.text, letterSpacing: 3 },
+    headerTitle:  { fontSize: 13, fontWeight: '900', color: t.colors.text, letterSpacing: 3 },
 
     avatarSection:{ alignItems: 'center', paddingVertical: 24, paddingHorizontal: 20 },
     avatar:       {
         width: 80, height: 80, borderRadius: 40,
-        backgroundColor: theme.colors.primary, alignItems: 'center', justifyContent: 'center',
+        backgroundColor: t.colors.primary, alignItems: 'center', justifyContent: 'center',
         marginBottom: 12,
     },
-    avatarText:   { fontSize: 32, fontWeight: '900', color: theme.colors.black },
-    driverName:   { fontSize: 20, fontWeight: '900', color: theme.colors.text, marginBottom: 4 },
-    driverPhone:  { fontSize: 13, color: theme.colors.textSecondary, marginBottom: 16 },
+    avatarText:   { fontSize: 32, fontWeight: '900', color: t.colors.black },
+    driverName:   { fontSize: 20, fontWeight: '900', color: t.colors.text, marginBottom: 4 },
+    driverPhone:  { fontSize: 13, color: t.colors.textSecondary, marginBottom: 16 },
     ratingRow:    { flexDirection: 'row', gap: 8 },
     ratingPill:   {
         flexDirection: 'row', alignItems: 'center', gap: 5,
-        backgroundColor: theme.colors.card, borderRadius: 20,
+        backgroundColor: t.colors.card, borderRadius: 20,
         paddingHorizontal: 12, paddingVertical: 7,
-        borderWidth: 1, borderColor: '#222',
+        borderWidth: 1, borderColor: t.colors.border,
     },
     ratingIcon:   { fontSize: 13 },
-    ratingVal:    { fontSize: 12, fontWeight: '700', color: theme.colors.text },
+    ratingVal:    { fontSize: 12, fontWeight: '700', color: t.colors.text },
 
     sectionCard:  {
-        backgroundColor: theme.colors.card, borderRadius: 18,
+        backgroundColor: t.colors.card, borderRadius: 18,
         marginHorizontal: 20, marginBottom: 14,
-        padding: 18, borderWidth: 1, borderColor: '#1E1E1E',
+        padding: 18, borderWidth: 1, borderColor: t.colors.border,
     },
     sectionHeader:{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-    sectionTitle: { fontSize: 14, fontWeight: '900', color: theme.colors.text, marginBottom: 12 },
+    sectionTitle: { fontSize: 14, fontWeight: '900', color: t.colors.text, marginBottom: 12 },
     statusBadge:  { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20 },
     statusText:   { fontSize: 11, fontWeight: '700' },
 
-    pinkCertText:     { fontSize: 12, color: theme.colors.success, lineHeight: 18 },
+    pinkCertText:     { fontSize: 12, color: t.colors.success, lineHeight: 18 },
     pinkPendingText:  { fontSize: 12, color: '#FFA000', lineHeight: 18 },
-    pinkRejectedText: { fontSize: 12, color: theme.colors.danger, lineHeight: 18 },
-    pinkInfoText:     { fontSize: 12, color: theme.colors.textSecondary, lineHeight: 18 },
+    pinkRejectedText: { fontSize: 12, color: t.colors.danger, lineHeight: 18 },
+    pinkInfoText:     { fontSize: 12, color: t.colors.textSecondary, lineHeight: 18 },
 
     pinkPassBtn:  {
         backgroundColor: 'rgba(255,105,180,0.15)', borderRadius: 12,
@@ -319,23 +388,41 @@ const styles = StyleSheet.create({
     pinkPassBtnText: { color: '#FF69B4', fontWeight: '700', fontSize: 13 },
 
     infoRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 },
-    infoLabel: { fontSize: 13, color: theme.colors.textSecondary },
-    infoVal:   { fontSize: 13, fontWeight: '700', color: theme.colors.text },
-    divider:   { height: 1, backgroundColor: '#222', marginVertical: 4 },
+    infoLabel: { fontSize: 13, color: t.colors.textSecondary },
+    infoVal:   { fontSize: 13, fontWeight: '700', color: t.colors.text },
+    divider:   { height: 1, backgroundColor: t.colors.divider, marginVertical: 4 },
+
+    themePill: {
+        backgroundColor: t.colors.cardSecondary, borderRadius: 20,
+        paddingHorizontal: 14, paddingVertical: 6,
+        borderWidth: 1, borderColor: t.colors.border,
+    },
+    themePillText: { fontSize: 11, fontWeight: '700', color: t.colors.text },
+
+    genderRow: { flexDirection: 'row', gap: 6 },
+    genderBtn: {
+        paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
+        backgroundColor: t.colors.cardSecondary, borderWidth: 1, borderColor: t.colors.border,
+    },
+    genderBtnActive: {
+        backgroundColor: t.colors.primary, borderColor: t.colors.primary,
+    },
+    genderBtnText: { fontSize: 11, color: t.colors.textSecondary, fontWeight: '600' },
+    genderBtnTextActive: { color: t.colors.black, fontWeight: '800' },
 
     vehicleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 14 },
     vehicleItem: {
-        width: '47%', backgroundColor: '#111',
+        width: '47%', backgroundColor: t.colors.cardSecondary,
         borderRadius: 10, padding: 12,
     },
-    vehicleLabel:{ fontSize: 9, fontWeight: '800', color: theme.colors.textSecondary, letterSpacing: 1.5, marginBottom: 4 },
-    vehicleVal:  { fontSize: 14, fontWeight: '700', color: theme.colors.text },
+    vehicleLabel:{ fontSize: 9, fontWeight: '800', color: t.colors.textSecondary, letterSpacing: 1.5, marginBottom: 4 },
+    vehicleVal:  { fontSize: 14, fontWeight: '700', color: t.colors.text },
     plateBox:    {
-        backgroundColor: '#111', borderRadius: 10,
+        backgroundColor: t.colors.cardSecondary, borderRadius: 10,
         padding: 12, alignItems: 'center',
-        borderWidth: 1, borderColor: theme.colors.primary,
+        borderWidth: 1, borderColor: t.colors.primary,
     },
-    plateText:   { fontSize: 18, fontWeight: '900', color: theme.colors.primary, letterSpacing: 3 },
+    plateText:   { fontSize: 18, fontWeight: '900', color: t.colors.primary, letterSpacing: 3 },
 
     logoutBtn:   {
         marginHorizontal: 20, marginTop: 8, marginBottom: 12,
@@ -343,8 +430,8 @@ const styles = StyleSheet.create({
         paddingVertical: 16, alignItems: 'center',
         borderWidth: 1, borderColor: 'rgba(255,68,68,0.2)',
     },
-    logoutText:  { color: theme.colors.danger, fontWeight: '700', fontSize: 14 },
-    version:     { textAlign: 'center', fontSize: 10, color: '#333', marginBottom: 8 },
+    logoutText:  { color: t.colors.danger, fontWeight: '700', fontSize: 14 },
+    version:     { textAlign: 'center', fontSize: 10, color: t.colors.textSecondary, marginBottom: 8 },
 });
 
 export default DriverProfileScreen;
