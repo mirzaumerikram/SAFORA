@@ -12,6 +12,7 @@ import {
     Modal,
     KeyboardAvoidingView,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { useAppTheme } from '../../context/ThemeContext';
 import { AppTheme } from '../../utils/theme';
@@ -29,10 +30,7 @@ interface EmergencyContact {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const defaultContacts: EmergencyContact[] = [
-    { id: '1', name: 'Ammi Jan',    phone: '+92 300 1234567', relation: 'Mother'  },
-    { id: '2', name: 'Bhai Sahab', phone: '+92 321 9876543', relation: 'Brother' },
-];
+const defaultContacts: EmergencyContact[] = [];
 
 const CONTACT_COLORS = [
     '#F5C518', '#EF4444', '#22C55E', '#3B82F6',
@@ -54,11 +52,38 @@ const SafetyScreen: React.FC = () => {
     const [sosLoading, setSosLoading] = useState(false);
 
     // Contacts state
-    const [contacts, setContacts]         = useState<EmergencyContact[]>(defaultContacts);
+    const [contacts, setContacts]         = useState<EmergencyContact[]>([]);
+    const [isLoading, setIsLoading]       = useState(true);
     const [showAddModal, setShowAddModal] = useState(false);
     const [newName, setNewName]           = useState('');
     const [newPhone, setNewPhone]         = useState('');
     const [newRelation, setNewRelation]   = useState('');
+
+    // Load real contacts on mount
+    React.useEffect(() => {
+        const loadContacts = async () => {
+            try {
+                const raw = await AsyncStorage.getItem('@safora_user_data');
+                if (raw) {
+                    const user = JSON.parse(raw);
+                    if (user.emergencyContacts) {
+                        const mapped = user.emergencyContacts.map((c: any) => ({
+                            id: c._id || Math.random().toString(),
+                            name: c.name,
+                            phone: c.phone,
+                            relation: c.relation || c.relationship || 'Contact'
+                        }));
+                        setContacts(mapped);
+                    }
+                }
+            } catch (e) {
+                console.log('[Safety] Load error:', e);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        loadContacts();
+    }, []);
 
     // ── SOS handler ────────────────────────────────────────────────────────────
 
@@ -243,40 +268,49 @@ const SafetyScreen: React.FC = () => {
                 {/* ── Emergency Contacts ──────────────────────────────────── */}
                 <Text style={s.sectionLabel}>EMERGENCY CONTACTS</Text>
 
-                {contacts.map((contact, index) => (
-                    <View key={contact.id} style={s.contactCard}>
-                        <View style={[s.contactAvatar, { backgroundColor: getContactColor(index) }]}>
-                            <Text style={s.contactAvatarText}>
-                                {contact.name.charAt(0).toUpperCase()}
-                            </Text>
+                {isLoading ? (
+                    <ActivityIndicator color={theme.colors.primary} style={{ marginVertical: 20 }} />
+                ) : contacts.length > 0 ? (
+                    contacts.map((contact, index) => (
+                        <View key={contact.id} style={s.contactCard}>
+                            <View style={[s.contactAvatar, { backgroundColor: getContactColor(index) }]}>
+                                <Text style={s.contactAvatarText}>
+                                    {contact.name.charAt(0).toUpperCase()}
+                                </Text>
+                            </View>
+
+                            <View style={s.contactInfo}>
+                                <Text style={s.contactName}>{contact.name}</Text>
+                                <Text style={s.contactMeta}>
+                                    {contact.relation}
+                                    <Text style={s.contactMetaDot}> · </Text>
+                                    {contact.phone}
+                                </Text>
+                            </View>
+
+                            <TouchableOpacity
+                                style={s.callBtn}
+                                onPress={() => handleCallContact(contact.phone)}
+                                activeOpacity={0.8}
+                            >
+                                <Text style={s.callBtnIcon}>📞</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={s.removeBtn}
+                                onPress={() => handleRemoveContact(contact.id)}
+                                activeOpacity={0.8}
+                            >
+                                <Text style={s.removeBtnText}>✕</Text>
+                            </TouchableOpacity>
                         </View>
-
-                        <View style={s.contactInfo}>
-                            <Text style={s.contactName}>{contact.name}</Text>
-                            <Text style={s.contactMeta}>
-                                {contact.relation}
-                                <Text style={s.contactMetaDot}> · </Text>
-                                {contact.phone}
-                            </Text>
-                        </View>
-
-                        <TouchableOpacity
-                            style={s.callBtn}
-                            onPress={() => handleCallContact(contact.phone)}
-                            activeOpacity={0.8}
-                        >
-                            <Text style={s.callBtnIcon}>📞</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={s.removeBtn}
-                            onPress={() => handleRemoveContact(contact.id)}
-                            activeOpacity={0.8}
-                        >
-                            <Text style={s.removeBtnText}>✕</Text>
-                        </TouchableOpacity>
+                    ))
+                ) : (
+                    <View style={s.emptyState}>
+                        <Text style={s.emptyStateTitle}>No emergency contacts added</Text>
+                        <Text style={s.emptyStateSub}>Add trusted contacts who can be notified in an emergency.</Text>
                     </View>
-                ))}
+                )}
 
                 {/* ── Add Contact Row ──────────────────────────────────────── */}
                 <TouchableOpacity
@@ -445,6 +479,31 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
         paddingHorizontal: 20,
         paddingTop: 8,
         paddingBottom: 40,
+    },
+
+    // Empty State
+    emptyState: {
+        backgroundColor: t.colors.cardSecondary,
+        borderRadius: 16,
+        paddingVertical: 32,
+        paddingHorizontal: 20,
+        alignItems: 'center',
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: t.colors.border,
+        borderStyle: 'dashed',
+    },
+    emptyStateTitle: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: t.colors.text,
+        marginBottom: 6,
+    },
+    emptyStateSub: {
+        fontSize: 12,
+        color: t.colors.textSecondary,
+        textAlign: 'center',
+        lineHeight: 18,
     },
 
     // SOS Active Banner
