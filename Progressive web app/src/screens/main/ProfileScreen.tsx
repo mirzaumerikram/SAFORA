@@ -137,11 +137,18 @@ const ProfileScreen: React.FC = () => {
             });
             if (response.success && response.user) {
                 // Update local state but preserve what we just typed if server returns empty (safety)
+                // Bulletproof merge logic
+                const localData = await AsyncStorage.getItem(STORAGE_KEYS.USER_DATA);
+                const currentUser = localData ? JSON.parse(localData) : {};
+
                 const updatedUser = {
+                    ...currentUser,
                     ...response.user,
-                    homeAddress: response.user.homeAddress || homeAddress,
-                    workAddress: response.user.workAddress || workAddress,
-                    profilePicture: response.user.profilePicture || profilePicture
+                    // If server didn't send back these fields (sync delay), use our local state
+                    homeAddress: response.user.homeAddress || homeAddress || currentUser.homeAddress,
+                    workAddress: response.user.workAddress || workAddress || currentUser.workAddress,
+                    profilePicture: profilePicture || response.user.profilePicture || currentUser.profilePicture,
+                    name: fullName || response.user.name || currentUser.name
                 };
                 
                 applyUserData(updatedUser);
