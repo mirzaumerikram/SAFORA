@@ -175,7 +175,7 @@ const ProfileScreen: React.FC = () => {
                 if (file) {
                     const reader = new FileReader();
                     reader.onload = (event: any) => {
-                        const img = new (window as any).Image();
+                        const img = new window.Image();
                         img.src = event.target.result;
                         img.onload = () => {
                             // Create a canvas to compress the image
