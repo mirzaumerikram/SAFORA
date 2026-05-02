@@ -132,9 +132,16 @@ const ProfileScreen: React.FC = () => {
                 workAddress: workAddress.trim(),
             });
             if (response.success && response.user) {
-                // Update local state with the actual user returned from server
-                applyUserData(response.user);
-                await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(response.user));
+                // Update local state but preserve what we just typed if server returns empty (safety)
+                const updatedUser = {
+                    ...response.user,
+                    homeAddress: response.user.homeAddress || homeAddress,
+                    workAddress: response.user.workAddress || workAddress
+                };
+                
+                applyUserData(updatedUser);
+                await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(updatedUser));
+                
                 Alert.alert('Success', 'Profile updated successfully!');
             }
         } catch (e: any) {
