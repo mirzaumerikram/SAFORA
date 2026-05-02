@@ -105,11 +105,23 @@ const RideSelectionScreen: React.FC = () => {
 
     // Update rideTypes with dynamic data
     const dynamicRideTypes = useMemo(() => {
-        return rideTypes.map(ride => ({
+        let list = rideTypes.map(ride => ({
             ...ride,
             price: getPricing(ride.id) || ride.price
         }));
-    }, [routeInfo]);
+
+        // Restriction: Bikes only allowed for within-city (distance < 40km)
+        if (routeInfo && routeInfo.distance > 40) {
+            list = list.filter(r => r.id !== 'eco');
+            
+            // If Eco was selected but now hidden, auto-select Standard
+            if (selected === 'eco') {
+                setSelected('standard');
+            }
+        }
+
+        return list;
+    }, [routeInfo, selected]);
 
     const selectedRide = dynamicRideTypes.find(r => r.id === selected)!;
 
