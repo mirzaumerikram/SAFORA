@@ -57,6 +57,7 @@ const HomeScreen: React.FC = () => {
     const [activeTab, setActiveTab] = useState<TabId>('ride');
     const [homeAddr, setHomeAddr]   = useState('');
     const [workAddr, setWorkAddr]   = useState('');
+    const [profilePicture, setProfilePicture] = useState('');
 
     // Load user data whenever screen comes into focus
     useEffect(() => {
@@ -69,6 +70,7 @@ const HomeScreen: React.FC = () => {
                     setUserName(name.split(' ')[0] || '');
                     setHomeAddr(user?.homeAddress || '');
                     setWorkAddr(user?.workAddress || '');
+                    setProfilePicture(user?.profilePicture || '');
                 }
             });
         };
@@ -167,11 +169,15 @@ const HomeScreen: React.FC = () => {
                     {/* Right: Avatar + hamburger */}
                     <View style={s.headerRight}>
                         <TouchableOpacity
-                            style={s.avatar}
+                            style={s.avatarCircle}
                             onPress={() => navigation.navigate('Profile')}
-                            activeOpacity={0.85}
+                            activeOpacity={0.8}
                         >
-                            <Text style={s.avatarText}>{userInitial}</Text>
+                            {profilePicture ? (
+                                <Image source={{ uri: profilePicture }} style={s.avatarImage} />
+                            ) : (
+                                <Text style={s.avatarText}>{userInitial}</Text>
+                            )}
                         </TouchableOpacity>
 
                         <TouchableOpacity
@@ -398,18 +404,26 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
     },
 
     // Avatar circle
-    avatar: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
+    avatarCircle: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
         backgroundColor: t.colors.primary,
-        alignItems: 'center',
         justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: t.colors.primary,
+        overflow: 'hidden',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 3 },
         shadowOpacity: 0.3,
         shadowRadius: 6,
         elevation: 6,
+    },
+    avatarImage: {
+        width: '100%',
+        height: '100%',
+        borderRadius: 22,
     },
     avatarText: {
         fontSize: 17,
