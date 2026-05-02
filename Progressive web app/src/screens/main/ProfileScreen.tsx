@@ -53,7 +53,7 @@ const ProfileScreen: React.FC = () => {
     // ── Editable personal-info fields ─────────────────────────────────────────
     const [fullName, setFullName] = useState('');
     const [email, setEmail] = useState('');
-    const [gender, setGender] = useState<'Female' | 'Male' | ''>('');
+    const [gender, setGender] = useState<'female' | 'male' | ''>('');
     const [isSavingProfile, setIsSavingProfile] = useState(false);
 
     // ── Add-contact modal state ───────────────────────────────────────────────
@@ -95,7 +95,7 @@ const ProfileScreen: React.FC = () => {
         setUser(data);
         setFullName(data.name || '');
         setEmail(data.email || '');
-        if (data.gender === 'Female' || data.gender === 'Male') {
+        if (data.gender === 'female' || data.gender === 'male') {
             setGender(data.gender);
         }
         if (data.emergencyContacts) setEmergencyContacts(data.emergencyContacts);
@@ -110,10 +110,10 @@ const ProfileScreen: React.FC = () => {
         }
         setIsSavingProfile(true);
         try {
-            const response = await apiService.patch('/auth/me', {
+            const response = await apiService.patch('/auth/profile', {
                 name: fullName.trim(),
                 email: email.trim(),
-                gender,
+                gender: gender.toLowerCase(),
             });
             if (response.success) {
                 const updated = { ...user, name: fullName.trim(), email: email.trim(), gender };
@@ -292,26 +292,26 @@ const ProfileScreen: React.FC = () => {
                     <Text style={s.fieldLabel}>GENDER</Text>
                     <View style={s.genderRow}>
                         <TouchableOpacity
-                            style={[s.genderPill, gender === 'Female' && s.genderPillActive]}
-                            onPress={() => setGender('Female')}
+                            style={[s.genderPill, gender === 'female' && s.genderPillActive]}
+                            onPress={() => setGender('female')}
                         >
                             <Text
                                 style={[
                                     s.genderPillText,
-                                    gender === 'Female' && s.genderPillTextActive,
+                                    gender === 'female' && s.genderPillTextActive,
                                 ]}
                             >
                                 Female
                             </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
-                            style={[s.genderPill, gender === 'Male' && s.genderPillActive]}
-                            onPress={() => setGender('Male')}
+                            style={[s.genderPill, gender === 'male' && s.genderPillActive]}
+                            onPress={() => setGender('male')}
                         >
                             <Text
                                 style={[
                                     s.genderPillText,
-                                    gender === 'Male' && s.genderPillTextActive,
+                                    gender === 'male' && s.genderPillTextActive,
                                 ]}
                             >
                                 Male
