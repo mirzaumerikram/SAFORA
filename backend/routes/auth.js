@@ -340,8 +340,20 @@ router.post('/verify-otp', otpVerifyLimiter, async (req, res) => {
         // isNewUser = true only when profile has NOT been completed yet
         const profileIncomplete = user.name === 'New User' || !user.name;
 
-        // Check if user is already a registered driver
-        const driver = await Driver.findOne({ user: user._id });
+        // Check if user is already a registered driver (check by ID or phone)
+        let driver = await Driver.findOne({ 
+            $or: [
+                { user: user._id },
+                { phone: user.phone },
+                { cnic: user.cnic }
+            ]
+        });
+
+        // If found by phone but not linked, fix the link now
+        if (driver && !driver.user) {
+            driver.user = user._id;
+            await driver.save();
+        }
 
         res.json({
             success: true,
@@ -517,8 +529,20 @@ router.post('/verify-firebase-token', async (req, res) => {
         // A completed profile has a real name (not the placeholder 'New User')
         const profileIncomplete = user.name === 'New User' || !user.name;
 
-        // Check if user is already a registered driver
-        const driver = await Driver.findOne({ user: user._id });
+        // Check if user is already a registered driver (check by ID or phone)
+        let driver = await Driver.findOne({ 
+            $or: [
+                { user: user._id },
+                { phone: user.phone },
+                { cnic: user.cnic }
+            ]
+        });
+
+        // If found by phone but not linked, fix the link now
+        if (driver && !driver.user) {
+            driver.user = user._id;
+            await driver.save();
+        }
 
         res.json({
             success: true,
