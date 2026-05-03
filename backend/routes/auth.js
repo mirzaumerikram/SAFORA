@@ -212,9 +212,18 @@ router.post('/complete-profile', auth, async (req, res) => {
 // @access  Private
 router.get('/me', auth, async (req, res) => {
     try {
-        // TODO: Add auth middleware to verify token
         const user = await User.findById(req.user.userId).select('-password');
-        res.json({ success: true, user });
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        const driver = await Driver.findOne({ user: user._id });
+
+        res.json({ 
+            success: true, 
+            user: {
+                ...user.toObject(),
+                driverRegistered: !!driver
+            }
+        });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
