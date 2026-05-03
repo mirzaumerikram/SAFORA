@@ -25,6 +25,9 @@ face_cascade = cv2.CascadeClassifier(CASCADE_PATH)
 EYE_CASCADE_PATH = cv2.data.haarcascades + 'haarcascade_eye.xml'
 eye_cascade = cv2.CascadeClassifier(EYE_CASCADE_PATH)
 
+PROFILE_CASCADE_PATH = cv2.data.haarcascades + 'haarcascade_profileface.xml'
+profile_cascade = cv2.CascadeClassifier(PROFILE_CASCADE_PATH)
+
 MIN_MOTION_SCORE = 5.0   # avg pixel diff per-pixel threshold
 MIN_FACE_FRAMES  = 3     # face must appear in at least 3 frames
 
@@ -62,15 +65,21 @@ def compute_motion_score(frames):
 
 
 def detect_faces(frame):
-    """Return list of face rects detected in frame."""
+    """Return list of face rects detected in frame (frontal or profile)."""
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     gray = cv2.equalizeHist(gray)
-    faces = face_cascade.detectMultiScale(
-        gray,
-        scaleFactor=1.1,
-        minNeighbors=4,
-        minSize=(60, 60),
-    )
+    
+    # Try frontal first
+    faces = face_cascade.detectMultiScale(gray, 1.1, 4, minSize=(60, 60))
+    
+    # If no frontal, try profile (for head turns)
+    if len(faces) == 0:
+        faces = profile_cascade.detectMultiScale(gray, 1.1, 4, minSize=(60, 60))
+        # Also try flipped profile (for the other side)
+        if len(faces) == 0:
+            flipped = cv2.flip(gray, 1)
+            faces = profile_cascade.detectMultiScale(flipped, 1.1, 4, minSize=(60, 60))
+            
     return faces if len(faces) > 0 else []
 
 

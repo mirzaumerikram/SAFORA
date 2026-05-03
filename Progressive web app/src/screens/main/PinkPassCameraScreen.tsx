@@ -151,9 +151,9 @@ const PinkPassCameraScreen: React.FC = () => {
         
         const instructions = [
             'Look straight & blink',
-            'Nod UP slowly',
-            'Nod DOWN slowly',
-            'Smile & blink'
+            'Turn head slowly RIGHT',
+            'Turn head slowly LEFT',
+            'Look straight & smile'
         ];
 
         startPulse();
@@ -298,7 +298,7 @@ const PinkPassCameraScreen: React.FC = () => {
                     <Text style={s.backText}>←</Text>
                 </TouchableOpacity>
                 <Text style={[s.headerTitle, step === 'recording' && { color: '#000' }]}>Face Liveness Check</Text>
-                <View style={s.verBadge}><Text style={s.verBadgeText}>v1.2.8</Text></View>
+                <View style={s.verBadge}><Text style={s.verBadgeText}>v1.3.0</Text></View>
             </View>
 
             {/* Camera box */}
