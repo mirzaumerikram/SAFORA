@@ -213,7 +213,7 @@ const DriverOnboardingScreen: React.FC = () => {
                         {/* Step 1 heading */}
                         <Text style={s.screenTitle}>LICENSE &{'\n'}IDENTITY</Text>
                         <Text style={s.screenSub}>
-                            We verify all drivers to keep SAFORA safe for everyone.
+                            We verify all drivers to keep SAFORA safe for everyone. (v1.8)
                         </Text>
 
                         {/* Driving License Number */}
