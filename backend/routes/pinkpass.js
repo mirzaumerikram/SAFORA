@@ -53,27 +53,33 @@ router.post('/enroll', auth, async (req, res) => {
             }
         }
 
-        if (!aiAvailable) {
-            // AI offline — approve immediately for demo; in production set pending_review
-            user.pinkPassVerified = true;
-            user.pinkPassStatus   = 'approved';
-            await user.save();
-            return res.json({
-                success:    true,
-                message:    'Pink Pass activated! (Manual review mode)',
-                confidence: 1,
-            });
-        }
+        // Always save the images for Admin review
+        user.pinkPassCnicPhoto   = cnics;
+        user.pinkPassSelfiePhoto = frames[0]; // Save the first frame as the reference selfie
+        user.pinkPassAppliedAt   = new Date();
 
         if (verified) {
             user.pinkPassVerified = true;
             user.pinkPassStatus   = 'approved';
             await user.save();
             return res.json({ success: true, message: 'Pink Pass verified and activated!', confidence });
-        } else {
+        } else if (aiAvailable) {
+            // AI specifically said NO
+            user.pinkPassStatus = 'rejected';
+            await user.save();
             return res.status(400).json({
                 success: false,
                 message: 'Verification failed. Please ensure your CNIC is clear and your selfie shows your full face.',
+            });
+        } else {
+            // AI service was offline - fallback to pending admin review
+            user.pinkPassStatus = 'pending_review';
+            user.pinkPassVerified = false;
+            await user.save();
+            return res.json({
+                success: true,
+                message: 'Application submitted! Admin will review your documents shortly.',
+                status: 'pending_review'
             });
         }
 

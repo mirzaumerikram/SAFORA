@@ -71,6 +71,14 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    pinkPassStatus: {
+        type: String,
+        enum: ['none', 'pending_review', 'approved', 'rejected'],
+        default: 'none'
+    },
+    pinkPassCnicPhoto: String,
+    pinkPassSelfiePhoto: String,
+    pinkPassAppliedAt: Date,
     homeAddress: {
         type: String,
         default: ''

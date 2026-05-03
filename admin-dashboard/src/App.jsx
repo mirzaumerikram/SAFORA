@@ -11,6 +11,7 @@ import SosAlerts from './pages/SosAlerts';
 import SafetyReports from './pages/SafetyReports';
 import LiveMap from './pages/LiveMap';
 import Admins from './pages/Admins';
+import PinkPass from './pages/PinkPass';
 
 const ProtectedRoute = ({ children }) => {
   const { admin, loading } = useAuth();
@@ -29,6 +30,7 @@ const AppRoutes = () => {
         <Route path="rides" element={<Rides />} />
         <Route path="drivers" element={<Drivers />} />
         <Route path="passengers" element={<Passengers />} />
+        <Route path="pink-pass" element={<PinkPass />} />
         <Route path="sos-alerts" element={<SosAlerts />} />
         <Route path="safety-reports" element={<SafetyReports />} />
         <Route path="admins" element={<Admins />} />

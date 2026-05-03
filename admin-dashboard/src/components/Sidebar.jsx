@@ -15,12 +15,17 @@ const NavItem = ({ to, icon, label, badge }) => (
 export default function Sidebar() {
   const { admin, logout } = useAuth();
   const [pendingDrivers, setPendingDrivers] = useState(0);
+  const [pendingPinkPass, setPendingPinkPass] = useState(0);
   const [activeAlerts, setActiveAlerts]     = useState(0);
 
   useEffect(() => {
     api.get('/admin/dashboard').then(res => {
       setPendingDrivers(res.stats?.pendingDriverApprovals || 0);
       setActiveAlerts(res.stats?.openAlerts || 0);
+    }).catch(() => {});
+
+    api.get('/admin/pinkpass/stats').then(res => {
+      setPendingPinkPass(res.totalPending || 0);
     }).catch(() => {});
   }, []);
 
@@ -43,6 +48,7 @@ export default function Sidebar() {
         <div className="nav-section-label">USERS</div>
         <NavItem to="/passengers" icon="👥" label="Passengers" />
         <NavItem to="/drivers"    icon="🚖" label="Drivers" badge={pendingDrivers} />
+        <NavItem to="/pink-pass"  icon="🌸" label="Pink Pass" badge={pendingPinkPass} />
 
         <div className="nav-section-label">SAFETY</div>
         <NavItem to="/sos-alerts"     icon="🚨" label="SOS Alerts"     badge={activeAlerts} />

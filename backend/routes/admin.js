@@ -14,14 +14,15 @@ router.use(auth, authorize('admin'));
 // @access  Admin
 router.get('/dashboard', async (req, res) => {
     try {
-        const [
+            const [
             totalUsers,
             totalDrivers,
             activeDrivers,
             totalRides,
             activeRides,
             openAlerts,
-            pendingDriverApprovals
+            pendingDriverApprovals,
+            pendingPinkPassPassengers
         ] = await Promise.all([
             User.countDocuments({ role: 'passenger' }),
             Driver.countDocuments(),
@@ -29,7 +30,8 @@ router.get('/dashboard', async (req, res) => {
             Ride.countDocuments(),
             Ride.countDocuments({ status: { $in: ['matched', 'accepted', 'started'] } }),
             Alert.countDocuments({ status: 'active' }),
-            Driver.countDocuments({ 'backgroundCheck.status': 'pending' })
+            Driver.countDocuments({ 'backgroundCheck.status': 'pending' }),
+            User.countDocuments({ pinkPassStatus: 'pending_review' })
         ]);
 
         res.json({
@@ -41,7 +43,8 @@ router.get('/dashboard', async (req, res) => {
                 totalRides,
                 activeRides,
                 openAlerts,
-                pendingDriverApprovals
+                pendingDriverApprovals,
+                pendingPinkPassPassengers
             }
         });
     } catch (error) {
@@ -203,12 +206,50 @@ router.get('/pinkpass/pending', async (req, res) => {
 // @access  Admin
 router.get('/pinkpass/stats', async (req, res) => {
     try {
-        const [pending, approved, rejected] = await Promise.all([
+        const [pendingDrivers, pendingPassengers] = await Promise.all([
             Driver.countDocuments({ pinkPassStatus: 'pending_review' }),
-            Driver.countDocuments({ pinkPassStatus: 'approved' }),
-            Driver.countDocuments({ pinkPassStatus: 'rejected' }),
+            User.countDocuments({ pinkPassStatus: 'pending_review' }),
         ]);
-        res.json({ success: true, pending, approved, rejected });
+        res.json({ success: true, pendingDrivers, pendingPassengers, totalPending: pendingDrivers + pendingPassengers });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// @route   GET /api/admin/pinkpass/passengers/pending
+// @desc    Get passengers with pending Pink Pass applications
+// @access  Admin
+router.get('/pinkpass/passengers/pending', async (req, res) => {
+    try {
+        const users = await User.find({ pinkPassStatus: 'pending_review' })
+            .select('name phone email gender pinkPassStatus pinkPassAppliedAt pinkPassCnicPhoto pinkPassSelfiePhoto')
+            .sort({ pinkPassAppliedAt: -1 });
+
+        res.json({ success: true, count: users.length, users });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// @route   PATCH /api/admin/pinkpass/passengers/:id/verify
+// @desc    Approve or reject passenger Pink Pass
+// @access  Admin
+router.patch('/pinkpass/passengers/:id/verify', async (req, res) => {
+    try {
+        const { action } = req.body; // 'approve' | 'reject'
+        const user = await User.findById(req.params.id);
+        if (!user) return res.status(404).json({ message: 'Passenger not found' });
+
+        if (action === 'approve') {
+            user.pinkPassStatus = 'approved';
+            user.pinkPassVerified = true;
+        } else {
+            user.pinkPassStatus = 'rejected';
+            user.pinkPassVerified = false;
+        }
+        
+        await user.save();
+        res.json({ success: true, message: `Pink Pass ${action}d`, user });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
