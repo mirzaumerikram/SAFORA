@@ -42,6 +42,7 @@ export default function Drivers() {
     if (!editForm.phone.trim() || editForm.phone.length < 10) errors.phone = 'Valid phone is required';
     if (!editForm.cnic.trim() || editForm.cnic.length !== 13) errors.cnic = 'CNIC must be 13 digits';
     if (!editForm.plateNumber.trim()) errors.plateNumber = 'Plate number is required';
+    if (editForm.email && !/^\S+@\S+\.\S+$/.test(editForm.email)) errors.email = 'Invalid email format';
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -112,8 +113,7 @@ export default function Drivers() {
       if (res.success) {
         showToast('✅ Driver updated successfully');
         setEditDriver(null);
-        // Direct reload to ensure clean state
-        load();
+        load(); // Direct reload to ensure clean state
       }
     } catch (err) {
       showToast('❌ ' + (err.message || 'Update failed'));
@@ -185,7 +185,7 @@ export default function Drivers() {
                   </div>
                   <div className="dc-details">
                     <div className="dc-row"><span>CNIC</span><span>{d.user?.cnic || d.cnic || '—'}</span></div>
-                    <div className="dc-row"><span>Email</span><span>{d.user?.email || '—'}</span></div>
+                    <div className="dc-row"><span>Email</span><span style={{ fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.user?.email || '—'}</span></div>
                     <div className="dc-row"><span>Applied</span><span>{d.createdAt ? new Date(d.createdAt).toLocaleDateString() : '—'}</span></div>
                     <div className="dc-row"><span>Vehicle</span><span>{d.vehicleInfo?.make} {d.vehicleInfo?.model} ({d.vehicleInfo?.plateNumber})</span></div>
                   </div>
@@ -230,15 +230,22 @@ export default function Drivers() {
                 <input style={{ width: '100%', padding: '10px', borderRadius: '6px', border: formErrors.name ? '1px solid red' : '1px solid #ddd' }} value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} />
                 {formErrors.name && <span style={{ color: 'red', fontSize: '10px' }}>{formErrors.name}</span>}
               </div>
-              <div className="form-group">
-                <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '5px' }}>Phone</label>
-                <input style={{ width: '100%', padding: '10px', borderRadius: '6px', border: formErrors.phone ? '1px solid red' : '1px solid #ddd' }} value={editForm.phone} onChange={e => setEditForm({...editForm, phone: e.target.value})} maxLength={11} />
-                {formErrors.phone && <span style={{ color: 'red', fontSize: '10px' }}>{formErrors.phone}</span>}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div className="form-group">
+                  <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '5px' }}>Phone</label>
+                  <input style={{ width: '100%', padding: '10px', borderRadius: '6px', border: formErrors.phone ? '1px solid red' : '1px solid #ddd' }} value={editForm.phone} onChange={e => setEditForm({...editForm, phone: e.target.value})} maxLength={11} />
+                  {formErrors.phone && <span style={{ color: 'red', fontSize: '10px' }}>{formErrors.phone}</span>}
+                </div>
+                <div className="form-group">
+                  <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '5px' }}>CNIC</label>
+                  <input style={{ width: '100%', padding: '10px', borderRadius: '6px', border: formErrors.cnic ? '1px solid red' : '1px solid #ddd' }} value={editForm.cnic} onChange={e => setEditForm({...editForm, cnic: e.target.value})} maxLength={13} />
+                  {formErrors.cnic && <span style={{ color: 'red', fontSize: '10px' }}>{formErrors.cnic}</span>}
+                </div>
               </div>
               <div className="form-group">
-                <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '5px' }}>CNIC</label>
-                <input style={{ width: '100%', padding: '10px', borderRadius: '6px', border: formErrors.cnic ? '1px solid red' : '1px solid #ddd' }} value={editForm.cnic} onChange={e => setEditForm({...editForm, cnic: e.target.value})} maxLength={13} />
-                {formErrors.cnic && <span style={{ color: 'red', fontSize: '10px' }}>{formErrors.cnic}</span>}
+                <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '5px' }}>Email Address</label>
+                <input style={{ width: '100%', padding: '10px', borderRadius: '6px', border: formErrors.email ? '1px solid red' : '1px solid #ddd' }} value={editForm.email} onChange={e => setEditForm({...editForm, email: e.target.value})} placeholder="example@safora.me" />
+                {formErrors.email && <span style={{ color: 'red', fontSize: '10px' }}>{formErrors.email}</span>}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div className="form-group">
