@@ -159,7 +159,7 @@ const AppNavigator: React.FC = () => {
                             alignItems: 'center', zIndex: 9999,
                             opacity: 0.8
                         }}>
-                            <Text style={{ fontSize: 9, fontWeight: '900', color: '#000' }}>SAFORA LIVE v1.9-GOLD</Text>
+                            <Text style={{ fontSize: 9, fontWeight: '900', color: '#000' }}>SAFORA LIVE v2.0-ULTRA</Text>
                         </View>
                     </NavigationContainer>
                 </AuthProvider>
