@@ -33,7 +33,12 @@ const DriverDashboard: React.FC = () => {
     const { logout } = useAuth();
     const s = useMemo(() => makeStyles(theme), [theme]);
 
-    const [isOnline, setIsOnline]           = useState(false);
+    const [isOnline, setIsOnline] = useState(() => {
+        if (Platform.OS === 'web') {
+            return localStorage.getItem('driver_online_status') === 'true';
+        }
+        return false;
+    });
     const [rideStatus, setRideStatus]       = useState<RideStatus>('idle');
     const [incoming, setIncoming]           = useState<IncomingRide | null>(null);
     const [activeRide, setActiveRide]       = useState<IncomingRide | null>(null);
@@ -60,14 +65,9 @@ const DriverDashboard: React.FC = () => {
     const loadDriver = async () => {
         try {
             const raw = await AsyncStorage.getItem(STORAGE_KEYS.USER_DATA);
-            if (raw) {
-                const user = JSON.parse(raw);
-                if (user.name) setDriverName(toFirstName(user.name));
-                if (user.profilePicture) setProfilePicture(user.profilePicture);
-            }
-            const res: any = await apiService.get('/drivers/me');
-            if (res.success && res.driver) {
-                // CRITICAL: use driver doc _id so socket room matches backend
+            const res = await apiService.get('/drivers/profile');
+            
+            if (res.driver) {
                 setDriverId(res.driver.id);
                 if (res.driver.name) setDriverName(toFirstName(res.driver.name));
                 if (res.driver.profilePicture) setProfilePicture(res.driver.profilePicture);
@@ -87,17 +87,27 @@ const DriverDashboard: React.FC = () => {
                     await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(u));
                 }
 
-                // Restore online status from memory
-                const onlineStatus = await AsyncStorage.getItem('driver_online_status');
-                if (onlineStatus === 'true' && currentStatus === 'approved') {
-                    // Force the UI state first, then trigger the background connection
-                    setIsOnline(true);
-                    setTimeout(() => {
-                        handleToggleOnline(true);
-                    }, 500);
+                // If already marked as online in state (from storage), connect socket
+                if (isOnline && currentStatus === 'approved') {
+                    connectSocket(res.driver.id);
                 }
             }
         } catch { /* use cached data */ }
+    };
+
+    const connectSocket = async (id: string) => {
+        try {
+            await socketService.connect();
+            socketConnected.current = true;
+            socketService.emitDriverOnline(id);
+            socketService.onRideRequest((ride: IncomingRide) => {
+                setIncoming(ride);
+                setRideStatus('incoming');
+                startCountdown(30);
+            });
+        } catch (err) {
+            console.error('[Driver] Socket connection failed:', err);
+        }
     };
 
     useEffect(() => {
@@ -116,7 +126,6 @@ const DriverDashboard: React.FC = () => {
             setCountdown(prev => {
                 if (prev <= 1) {
                     clearInterval(countdownRef.current);
-                    // Auto-reject when time runs out
                     handleReject();
                     return 0;
                 }
@@ -137,39 +146,29 @@ const DriverDashboard: React.FC = () => {
     const handleToggleOnline = async (value: boolean) => {
         if (value && bgCheckStatus !== 'approved') {
             Alert.alert(
-                'Account Pending Approval',
-                'Your background check is under review. You can go online once SAFORA approves your account.',
-                [{ text: 'OK' }]
+                'Access Denied',
+                'Your account is currently under review. You will be able to go online once approved.',
+                [{ text: 'Understand' }]
             );
             return;
         }
+
         setIsOnline(value);
-        await AsyncStorage.setItem('driver_online_status', value ? 'true' : 'false');
+
+        if (Platform.OS === 'web') {
+            localStorage.setItem('driver_online_status', value ? 'true' : 'false');
+        } else {
+            await AsyncStorage.setItem('driver_online_status', value ? 'true' : 'false');
+        }
 
         if (value) {
-            try {
-                await socketService.connect();
-                socketConnected.current = true;
-                // Join driver's personal room using Driver doc _id
-                if (driverId) {
-                    socketService.emitDriverOnline(driverId);
-                    // Also explicitly join the room the backend emits to
-                    (socketService as any).socket?.emit('join:driver', { driverId });
-                }
-                socketService.onRideRequest((data: IncomingRide) => {
-                    setIncoming(data);
-                    setRideStatus('incoming');
-                    startCountdown(30); // 30-second window
-                });
-            } catch (e) {
-                console.log('[Driver] Socket connect failed:', e);
-                setIsOnline(false);
-            }
+            if (driverId) connectSocket(driverId);
         } else {
+            socketService.disconnect();
+            socketConnected.current = false;
             stopCountdown();
             if (driverId) socketService.emitDriverOffline(driverId);
             socketService.offAll();
-            socketConnected.current = false;
             setRideStatus('idle');
             setIncoming(null);
         }
