@@ -196,11 +196,12 @@ export default function Drivers() {
                     <button className="btn-edit" onClick={() => openEdit(d)} style={{ background: '#eee', color: '#333', border: 'none', padding: '10px 15px', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}>
                       ✎ Edit
                     </button>
-                    {d.backgroundCheck?.status === 'pending' && (
+                    {(d.backgroundCheck?.status === 'pending' || d.backgroundCheck?.status === 'rejected') && (
                       <button
                         className="btn-approve"
                         onClick={() => approve(d._id)}
                         disabled={!!action}
+                        style={{ background: '#d4edda', color: '#155724', border: 'none', padding: '10px 15px', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', flex: 1 }}
                       >
                         {action === d._id + '_approve' ? '...' : '✓ Approve'}
                       </button>
@@ -210,6 +211,7 @@ export default function Drivers() {
                         className="btn-reject"
                         onClick={() => reject(d._id)}
                         disabled={!!action}
+                        style={{ background: '#fff0f0', color: '#e74c3c', border: '1px solid #ffcccc', padding: '10px 15px', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', flex: 1 }}
                       >
                         {action === d._id + '_reject' ? '...' : '✗ Reject'}
                       </button>
