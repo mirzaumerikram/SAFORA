@@ -90,7 +90,11 @@ const DriverDashboard: React.FC = () => {
                 // Restore online status from memory
                 const onlineStatus = await AsyncStorage.getItem('driver_online_status');
                 if (onlineStatus === 'true' && currentStatus === 'approved') {
-                    handleToggleOnline(true);
+                    // Force the UI state first, then trigger the background connection
+                    setIsOnline(true);
+                    setTimeout(() => {
+                        handleToggleOnline(true);
+                    }, 500);
                 }
             }
         } catch { /* use cached data */ }
