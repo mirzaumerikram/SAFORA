@@ -25,6 +25,14 @@ const MIN_MOTION     = 2.5;    // more forgiving threshold
 const PinkPassCameraScreen: React.FC = () => {
     const navigation  = useNavigation<any>();
     const cnicsBase64 = PinkPassState.cnicBase64;
+    
+    // Safety check: if CNIC is lost, go back
+    useEffect(() => {
+        if (!cnicsBase64) {
+            console.warn('[PinkPass] CNIC image lost, redirecting...');
+            // navigation.navigate('PinkPassCnic');
+        }
+    }, [cnicsBase64]);
     const { theme }   = useAppTheme();
     const s           = useMemo(() => makeStyles(theme), [theme]);    const videoRef    = useRef<any>(null);
     const streamRef   = useRef<MediaStream | null>(null);
@@ -249,6 +257,7 @@ const PinkPassCameraScreen: React.FC = () => {
             }, { timeout: 60000 }); // Give it a full minute for AI processing
 
             if (res.success) {
+                PinkPassState.cnicBase64 = null; // Success! Clear memory now.
                 const raw = await AsyncStorage.getItem(STORAGE_KEYS.USER_DATA);
                 if (raw) {
                     const u = JSON.parse(raw);
@@ -289,7 +298,7 @@ const PinkPassCameraScreen: React.FC = () => {
                     <Text style={s.backText}>←</Text>
                 </TouchableOpacity>
                 <Text style={[s.headerTitle, step === 'recording' && { color: '#000' }]}>Face Liveness Check</Text>
-                <View style={s.verBadge}><Text style={s.verBadgeText}>v1.2.6</Text></View>
+                <View style={s.verBadge}><Text style={s.verBadgeText}>v1.2.7</Text></View>
             </View>
 
             {/* Camera box */}

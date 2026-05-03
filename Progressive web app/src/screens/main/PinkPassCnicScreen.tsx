@@ -41,7 +41,7 @@ const PinkPassCnicScreen: React.FC = () => {
         });
         return () => {
             stopCamera();
-            PinkPassState.cnicBase64 = null; // Clear on unmount
+            // DO NOT clear cnicBase64 here, as it's needed by the next screen
         };
     }, []);
 
@@ -202,7 +202,7 @@ const PinkPassCnicScreen: React.FC = () => {
                     <Text style={s.backText}>←</Text>
                 </TouchableOpacity>
                 <Text style={s.headerTitle}>VERIFICATION</Text>
-                <View style={s.verBadge}><Text style={s.verBadgeText}>v1.2.6</Text></View>
+                <View style={s.verBadge}><Text style={s.verBadgeText}>v1.2.7</Text></View>
             </View>
 
             <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
