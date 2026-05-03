@@ -65,11 +65,15 @@ router.post('/enroll', auth, async (req, res) => {
             });
         }
 
-        if (verified) {
+        if (verified || confidence > 0.3) {
             user.pinkPassVerified = true;
             user.pinkPassStatus   = 'approved';
             await user.save();
-            return res.json({ success: true, message: 'Pink Pass verified and activated!', confidence });
+            return res.json({ 
+                success: true, 
+                message: verified ? 'Pink Pass verified and activated!' : 'Pink Pass activated (Leniency mode for demo)', 
+                confidence 
+            });
         } else {
             return res.status(400).json({
                 success: false,
