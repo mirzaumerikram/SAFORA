@@ -101,6 +101,42 @@ router.patch('/drivers/:id/approve', async (req, res) => {
     }
 });
 
+// @route   PATCH /api/admin/drivers/:id
+// @desc    Update driver and user details
+// @access  Admin
+router.patch('/drivers/:id', async (req, res) => {
+    try {
+        const { name, phone, email, cnic, vehicleInfo } = req.body;
+        const driver = await Driver.findById(req.params.id).populate('user');
+        if (!driver) return res.status(404).json({ message: 'Driver not found' });
+
+        // Update Driver fields
+        if (cnic !== undefined) driver.cnic = cnic;
+        if (vehicleInfo) {
+            if (vehicleInfo.make) driver.vehicleInfo.make = vehicleInfo.make;
+            if (vehicleInfo.model) driver.vehicleInfo.model = vehicleInfo.model;
+            if (vehicleInfo.plateNumber) driver.vehicleInfo.plateNumber = vehicleInfo.plateNumber;
+        }
+        await driver.save();
+
+        // Update linked User fields
+        if (driver.user) {
+            const user = await User.findById(driver.user._id);
+            if (user) {
+                if (name) user.name = name;
+                if (phone) user.phone = phone;
+                if (email) user.email = email;
+                if (cnic) user.cnic = cnic;
+                await user.save();
+            }
+        }
+
+        res.json({ success: true, message: 'Driver updated successfully', driver });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
 // @route   PATCH /api/admin/drivers/:id/reject
 // @desc    Reject a driver application
 // @access  Admin
