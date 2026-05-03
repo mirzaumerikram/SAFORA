@@ -19,8 +19,8 @@ import { STORAGE_KEYS } from '../../utils/constants';
 import { PinkPassState } from './PinkPassCnicScreen';
 
 const RECORD_MS      = 8000;   // 8 seconds
-const TARGET_FRAMES  = 12;     // capture 12 frames total
-const MIN_MOTION     = 3.0;     // min avg pixel-diff for liveness
+const TARGET_FRAMES  = 6;      // halved from 12 to speed up analysis
+const MIN_MOTION     = 2.5;    // more forgiving threshold
 
 const PinkPassCameraScreen: React.FC = () => {
     const navigation  = useNavigation<any>();
@@ -265,7 +265,8 @@ const PinkPassCameraScreen: React.FC = () => {
             }
         } catch (err: any) {
             setStep('failed');
-            setMessage('Connection issue. Please try again.');
+            setMessage(`Connection issue: ${err.message || 'Unknown'}. Please try again.`);
+            console.error('[PinkPass] Enrollment failed:', err);
         }
     };
 
@@ -288,7 +289,7 @@ const PinkPassCameraScreen: React.FC = () => {
                     <Text style={s.backText}>←</Text>
                 </TouchableOpacity>
                 <Text style={[s.headerTitle, step === 'recording' && { color: '#000' }]}>Face Liveness Check</Text>
-                <View style={s.verBadge}><Text style={s.verBadgeText}>v1.2.5</Text></View>
+                <View style={s.verBadge}><Text style={s.verBadgeText}>v1.2.6</Text></View>
             </View>
 
             {/* Camera box */}
