@@ -31,19 +31,19 @@ const SearchingScreen: React.FC = () => {
             ])
         ).start();
 
-        // Rotation Animation
-        Animated.loop(
-            Animated.timing(rotateAnim, {
-                toValue: 1,
-                duration: 4000,
-                easing: Easing.linear,
-                useNativeDriver: true,
-            })
-        ).start();
+        // Real Socket Listener for Driver Match
+        const socket = (global as any).socket;
+        if (socket) {
+            console.log('[Searching] Listening for ride:matched...');
+            socket.on('ride:matched', (data: any) => {
+                console.log('[Searching] Ride matched!', data);
+                navigation.navigate('Tracking', { rideId: data.rideId });
+            });
+        }
 
-        // Wait for real driver match via socket (handled in a separate service or effect)
-        // For now, we remove the auto-redirect to placeholder
-        return () => {};
+        return () => {
+            if (socket) socket.off('ride:matched');
+        };
     }, []);
 
     const spin = rotateAnim.interpolate({
@@ -100,11 +100,11 @@ const SearchingScreen: React.FC = () => {
             <View style={styles.infoContainer}>
                 <View style={[styles.infoCard, { backgroundColor: theme.colors.card }]}>
                     <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>{t.nearbyDrivers || 'Nearby Drivers'}</Text>
-                    <Text style={[styles.infoValue, { color: theme.colors.text }]}>12</Text>
+                    <Text style={[styles.infoValue, { color: theme.colors.text }]}>Searching...</Text>
                 </View>
                 <View style={[styles.infoCard, { backgroundColor: theme.colors.card }]}>
                     <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>{t.estWait || 'Est. Wait'}</Text>
-                    <Text style={[styles.infoValue, { color: theme.colors.text }]}>3-5 min</Text>
+                    <Text style={[styles.infoValue, { color: theme.colors.text }]}>--</Text>
                 </View>
             </View>
 
