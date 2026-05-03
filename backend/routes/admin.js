@@ -126,19 +126,43 @@ router.patch('/drivers/:id', async (req, res) => {
         await driver.save();
 
         // 3. Update linked User fields
-        if (driver.user) {
-            // driver.user might be an ID or an object depending on population state
-            const userId = driver.user._id || driver.user;
-            const user = await User.findById(userId);
-            if (user) {
-                user.name = name;
-                user.phone = phone;
-                if (email) user.email = email;
-                user.cnic = cnic;
-                await user.save();
-            } else {
-                console.log(`[Admin] User linked to driver ${req.params.id} not found in DB`);
+        let userId = driver.user?._id || driver.user;
+        let user;
+
+        if (userId) {
+            user = await User.findById(userId);
+        }
+
+        // If no user linked, try to find by phone
+        if (!user) {
+            user = await User.findOne({ phone });
+        }
+
+        if (user) {
+            // Update existing user
+            user.name = name;
+            user.phone = phone;
+            if (email) user.email = email;
+            user.cnic = cnic;
+            await user.save();
+            
+            // Fix the link if it was broken
+            if (!driver.user) {
+                driver.user = user._id;
+                await driver.save();
             }
+        } else {
+            // Create new user if none exists
+            user = await User.create({
+                name,
+                phone,
+                email: email || `${phone}@safora.me`,
+                cnic,
+                role: 'driver',
+                verified: true
+            });
+            driver.user = user._id;
+            await driver.save();
         }
 
         // Return fully populated driver to sync frontend state
