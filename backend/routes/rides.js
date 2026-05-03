@@ -11,7 +11,15 @@ const { auth, authorize } = require('../middleware/auth');
 // @access  Private (Passenger)
 router.post('/request', auth, authorize('passenger'), async (req, res) => {
     try {
+        console.log('[RIDE] New request from user:', req.user.userId, 'role:', req.user.role);
+        console.log('[RIDE] Body:', JSON.stringify(req.body, null, 2));
+
         const { pickupLocation, dropoffLocation, type } = req.body;
+        
+        if (!pickupLocation || !dropoffLocation) {
+            return res.status(400).json({ message: 'Pickup and dropoff locations are required' });
+        }
+
         const passengerId = req.user.userId; // From auth middleware
 
         // Calculate real distance using Haversine formula
