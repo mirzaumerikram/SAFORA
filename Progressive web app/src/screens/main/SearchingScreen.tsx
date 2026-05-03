@@ -1,12 +1,14 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Easing, TouchableOpacity, StatusBar } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAppTheme } from '../../context/ThemeContext';
 import { useLanguage } from '../../context/LanguageContext';
 import socketService from '../../services/socket.service';
 
 const SearchingScreen: React.FC = () => {
     const navigation = useNavigation<any>();
+    const route = useRoute<any>();
+    const { rideId } = route.params || {};
     const { theme } = useAppTheme();
     const { t } = useLanguage();
     

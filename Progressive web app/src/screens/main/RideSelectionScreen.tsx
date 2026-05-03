@@ -15,6 +15,7 @@ import { AppTheme } from '../../utils/theme';
 import SaforaMap from '../../components/SaforaMap';
 import SaforaAlert from '../../utils/alert';
 import apiService from '../../services/api';
+import socketService from '../../services/socket.service';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
