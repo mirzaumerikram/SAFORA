@@ -99,6 +99,10 @@ const HomeScreen: React.FC = () => {
         { icon: '📍', label: 'Ride History',   onPress: () => navigation.navigate('RideHistory'), danger: false },
         { icon: '🛡️', label: 'Safety Center',  onPress: () => navigation.navigate('Safety'),      danger: false },
         { icon: '🎀', label: 'Pink Pass',       onPress: () => navigation.navigate('PinkPass'),    danger: false },
+        { icon: '🔄', label: 'Hard Refresh App', onPress: async () => {
+            await AsyncStorage.clear();
+            window.location.reload();
+        }, danger: true },
         { icon: '🚪', label: 'Logout',          onPress: () => logout(),                           danger: true  },
     ];
 
