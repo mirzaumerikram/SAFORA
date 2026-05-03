@@ -47,6 +47,9 @@ export default function Sidebar() {
         <div className="nav-section-label">SAFETY</div>
         <NavItem to="/sos-alerts"     icon="🚨" label="SOS Alerts"     badge={activeAlerts} />
         <NavItem to="/safety-reports" icon="🛡️" label="Safety Reports" />
+        
+        <div className="nav-section-label">SYSTEM</div>
+        <NavItem to="/admins" icon="🔐" label="Admins" />
       </nav>
 
       <div className="sidebar-footer">

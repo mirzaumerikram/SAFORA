@@ -13,7 +13,7 @@ export default function LiveMap() {
     <div className="page">
       <div className="page-head">
         <div>
-          <h2 className="page-title">Live Map — Lahore</h2>
+          <h2 className="page-title">Live Map</h2>
           <p className="page-sub">Real-time driver and ride positions</p>
         </div>
         {stats && (

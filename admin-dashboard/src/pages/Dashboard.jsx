@@ -66,7 +66,7 @@ export default function Dashboard() {
         {/* Live Map */}
         <div className="map-card">
           <div className="card-header">
-            <div className="ch-title">🗺️ Live Map — Lahore</div>
+            <div className="ch-title">🗺️ Live Map</div>
             <Link to="/live-map" className="ch-link">Open Full Map →</Link>
           </div>
           <div className="map-embed-wrap">
@@ -77,7 +77,7 @@ export default function Dashboard() {
             />
             <div className="map-overlay-stats">
               <div className="mos-item mos-drivers">🚗 {s.activeDrivers} Active Drivers</div>
-              <div className="mos-item mos-rides">🔄 {s.activeRides ?? 63} Active Rides</div>
+              <div className="mos-item mos-rides">🔄 {s.activeRides || 0} Active Rides</div>
               {s.openAlerts > 0 && <div className="mos-item mos-sos">🚨 {s.openAlerts} SOS Active</div>}
             </div>
           </div>
@@ -128,12 +128,13 @@ export default function Dashboard() {
         ) : (
           <table className="data-table">
             <thead>
-              <tr><th>Passenger</th><th>Pickup</th><th>Dropoff</th><th>Fare</th><th>Status</th></tr>
+              <tr><th>Passenger</th><th>Driver</th><th>Pickup</th><th>Dropoff</th><th>Fare</th><th>Status</th></tr>
             </thead>
             <tbody>
               {rides.slice(0, 6).map(r => (
                 <tr key={r._id}>
                   <td>{r.passenger?.name || '—'}</td>
+                  <td>{r.driver?.user?.name || '—'}</td>
                   <td className="td-trunc">{r.pickupLocation?.address || '—'}</td>
                   <td className="td-trunc">{r.dropoffLocation?.address || '—'}</td>
                   <td>RS {r.fare?.estimated ?? '—'}</td>

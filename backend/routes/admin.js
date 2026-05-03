@@ -214,4 +214,52 @@ router.get('/pinkpass/stats', async (req, res) => {
     }
 });
 
+// @route   GET /api/admin/list
+// @desc    Get all admin users
+// @access  Admin
+router.get('/list', async (req, res) => {
+    try {
+        const admins = await User.find({ role: 'admin' }).select('name phone email createdAt');
+        res.json({ success: true, admins });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// @route   POST /api/admin/add
+// @desc    Promote a user to admin by phone
+// @access  Admin
+router.post('/add', async (req, res) => {
+    try {
+        const { phone } = req.body;
+        const user = await User.findOne({ phone });
+        if (!user) return res.status(404).json({ message: 'User not found' });
+        
+        user.role = 'admin';
+        await user.save();
+        
+        res.json({ success: true, message: 'User promoted to admin', user });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// @route   DELETE /api/admin/:id
+// @desc    Remove admin role from a user (demote to passenger)
+// @access  Admin
+router.delete('/:id', async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+        
+        // Prevent removing yourself if needed? For now just allow it.
+        user.role = 'passenger';
+        await user.save();
+        
+        res.json({ success: true, message: 'Admin role removed' });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
 module.exports = router;
