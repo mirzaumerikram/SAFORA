@@ -17,21 +17,27 @@ router.post('/request', auth, async (req, res) => {
         const { pickupLocation, dropoffLocation, type } = req.body;
         
         if (!pickupLocation || !dropoffLocation) {
-            return res.status(400).json({ message: 'Pickup and dropoff locations are required' });
+            return res.status(400).json({ success: false, message: 'Pickup and dropoff locations are required' });
         }
+
+        // Robustness: ensure we have numbers for coordinates
+        const pLat = parseFloat(pickupLocation.lat) || 0;
+        const pLng = parseFloat(pickupLocation.lng) || 0;
+        const dLat = parseFloat(dropoffLocation.lat) || 0;
+        const dLng = parseFloat(dropoffLocation.lng) || 0;
 
         const passengerId = req.user.userId; // From auth middleware
 
         // Calculate real distance using Haversine formula
         const toRad = (deg) => deg * (Math.PI / 180);
         const R = 6371; // Earth radius in km
-        const dLat = toRad(dropoffLocation.lat - pickupLocation.lat);
-        const dLng = toRad(dropoffLocation.lng - pickupLocation.lng);
+        const diffLat = toRad(dLat - pLat);
+        const diffLng = toRad(dLng - pLng);
         const a =
-            Math.sin(dLat / 2) ** 2 +
-            Math.cos(toRad(pickupLocation.lat)) * Math.cos(toRad(dropoffLocation.lat)) *
-            Math.sin(dLng / 2) ** 2;
-        const distance = parseFloat((R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))).toFixed(2));
+            Math.sin(diffLat / 2) ** 2 +
+            Math.cos(toRad(pLat)) * Math.cos(toRad(dLat)) *
+            Math.sin(diffLng / 2) ** 2;
+        const distance = parseFloat((R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))).toFixed(2)) || 1.0;
         const estimatedDuration = Math.max(5, Math.round(distance * 3)); // ~3 min/km average
 
         // Get price prediction from AI service (fallback to formula if service is down)
@@ -83,7 +89,7 @@ router.post('/request', auth, async (req, res) => {
                     $near: {
                         $geometry: {
                             type: 'Point',
-                            coordinates: [pickupLocation.lng, pickupLocation.lat]
+                            coordinates: [pLng, pLat]
                         },
                         $maxDistance: 15000 // 15km radius (expanded)
                     }
@@ -404,12 +410,9 @@ router.post('/:id/cancel', auth, async (req, res) => {
 
 // Compatibility alias for older clients calling /book
 router.post('/book', auth, async (req, res) => {
-    // We just point this to the same logic as /request
-    // Since we're in the same file, we can't easily call the other route, 
-    // so we'll just use a redirect or better, just re-define it to point to a shared logic if we had one.
-    // For now, I'll just use req.url hack:
-    req.url = '/request';
-    return router.handle(req, res);
+    // Redirect the POST request to the new /request endpoint
+    // 307 status ensures the POST method is preserved
+    res.redirect(307, '/api/rides/request');
 });
 
 module.exports = router;
