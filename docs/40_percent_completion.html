@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  @page { size: A4 landscape; margin: 1.5cm; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Times New Roman', serif; font-size: 11pt; }
+  .university { text-align: center; font-size: 22pt; font-family: 'Old English Text MT', cursive; margin-bottom: 6pt; }
+  .header-block { text-align: center; margin-bottom: 10pt; }
+  .header-block p { font-size: 11pt; margin: 2pt 0; }
+  .title { text-align: center; font-size: 13pt; font-weight: bold; margin: 8pt 0; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8pt; }
+  th, td { border: 1px solid #000; padding: 5pt 6pt; vertical-align: top; font-size: 10pt; }
+  th { font-weight: bold; text-align: left; }
+  td.status { color: green; font-weight: bold; }
+  .signatures { margin-top: 30pt; display: flex; justify-content: space-between; }
+  .sig-block { text-align: left; width: 45%; }
+  .sig-block p { font-size: 11pt; font-weight: bold; margin-bottom: 2pt; }
+  .sig-line { margin-top: 18pt; border-top: 1px solid #000; width: 180pt; }
+</style>
+</head>
+<body>
+
+<div class="university">University of Central Punjab</div>
+<div class="header-block">
+  <p><strong>Group ID: FYP26-CS-G11</strong></p>
+  <p><strong>SAFORA (Smart Ride) — Safety-First Female Ride-Hailing Platform</strong></p>
+  <p>Date: 4th May 2026</p>
+</div>
+<div class="title">PROJECT MILESTONE: 40% COMPLETION STATUS</div>
+
+<table>
+  <thead>
+    <tr>
+      <th style="width:18%">Section</th>
+      <th style="width:42%">Description</th>
+      <th style="width:12%">Status</th>
+      <th style="width:28%">Supervisor Remarks</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Backend API Foundation</td>
+      <td>Node.js + Express + MongoDB Atlas with seven route files, JWT role-based authentication middleware, and Mongoose models for User, Driver, Ride and Alert.</td>
+      <td class="status">Completed</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>Authentication System</td>
+      <td>Firebase Phone Auth for passengers (real SMS OTP) and email OTP for admin via Resend API. JWT session issued after verification.</td>
+      <td class="status">Completed</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>Passenger App — Auth Screens</td>
+      <td>Login, OTP verification, Registration and Email Verification screens built in React Native + Expo PWA with full form validation.</td>
+      <td class="status">Completed</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>Passenger App — Core Screens</td>
+      <td>Home (Google Maps), Ride Selection, Payment, Live Tracking with SOS, Ride History, Safety and Feedback screens all built and connected to backend APIs.</td>
+      <td class="status">Completed</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>Real-Time Infrastructure</td>
+      <td>Socket.io integration for live driver GPS broadcast, SafetySentinel route deviation alerts, and ride status updates to passenger in real time.</td>
+      <td class="status">Completed</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>Driver Dashboard (Basic)</td>
+      <td>Online/offline toggle, incoming ride modal with Accept/Reject, Start/End ride actions, and GPS location broadcasting via browser Geolocation API.</td>
+      <td class="status">Completed</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>Admin Dashboard (Basic)</td>
+      <td>Web panel at admin.safora.me with stats overview, pending driver approvals, active rides, SOS alerts, and passenger list connected to real backend data.</td>
+      <td class="status">Completed</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>Deployment</td>
+      <td>Backend on Railway, Passenger PWA on Vercel (safora.me), Admin Dashboard on Vercel (admin.safora.me). Google Maps and Resend API configured.</td>
+      <td class="status">Completed</td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="signatures">
+  <div class="sig-block">
+    <p>Mirza Umer Ikram</p>
+    <p>S3F22UBSCS081</p>
+    <p>Signature</p>
+    <div class="sig-line"></div>
+  </div>
+  <div class="sig-block">
+    <p>Ruhma Bilal</p>
+    <p>S3F22UBSCS088</p>
+    <p>Signature</p>
+    <div class="sig-line"></div>
+  </div>
+</div>
+
+</body>
+</html>

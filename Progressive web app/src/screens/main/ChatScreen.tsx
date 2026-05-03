@@ -300,7 +300,7 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
         width: 42,
         height: 42,
         borderRadius: 21,
-        backgroundColor: '#F5C518',
+        backgroundColor: '#EC4899',
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -391,12 +391,12 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
         paddingHorizontal: 14,
         paddingVertical: 10,
     },
-    // Passenger bubble — yellow
+    // Passenger bubble — signature pink
     bubbleMe: {
-        backgroundColor: '#F5C518',
+        backgroundColor: '#EC4899',
         borderBottomRightRadius: 4,
     },
-    // Driver bubble — gray
+    // Driver bubble — soft theme-aware gray
     bubbleThem: {
         backgroundColor: t.colors.cardSecondary,
         borderBottomLeftRadius: 4,

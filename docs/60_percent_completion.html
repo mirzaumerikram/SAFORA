@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  @page { size: A4 landscape; margin: 1.5cm; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Times New Roman', serif; font-size: 11pt; }
+  .university { text-align: center; font-size: 22pt; font-family: 'Old English Text MT', cursive; margin-bottom: 6pt; }
+  .header-block { text-align: center; margin-bottom: 10pt; }
+  .header-block p { font-size: 11pt; margin: 2pt 0; }
+  .title { text-align: center; font-size: 13pt; font-weight: bold; margin: 8pt 0; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8pt; }
+  th, td { border: 1px solid #000; padding: 5pt 6pt; vertical-align: top; font-size: 10pt; }
+  th { font-weight: bold; text-align: left; }
+  td.status { color: green; font-weight: bold; }
+  .signatures { margin-top: 30pt; display: flex; justify-content: space-between; }
+  .sig-block { text-align: left; width: 45%; }
+  .sig-block p { font-size: 11pt; font-weight: bold; margin-bottom: 2pt; }
+  .sig-line { margin-top: 18pt; border-top: 1px solid #000; width: 180pt; }
+</style>
+</head>
+<body>
+
+<div class="university">University of Central Punjab</div>
+<div class="header-block">
+  <p><strong>Group ID: FYP26-CS-G11</strong></p>
+  <p><strong>SAFORA (Smart Ride) — Safety-First Female Ride-Hailing Platform</strong></p>
+  <p>Date: 4th May 2026</p>
+</div>
+<div class="title">PROJECT MILESTONE: 60% COMPLETION STATUS</div>
+
+<table>
+  <thead>
+    <tr>
+      <th style="width:18%">Section</th>
+      <th style="width:42%">Description</th>
+      <th style="width:12%">Status</th>
+      <th style="width:28%">Supervisor Remarks</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Complete Driver PWA</td>
+      <td>Driver onboarding (license + vehicle details), profile screen (photo upload, name edit, gender, earnings), earnings screen with real API data, and full navigation tabs.</td>
+      <td class="status">Completed</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>Driver Ride Flow</td>
+      <td>Ride request screen with 30-second countdown timer, real Accept/Reject API calls, trip navigation screen with GPS broadcasting, SOS modal, and post-ride passenger rating screen.</td>
+      <td class="status">Completed</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>Pink Pass — Passenger Verification</td>
+      <td>CNIC photo capture via rear camera and 8-second liveness video recording. Client-side motion analysis rejects static photo spoofs. Submitted to backend for activation.</td>
+      <td class="status">Completed</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>Pink Pass — Driver Verification</td>
+      <td>Female drivers submit CNIC photo and liveness video. Application set to pending review. Admin manually reviews CNIC and approves or rejects from the admin panel.</td>
+      <td class="status">Completed</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>AI Liveness Microservice</td>
+      <td>Python Flask service deployed on Railway. Uses OpenCV Haar Cascade for face detection and pixel-difference motion scoring across video frames to confirm a live person.</td>
+      <td class="status">Completed</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>In-App Chat</td>
+      <td>Real-time messaging between passenger and driver during an active ride using Socket.io. Includes quick reply chips and live connection status indicator.</td>
+      <td class="status">Completed</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>Admin Dashboard — Full Panel</td>
+      <td>Complete web panel at admin.safora.me with live data, passenger and driver management, Pink Pass review tab, real-time SOS alerts via Socket.io, and admin account management.</td>
+      <td class="status">Completed</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>Backend Extensions</td>
+      <td>New endpoints for driver profile update, earnings, Pink Pass admin approval, and background check enforcement blocking drivers from going online until approved.</td>
+      <td class="status">Completed</td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="signatures">
+  <div class="sig-block">
+    <p>Mirza Umer Ikram</p>
+    <p>S3F22UBSCS081</p>
+    <p>Signature</p>
+    <div class="sig-line"></div>
+  </div>
+  <div class="sig-block">
+    <p>Ruhma Bilal</p>
+    <p>S3F22UBSCS088</p>
+    <p>Signature</p>
+    <div class="sig-line"></div>
+  </div>
+</div>
+
+</body>
+</html>
