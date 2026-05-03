@@ -52,6 +52,21 @@ router.get('/dashboard', async (req, res) => {
     }
 });
 
+// @route   GET /api/admin/drivers/all
+// @desc    Get all drivers
+// @access  Admin
+router.get('/drivers/all', async (req, res) => {
+    try {
+        const drivers = await Driver.find()
+            .populate('user', 'name phone email gender cnic')
+            .sort({ createdAt: -1 });
+
+        res.json({ success: true, count: drivers.length, drivers });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
 // @route   GET /api/admin/drivers/pending
 // @desc    Get drivers pending approval
 // @access  Admin

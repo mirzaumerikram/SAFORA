@@ -18,7 +18,7 @@ export default function Sidebar() {
   const [pendingPinkPass, setPendingPinkPass] = useState(0);
   const [activeAlerts, setActiveAlerts]     = useState(0);
 
-  useEffect(() => {
+  const fetchStats = () => {
     api.get('/admin/dashboard').then(res => {
       setPendingDrivers(res.stats?.pendingDriverApprovals || 0);
       setActiveAlerts(res.stats?.openAlerts || 0);
@@ -27,6 +27,12 @@ export default function Sidebar() {
     api.get('/admin/pinkpass/stats').then(res => {
       setPendingPinkPass(res.totalPending || 0);
     }).catch(() => {});
+  };
+
+  useEffect(() => {
+    fetchStats();
+    window.addEventListener('safora:refresh-badges', fetchStats);
+    return () => window.removeEventListener('safora:refresh-badges', fetchStats);
   }, []);
 
   return (

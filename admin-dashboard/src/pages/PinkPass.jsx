@@ -29,6 +29,7 @@ export default function PinkPass() {
       await api.patch(`/admin/pinkpass/passengers/${userId}/verify`, { action });
       setPassengers(prev => prev.filter(u => u._id !== userId));
       setSelectedUser(null);
+      window.dispatchEvent(new Event('safora:refresh-badges'));
     } catch (e) {
       alert('Action failed: ' + e.message);
     }
