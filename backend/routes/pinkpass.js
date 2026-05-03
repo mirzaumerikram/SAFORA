@@ -37,10 +37,10 @@ router.post('/enroll', auth, async (req, res) => {
         let verified = false;
         let confidence = 0;
         let aiAvailable = false;
-
+        let aiRes = null;
         if (aiServiceUrl) {
             try {
-                const aiRes = await axios.post(
+                aiRes = await axios.post(
                     `${aiServiceUrl}/api/pink-pass/verify-frames`,
                     { frames, cnic: cnics, userId },
                     { timeout: 45000 }
@@ -65,11 +65,12 @@ router.post('/enroll', auth, async (req, res) => {
             return res.json({ success: true, message: 'Pink Pass verified and activated!', confidence });
         } else if (aiAvailable) {
             // AI specifically said NO
+            const reason = aiRes?.data?.reason || 'Verification failed. Please ensure your CNIC is clear and your selfie shows your full face.';
             user.pinkPassStatus = 'rejected';
             await user.save();
             return res.status(400).json({
                 success: false,
-                message: 'Verification failed. Please ensure your CNIC is clear and your selfie shows your full face.',
+                message: reason,
             });
         } else {
             // AI service was offline - fallback to pending admin review

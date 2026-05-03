@@ -65,11 +65,14 @@ def verify_pink_pass_frames():
         # Final decision
         # For auto-verification, both should be true. 
         # If one is false, it might still go to admin review depending on confidence.
-        overall_verified = verification_results["liveness"]["verified"] and \
-                          (verification_results["cnic"]["verified"] if cnic_b64 else True)
+        l_ok = verification_results["liveness"]["verified"]
+        c_ok = verification_results["cnic"]["verified"] if cnic_b64 else True
+        overall_verified = l_ok and c_ok
+        reason = verification_results["liveness"].get("reason", "Verification failed") if not l_ok else "CNIC error" if not c_ok else ""
 
         return jsonify({
             'verified':       overall_verified,
+            'reason':         reason,
             'liveness':       verification_results["liveness"],
             'cnic':           verification_results["cnic"],
             'userId':         user_id,

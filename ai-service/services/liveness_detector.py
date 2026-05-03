@@ -28,7 +28,7 @@ eye_cascade = cv2.CascadeClassifier(EYE_CASCADE_PATH)
 PROFILE_CASCADE_PATH = cv2.data.haarcascades + 'haarcascade_profileface.xml'
 profile_cascade = cv2.CascadeClassifier(PROFILE_CASCADE_PATH)
 
-MIN_MOTION_SCORE = 5.0   # avg pixel diff per-pixel threshold
+MIN_MOTION_SCORE = 3.0   # lowered from 5.0 for better reliability
 MIN_FACE_FRAMES  = 3     # face must appear in at least 3 frames
 
 
