@@ -179,6 +179,15 @@ const RideSelectionScreen: React.FC = () => {
     // -----------------------------------------------------------------------
     return (
         <View style={s.root}>
+            {/* Global Version Marker for Debugging */}
+            <View style={{ 
+                position: 'absolute', top: 0, left: 0, right: 0, 
+                backgroundColor: '#FFD700', padding: 2, 
+                alignItems: 'center', zIndex: 9999,
+                opacity: 0.8
+            }}>
+                <Text style={{ fontSize: 9, fontWeight: '900', color: '#000' }}>SAFORA LIVE v2.1-FIX</Text>
+            </View>
             {/* ── MAP (top ~45%) ─────────────────────────────────────── */}
             <View style={s.mapWrapper}>
                 <SaforaMap 
