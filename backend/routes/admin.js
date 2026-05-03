@@ -248,8 +248,12 @@ router.patch('/pinkpass/passengers/:id/verify', async (req, res) => {
             user.pinkPassVerified = false;
         }
         
+        // AUTO-DELETE SENSITIVE DATA AFTER AUDIT
+        user.pinkPassCnicPhoto   = undefined;
+        user.pinkPassSelfiePhoto = undefined;
+        
         await user.save();
-        res.json({ success: true, message: `Pink Pass ${action}d`, user });
+        res.json({ success: true, message: `Pink Pass ${action}d (Sensitive images have been purged)`, user });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }

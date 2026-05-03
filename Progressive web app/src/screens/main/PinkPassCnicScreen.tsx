@@ -202,7 +202,7 @@ const PinkPassCnicScreen: React.FC = () => {
                     <Text style={s.backText}>←</Text>
                 </TouchableOpacity>
                 <Text style={s.headerTitle}>VERIFICATION</Text>
-                <View style={s.verBadge}><Text style={s.verBadgeText}>v1.3.0</Text></View>
+                <View style={s.verBadge}><Text style={s.verBadgeText}>v1.3.1</Text></View>
             </View>
 
             <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
@@ -324,6 +324,11 @@ const PinkPassCnicScreen: React.FC = () => {
                         )}
                     </>
                 )}
+                <View style={{ marginTop: 20, marginBottom: 10, padding: 16, backgroundColor: 'rgba(236,72,153,0.05)', borderRadius: 12 }}>
+                    <Text style={{ fontSize: 11, color: '#888', textAlign: 'center', lineHeight: 18 }}>
+                        🛡️ <Text style={{ fontWeight: '700' }}>Privacy Commitment:</Text> Your documents are encrypted and only accessible by our vetted female safety team. Images are automatically deleted after verification is complete.
+                    </Text>
+                </View>
             </ScrollView>
         </View>
     );
