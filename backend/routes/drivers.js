@@ -10,7 +10,7 @@ const { auth, authorize } = require('../middleware/auth');
 router.post('/register', auth, async (req, res) => {
     try {
         const userId = req.user.userId;
-        const { licenseNumber, cnic, vehicleType, vehicleInfo } = req.body;
+        const { licenseNumber, cnic, fullName, vehicleType, vehicleInfo } = req.body;
 
         // Check if user exists
         const user = await User.findById(userId);
@@ -39,8 +39,9 @@ router.post('/register', auth, async (req, res) => {
 
         await driver.save();
 
-        // Update user role
+        // Update user role and name
         user.role = 'driver';
+        if (fullName) user.name = fullName;
         await user.save();
 
         res.status(201).json({

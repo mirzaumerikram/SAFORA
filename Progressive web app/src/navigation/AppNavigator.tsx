@@ -152,6 +152,15 @@ const AppNavigator: React.FC = () => {
                 <AuthProvider>
                     <NavigationContainer linking={linking}>
                         <RootNavigator />
+                        {/* Global Version Marker for Debugging */}
+                        <View style={{ 
+                            position: 'absolute', top: 0, left: 0, right: 0, 
+                            backgroundColor: '#FFD700', padding: 2, 
+                            alignItems: 'center', zIndex: 9999,
+                            opacity: 0.8
+                        }}>
+                            <Text style={{ fontSize: 9, fontWeight: '900', color: '#000' }}>SAFORA LIVE v1.9-GOLD</Text>
+                        </View>
                     </NavigationContainer>
                 </AuthProvider>
             </LanguageProvider>
