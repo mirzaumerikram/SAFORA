@@ -184,6 +184,9 @@ router.post('/complete-profile', auth, async (req, res) => {
             { expiresIn: process.env.JWT_EXPIRE }
         );
 
+        // Check if user is already a registered driver
+        const driver = await Driver.findOne({ user: user._id });
+
         res.json({
             success: true,
             token,
@@ -196,6 +199,7 @@ router.post('/complete-profile', auth, async (req, res) => {
                 gender: user.gender,
                 cnic:  user.cnic,
                 pinkPassVerified: user.pinkPassVerified,
+                driverRegistered: !!driver
             }
         });
     } catch (error) {
@@ -323,7 +327,11 @@ router.post('/verify-otp', otpVerifyLimiter, async (req, res) => {
             { expiresIn: process.env.JWT_EXPIRE }
         );
 
-        const isNewUser = user.name === 'New User';
+        // isNewUser = true only when profile has NOT been completed yet
+        const profileIncomplete = user.name === 'New User' || !user.name;
+
+        // Check if user is already a registered driver
+        const driver = await Driver.findOne({ user: user._id });
 
         res.json({
             success: true,
@@ -334,7 +342,8 @@ router.post('/verify-otp', otpVerifyLimiter, async (req, res) => {
                 name: user.name,
                 phone: user.phone,
                 role: user.role,
-                pinkPassVerified: user.pinkPassVerified
+                pinkPassVerified: user.pinkPassVerified,
+                driverRegistered: !!driver
             }
         });
     } catch (error) {
@@ -498,6 +507,9 @@ router.post('/verify-firebase-token', async (req, res) => {
         // A completed profile has a real name (not the placeholder 'New User')
         const profileIncomplete = user.name === 'New User' || !user.name;
 
+        // Check if user is already a registered driver
+        const driver = await Driver.findOne({ user: user._id });
+
         res.json({
             success: true,
             token,
@@ -509,6 +521,7 @@ router.post('/verify-firebase-token', async (req, res) => {
                 role:            user.role,
                 gender:          user.gender,
                 pinkPassVerified: user.pinkPassVerified,
+                driverRegistered: !!driver
             }
         });
     } catch (error) {
