@@ -12,7 +12,7 @@ export default function Header({ search, setSearch }) {
   const [unread, setUnread] = useState(false);
   const dropdownRef = useRef(null);
   const now = new Date();
-  const dateStr = `${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()} · Lahore, Pakistan`;
+  const dateStr = `${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
 
   const fetchNotifs = async () => {
     try {

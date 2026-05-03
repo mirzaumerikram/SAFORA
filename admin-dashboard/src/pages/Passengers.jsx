@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { api } from '../services/api';
 import './TablePage.css';
 
 export default function Passengers() {
+  const { search }            = useOutletContext();
   const [users, setUsers]     = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch]   = useState('');
 
   useEffect(() => {
     api.get('/admin/users')
@@ -24,10 +25,6 @@ export default function Passengers() {
         <div>
           <h2 className="page-title">Passengers</h2>
           <p className="page-sub">{users.length} registered passengers</p>
-        </div>
-        <div className="search-inline">
-          <span>🔍</span>
-          <input placeholder="Search by name or phone..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
       </div>
 

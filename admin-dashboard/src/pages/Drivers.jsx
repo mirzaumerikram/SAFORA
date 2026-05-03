@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { api } from '../services/api';
 import './TablePage.css';
 
 export default function Drivers() {
+  const { search }              = useOutletContext();
   const [drivers, setDrivers]   = useState([]);
   const [loading, setLoading]   = useState(true);
   const [action, setAction]     = useState(null); // driverId_approve | driverId_reject
@@ -13,6 +15,13 @@ export default function Drivers() {
     api.get('/admin/drivers/pending').then(res => setDrivers(res.drivers || [])).catch(() => setDrivers([])).finally(() => setLoading(false));
   };
   useEffect(load, []);
+
+  const filtered = drivers.filter(d => 
+    !search || 
+    (d.user?.name || '').toLowerCase().includes(search.toLowerCase()) || 
+    (d.user?.phone || '').includes(search) ||
+    (d.user?.cnic || '').includes(search)
+  );
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
@@ -46,20 +55,20 @@ export default function Drivers() {
           <h2 className="page-title">Driver Approvals</h2>
           <p className="page-sub">Review and approve pending driver applications</p>
         </div>
-        <div className="badge-count">{drivers.length} Pending</div>
+        <div className="badge-count">{filtered.length} Results</div>
       </div>
 
       {loading ? <div className="loading-box">Loading drivers...</div> : (
         <>
-          {drivers.length === 0 ? (
+          {filtered.length === 0 ? (
             <div className="empty-state">
-              <div className="es-icon">✅</div>
-              <div className="es-title">All caught up!</div>
-              <div className="es-sub">No pending driver approvals</div>
+              <div className="es-icon">{search ? '🔍' : '✅'}</div>
+              <div className="es-title">{search ? 'No results found' : 'All caught up!'}</div>
+              <div className="es-sub">{search ? `No driver matches "${search}"` : 'No pending driver approvals'}</div>
             </div>
           ) : (
             <div className="card-grid">
-              {drivers.map(d => (
+              {filtered.map(d => (
                 <div className="driver-card" key={d._id}>
                   <div className="dc-top">
                     <div className="dc-avatar">{(d.user?.name || 'D').charAt(0).toUpperCase()}</div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useOutletContext } from 'react-router-dom';
 import { api } from '../services/api';
 import './Dashboard.css';
 
@@ -17,6 +17,7 @@ const statusColor = { active: '#e74c3c', handling: '#3498db', resolved: '#27ae60
 const statusLabel = { active: '● Active', handling: '● Handling', resolved: '✓ Resolved' };
 
 export default function Dashboard() {
+  const { search }                = useOutletContext();
   const [stats, setStats]         = useState(null);
   const [alerts, setAlerts]       = useState([]);
   const [rides, setRides]         = useState([]);
@@ -120,7 +121,7 @@ export default function Dashboard() {
       {/* Active Rides */}
       <div className="section-card">
         <div className="card-header">
-          <div className="ch-title">🔄 Active Rides ({rides.length || s.activeRides})</div>
+          <div className="ch-title">🔄 Active Rides ({rides.filter(r => !search || (r.passenger?.name || '').toLowerCase().includes(search.toLowerCase()) || (r.driver?.user?.name || '').toLowerCase().includes(search.toLowerCase())).length})</div>
           <Link to="/rides" className="ch-link">View All →</Link>
         </div>
         {rides.length === 0 ? (
@@ -131,7 +132,11 @@ export default function Dashboard() {
               <tr><th>Passenger</th><th>Driver</th><th>Pickup</th><th>Dropoff</th><th>Fare</th><th>Status</th></tr>
             </thead>
             <tbody>
-              {rides.slice(0, 6).map(r => (
+              {rides.filter(r => 
+                !search || 
+                (r.passenger?.name || '').toLowerCase().includes(search.toLowerCase()) || 
+                (r.driver?.user?.name || '').toLowerCase().includes(search.toLowerCase())
+              ).slice(0, 6).map(r => (
                 <tr key={r._id}>
                   <td>{r.passenger?.name || '—'}</td>
                   <td>{r.driver?.user?.name || '—'}</td>

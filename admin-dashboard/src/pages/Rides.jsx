@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { api } from '../services/api';
 import './TablePage.css';
 
@@ -11,9 +12,9 @@ const chipStyle = {
 };
 
 export default function Rides() {
+  const { search }            = useOutletContext();
   const [rides, setRides]     = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch]   = useState('');
 
   useEffect(() => {
     api.get('/admin/rides/active')
@@ -25,7 +26,8 @@ export default function Rides() {
   const filtered = rides.filter(r =>
     !search ||
     (r.passenger?.name || '').toLowerCase().includes(search.toLowerCase()) ||
-    (r.pickupLocation?.address || '').toLowerCase().includes(search.toLowerCase())
+    (r.pickupLocation?.address || '').toLowerCase().includes(search.toLowerCase()) ||
+    (r.dropoffLocation?.address || '').toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -34,10 +36,6 @@ export default function Rides() {
         <div>
           <h2 className="page-title">Active Rides</h2>
           <p className="page-sub">{rides.length} rides currently in progress</p>
-        </div>
-        <div className="search-inline">
-          <span>🔍</span>
-          <input placeholder="Search passenger or location..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
       </div>
 

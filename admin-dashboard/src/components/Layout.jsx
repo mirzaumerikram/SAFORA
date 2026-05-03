@@ -12,7 +12,7 @@ export default function Layout() {
       <div className="layout-main">
         <Header search={search} setSearch={setSearch} />
         <div className="layout-content">
-          <Outlet />
+          <Outlet context={{ search }} />
         </div>
       </div>
     </div>

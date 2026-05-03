@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { api } from '../services/api';
 import './Admins.css';
 import './TablePage.css';
 
 export default function Admins() {
-  const [admins, setAdmins]   = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { search }              = useOutletContext();
+  const [admins, setAdmins]     = useState([]);
+  const [loading, setLoading]   = useState(true);
   const [newPhone, setNewPhone] = useState('');
   const [adding, setAdding]     = useState(false);
   const [toast, setToast]       = useState('');
@@ -19,6 +21,13 @@ export default function Admins() {
   };
 
   useEffect(load, []);
+
+  const filtered = admins.filter(a =>
+    !search ||
+    (a.name || '').toLowerCase().includes(search.toLowerCase()) ||
+    (a.phone || '').includes(search) ||
+    (a.email || '').toLowerCase().includes(search.toLowerCase())
+  );
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
@@ -58,7 +67,7 @@ export default function Admins() {
           <h2 className="page-title">Admin Management</h2>
           <p className="page-sub">Add or remove system administrators</p>
         </div>
-        <div className="badge-count">{admins.length} Admins</div>
+        <div className="badge-count">{filtered.length} Results</div>
       </div>
 
       <form className="admin-actions" onSubmit={addAdmin}>
@@ -84,7 +93,7 @@ export default function Admins() {
               <tr><th>Admin Name</th><th>Phone</th><th>Email</th><th>Added On</th><th>Actions</th></tr>
             </thead>
             <tbody>
-              {admins.map(a => (
+              {filtered.map(a => (
                 <tr key={a._id}>
                   <td>
                     <div className="cell-user">
