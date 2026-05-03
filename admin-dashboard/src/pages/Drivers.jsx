@@ -38,11 +38,14 @@ export default function Drivers() {
 
   const validate = () => {
     const errors = {};
-    if (!editForm.name.trim()) errors.name = 'Name is required';
-    if (!editForm.phone.trim() || editForm.phone.length < 10) errors.phone = 'Valid phone is required';
-    if (!editForm.cnic.trim() || editForm.cnic.length !== 13) errors.cnic = 'CNIC must be 13 digits';
+    if (!editForm.name.trim() || editForm.name.trim().length < 3) errors.name = 'Full name (min 3 chars) is required';
+    if (!editForm.phone.trim() || editForm.phone.length !== 11) errors.phone = 'Phone number must be exactly 11 digits';
+    if (!editForm.cnic.trim() || editForm.cnic.length !== 13) errors.cnic = 'CNIC must be exactly 13 digits';
+    if (!editForm.email.trim() || !/^\S+@\S+\.\S+$/.test(editForm.email)) errors.email = 'A valid email address is required';
+    if (!editForm.make.trim()) errors.make = 'Vehicle make is required';
+    if (!editForm.model.trim()) errors.model = 'Vehicle model is required';
     if (!editForm.plateNumber.trim()) errors.plateNumber = 'Plate number is required';
-    if (editForm.email && !/^\S+@\S+\.\S+$/.test(editForm.email)) errors.email = 'Invalid email format';
+    
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -250,11 +253,13 @@ export default function Drivers() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div className="form-group">
                   <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '5px' }}>Vehicle Make</label>
-                  <input style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }} value={editForm.make} onChange={e => setEditForm({...editForm, make: e.target.value})} />
+                  <input style={{ width: '100%', padding: '10px', borderRadius: '6px', border: formErrors.make ? '1px solid red' : '1px solid #ddd' }} value={editForm.make} onChange={e => setEditForm({...editForm, make: e.target.value})} />
+                  {formErrors.make && <span style={{ color: 'red', fontSize: '10px' }}>{formErrors.make}</span>}
                 </div>
                 <div className="form-group">
                   <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '5px' }}>Model</label>
-                  <input style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }} value={editForm.model} onChange={e => setEditForm({...editForm, model: e.target.value})} />
+                  <input style={{ width: '100%', padding: '10px', borderRadius: '6px', border: formErrors.model ? '1px solid red' : '1px solid #ddd' }} value={editForm.model} onChange={e => setEditForm({...editForm, model: e.target.value})} />
+                  {formErrors.model && <span style={{ color: 'red', fontSize: '10px' }}>{formErrors.model}</span>}
                 </div>
               </div>
               <div className="form-group">
