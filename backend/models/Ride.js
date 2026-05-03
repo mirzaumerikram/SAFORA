@@ -43,7 +43,7 @@ const rideSchema = new mongoose.Schema({
     actualPrice: Number,
     status: {
         type: String,
-        enum: ['requested', 'accepted', 'started', 'completed', 'cancelled'],
+        enum: ['requested', 'matched', 'accepted', 'started', 'completed', 'cancelled'],
         default: 'requested'
     },
     type: {
