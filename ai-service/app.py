@@ -7,23 +7,44 @@ load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
-
 app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024  # 32MB
 
-# Register blueprints
+# Pink Pass verification (MediaPipe + DeepFace)
 from routes.pink_pass import pink_pass_bp
-from routes.pricing   import pricing_bp
-from routes.matching  import matching_bp
-
 app.register_blueprint(pink_pass_bp, url_prefix='/api/pink-pass')
-app.register_blueprint(pricing_bp,   url_prefix='/api/pricing')
-app.register_blueprint(matching_bp,  url_prefix='/api/matching')
+
+# Pricing — simple formula fallback (no sklearn needed)
+from flask import Blueprint
+pricing_bp = Blueprint('pricing', __name__)
+
+@pricing_bp.route('/predict', methods=['POST'])
+def predict_price():
+    data = request.get_json() or {}
+    distance = float(data.get('distance', 5))
+    duration = float(data.get('duration', 15))
+    estimated_price = round((distance * 35) + (duration * 5) + 50)
+    return jsonify({'estimated_price': estimated_price, 'currency': 'PKR'})
+
+app.register_blueprint(pricing_bp, url_prefix='/api/pricing')
+
+# Matching — simple nearest-first fallback
+matching_bp = Blueprint('matching', __name__)
+
+@matching_bp.route('/rank-drivers', methods=['POST'])
+def rank_drivers():
+    data = request.get_json() or {}
+    drivers = data.get('drivers', [])
+    ranked = sorted(drivers, key=lambda d: d.get('distance', 999))
+    return jsonify({'ranked_drivers': ranked})
+
+app.register_blueprint(matching_bp, url_prefix='/api/matching')
+
 
 @app.route('/', methods=['GET'])
 def home():
     return jsonify({
-        'message': 'SAFORA AI Microservice',
-        'version': '1.0.0',
+        'message': 'SAFORA AI Service',
+        'version': '2.0.0',
         'endpoints': [
             '/api/pink-pass/verify-frames',
             '/api/pricing/predict',

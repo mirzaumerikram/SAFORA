@@ -1,11 +1,11 @@
 [phases.setup]
-nixPkgs = ["python311", "python311Packages.pip", "gcc", "libGL"]
+nixPkgs = ["python311", "gcc", "libGL", "libGLU", "glib"]
 
 [phases.install]
 cmds = [
   "pip install --upgrade pip setuptools wheel",
-  "pip install -r requirements.txt"
+  "pip install --no-build-isolation -r requirements.txt"
 ]
 
 [start]
-cmd = "gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120"
+cmd = "gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 180"
