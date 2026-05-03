@@ -66,6 +66,13 @@ export default function Admins() {
     }
   };
 
+  const editAdmin = (a) => {
+    setNewName(a.name || '');
+    setNewEmail(a.email || '');
+    setNewPhone(a.phone || '');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <div className="page">
       {toast && <div className="toast">{toast}</div>}
@@ -125,6 +132,7 @@ export default function Admins() {
                   <td>{a.email || '—'}</td>
                   <td>{new Date(a.createdAt).toLocaleDateString()}</td>
                   <td>
+                    <button className="btn-edit-admin" onClick={() => editAdmin(a)} style={{marginRight:8}}>Edit</button>
                     <button className="btn-remove-admin" onClick={() => removeAdmin(a._id)}>Remove</button>
                   </td>
                 </tr>

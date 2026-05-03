@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { api } from '../services/api';
 import './Header.css';
 
@@ -7,12 +7,24 @@ const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Satur
 const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 export default function Header({ search, setSearch }) {
+  const location = useLocation();
   const [showNotifs, setShowNotifs] = useState(false);
   const [notifs, setNotifs] = useState([]);
   const [unread, setUnread] = useState(false);
   const dropdownRef = useRef(null);
   const now = new Date();
   const dateStr = `${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+
+  const getPlaceholder = () => {
+    const path = location.pathname;
+    if (path === '/') return 'Search active rides...';
+    if (path === '/passengers') return 'Search passengers...';
+    if (path === '/drivers') return 'Search pending drivers...';
+    if (path === '/rides') return 'Search all active rides...';
+    if (path === '/admins') return 'Search administrators...';
+    if (path === '/sos-alerts') return 'Search SOS alerts...';
+    return 'Search SAFORA...';
+  };
 
   const fetchNotifs = async () => {
     try {
@@ -74,7 +86,7 @@ export default function Header({ search, setSearch }) {
           <span className="search-icon">🔍</span>
           <input
             type="text"
-            placeholder="Search ride, driver, user..."
+            placeholder={getPlaceholder()}
             value={search}
             onChange={e => setSearch(e.target.value)}
           />

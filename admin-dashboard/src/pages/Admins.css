@@ -32,6 +32,20 @@
 .btn-add-admin:hover { opacity: 0.9; }
 .btn-add-admin:disabled { background: #ccc; cursor: not-allowed; }
 
+.btn-edit-admin {
+  background: #e8f4fd;
+  color: #3498db;
+  border: 1px solid #d0e8f9;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-edit-admin:hover { background: #3498db; color: white; }
+
 .btn-remove-admin {
   background: #fff0f0;
   color: #e74c3c;
