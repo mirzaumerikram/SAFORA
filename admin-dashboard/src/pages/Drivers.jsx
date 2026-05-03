@@ -223,8 +223,13 @@ export default function Drivers() {
       {editDriver && (
         <div className="modal-overlay" onClick={() => setEditDriver(null)}>
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px', width: '90%', padding: '24px' }}>
-            <h3 style={{ marginBottom: '20px' }}>Edit Driver Details</h3>
+            <h3 style={{ marginBottom: '20px' }}>Edit Driver Details (v1.5)</h3>
             <form onSubmit={handleUpdate} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              <div className="form-group" style={{ background: '#f9f9f9', padding: '10px', borderRadius: '8px', border: '1px solid #eee' }}>
+                <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '5px', fontWeight: 'bold' }}>Email Address (Required)</label>
+                <input style={{ width: '100%', padding: '10px', borderRadius: '6px', border: formErrors.email ? '1px solid red' : '1px solid #ddd' }} value={editForm.email} onChange={e => setEditForm({...editForm, email: e.target.value})} placeholder="example@safora.me" />
+                {formErrors.email && <span style={{ color: 'red', fontSize: '10px' }}>{formErrors.email}</span>}
+              </div>
               <div className="form-group">
                 <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '5px' }}>Full Name</label>
                 <input style={{ width: '100%', padding: '10px', borderRadius: '6px', border: formErrors.name ? '1px solid red' : '1px solid #ddd' }} value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} />
@@ -241,11 +246,6 @@ export default function Drivers() {
                   <input style={{ width: '100%', padding: '10px', borderRadius: '6px', border: formErrors.cnic ? '1px solid red' : '1px solid #ddd' }} value={editForm.cnic} onChange={e => setEditForm({...editForm, cnic: e.target.value})} maxLength={13} />
                   {formErrors.cnic && <span style={{ color: 'red', fontSize: '10px' }}>{formErrors.cnic}</span>}
                 </div>
-              </div>
-              <div className="form-group">
-                <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '5px' }}>Email Address</label>
-                <input style={{ width: '100%', padding: '10px', borderRadius: '6px', border: formErrors.email ? '1px solid red' : '1px solid #ddd' }} value={editForm.email} onChange={e => setEditForm({...editForm, email: e.target.value})} placeholder="example@safora.me" />
-                {formErrors.email && <span style={{ color: 'red', fontSize: '10px' }}>{formErrors.email}</span>}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div className="form-group">
