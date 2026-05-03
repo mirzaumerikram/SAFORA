@@ -1,6 +1,6 @@
 {
   "name": "safora-passenger-app",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "SAFORA Passenger Mobile App - Safe and Affordable Ride-Sharing",
   "main": "index.js",
   "scripts": {
