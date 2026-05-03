@@ -9,6 +9,8 @@ export default function Admins() {
   const [admins, setAdmins]     = useState([]);
   const [loading, setLoading]   = useState(true);
   const [newPhone, setNewPhone] = useState('');
+  const [newName, setNewName]   = useState('');
+  const [newEmail, setNewEmail] = useState('');
   const [adding, setAdding]     = useState(false);
   const [toast, setToast]       = useState('');
 
@@ -33,12 +35,18 @@ export default function Admins() {
 
   const addAdmin = async (e) => {
     e.preventDefault();
-    if (!newPhone) return;
+    if (!newPhone || !newName || !newEmail) return;
     setAdding(true);
     try {
-      await api.post('/admin/add', { phone: newPhone });
+      await api.post('/admin/add', { 
+        name: newName,
+        email: newEmail,
+        phone: newPhone 
+      });
       setNewPhone('');
-      showToast('✅ Admin added successfully');
+      setNewName('');
+      setNewEmail('');
+      showToast('✅ Admin account ready');
       load();
     } catch (err) {
       showToast('❌ ' + (err.response?.data?.message || err.message));
@@ -73,17 +81,29 @@ export default function Admins() {
       <form className="admin-actions" onSubmit={addAdmin}>
         <input 
           className="admin-input" 
-          placeholder="Enter phone (e.g. +923...)" 
+          placeholder="Admin Full Name" 
+          value={newName}
+          onChange={e => setNewName(e.target.value)}
+          required
+        />
+        <input 
+          className="admin-input" 
+          placeholder="Email (for login OTP)" 
+          type="email"
+          value={newEmail}
+          onChange={e => setNewEmail(e.target.value)}
+          required
+        />
+        <input 
+          className="admin-input" 
+          placeholder="Phone (+92...)" 
           value={newPhone}
           onChange={e => setNewPhone(e.target.value)}
           required
         />
         <button className="btn-add-admin" type="submit" disabled={adding}>
-          {adding ? 'Adding...' : '+ Add Admin'}
+          {adding ? '...' : '+ Create Admin'}
         </button>
-        <p style={{fontSize:12, color:'#888', marginLeft:10}}>
-          User must already have an account to be promoted.
-        </p>
       </form>
 
       {loading ? <div className="loading-box">Loading admins...</div> : (

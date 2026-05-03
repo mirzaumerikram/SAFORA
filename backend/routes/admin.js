@@ -227,18 +227,38 @@ router.get('/list', async (req, res) => {
 });
 
 // @route   POST /api/admin/add
-// @desc    Promote a user to admin by phone
+// @desc    Add or promote a user to admin
 // @access  Admin
 router.post('/add', async (req, res) => {
     try {
-        const { phone } = req.body;
-        const user = await User.findOne({ phone });
-        if (!user) return res.status(404).json({ message: 'User not found' });
+        const { name, email, phone } = req.body;
+        if (!phone || !name || !email) {
+            return res.status(400).json({ message: 'Name, email and phone are required' });
+        }
+
+        let user = await User.findOne({ phone });
         
-        user.role = 'admin';
-        await user.save();
-        
-        res.json({ success: true, message: 'User promoted to admin', user });
+        if (user) {
+            user.role = 'admin';
+            user.name = name;
+            user.email = email;
+            user.verified = true;
+            user.emailVerified = true;
+            await user.save();
+            res.json({ success: true, message: 'User updated and promoted to admin', user });
+        } else {
+            user = new User({
+                name,
+                email,
+                phone,
+                role: 'admin',
+                verified: true,
+                emailVerified: true,
+                gender: 'other'
+            });
+            await user.save();
+            res.json({ success: true, message: 'New admin account created', user });
+        }
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
