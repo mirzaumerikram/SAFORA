@@ -141,14 +141,21 @@ const RideSelectionScreen: React.FC = () => {
     const handleConfirm = async () => {
         setBooking(true);
         try {
-            await apiService.post('/rides/request', {
+            const resp = await apiService.post('/rides/request', {
                 pickupLocation:  { address: pickup,  lat: pickupCoords.latitude, lng: pickupCoords.longitude },
                 dropoffLocation: { address: dropoff, lat: dropoffCoords.latitude, lng: dropoffCoords.longitude },
                 type: selected,
             });
 
+            const rideId = resp.data?.ride?._id || resp.data?.ride?.id;
+            
+            // Join the ride room to receive socket updates
+            if (rideId) {
+                socketService.joinRide(rideId);
+            }
+
             navigation.navigate('Searching', {
-                rideId: response.data?.ride?.id || response.data?.ride?._id,
+                rideId,
                 pickup,
                 dropoff,
                 pickupCoords,

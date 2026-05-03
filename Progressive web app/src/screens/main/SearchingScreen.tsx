@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Animated, Easing, TouchableOpacity, StatusBar }
 import { useNavigation } from '@react-navigation/native';
 import { useAppTheme } from '../../context/ThemeContext';
 import { useLanguage } from '../../context/LanguageContext';
+import socketService from '../../services/socket.service';
 
 const SearchingScreen: React.FC = () => {
     const navigation = useNavigation<any>();
@@ -32,17 +33,13 @@ const SearchingScreen: React.FC = () => {
         ).start();
 
         // Real Socket Listener for Driver Match
-        const socket = (global as any).socket;
-        if (socket) {
-            console.log('[Searching] Listening for ride:matched...');
-            socket.on('ride:matched', (data: any) => {
-                console.log('[Searching] Ride matched!', data);
-                navigation.navigate('Tracking', { rideId: data.rideId });
-            });
-        }
+        socketService.onRideAccepted((data: any) => {
+            console.log('[Searching] Ride accepted by driver!', data);
+            navigation.navigate('Tracking', { rideId: data.rideId });
+        });
 
         return () => {
-            if (socket) socket.off('ride:matched');
+            socketService.offAll();
         };
     }, []);
 
