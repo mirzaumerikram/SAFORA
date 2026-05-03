@@ -3,6 +3,7 @@ const router = express.Router();
 const crypto = require('crypto');
 const rateLimit = require('express-rate-limit');
 const User = require('../models/User');
+const Driver = require('../models/Driver');
 const jwt = require('jsonwebtoken');
 
 // ── Rate limiters ─────────────────────────────────────────────────────────────
