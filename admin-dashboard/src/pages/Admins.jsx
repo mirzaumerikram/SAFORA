@@ -109,7 +109,7 @@ export default function Admins() {
           required
         />
         <button className="btn-add-admin" type="submit" disabled={adding}>
-          {adding ? '...' : '+ Create Admin'}
+          {adding ? '...' : (admins.some(a => a.phone === newPhone) ? '✓ Update Admin' : '+ Create Admin')}
         </button>
       </form>
 

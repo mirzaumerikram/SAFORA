@@ -10,7 +10,7 @@ export default function Passengers() {
 
   useEffect(() => {
     api.get('/admin/users')
-      .then(res => setUsers((res.users || []).filter(u => u.role === 'passenger' || !u.role)))
+      .then(res => setUsers((res.users || []).filter(u => u.role !== 'admin' && u.role !== 'driver')))
       .catch(() => setUsers([]))
       .finally(() => setLoading(false));
   }, []);
