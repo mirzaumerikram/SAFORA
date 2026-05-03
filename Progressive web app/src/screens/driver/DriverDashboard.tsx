@@ -71,23 +71,27 @@ const DriverDashboard: React.FC = () => {
                 setDriverId(res.driver.id);
                 if (res.driver.name) setDriverName(toFirstName(res.driver.name));
                 if (res.driver.profilePicture) setProfilePicture(res.driver.profilePicture);
-                setBgCheckStatus(res.driver.backgroundCheck?.status || 'pending');
+                const currentStatus = res.driver.backgroundCheck?.status || 'pending';
+                setBgCheckStatus(currentStatus);
+
                 setEarnings(prev => ({
                     ...prev,
                     rating: res.driver.rating?.toFixed(1) || '5.0',
                     trips: res.driver.totalRides || 0,
                 }));
+
                 // Cache driver doc id
                 if (raw) {
                     const u = JSON.parse(raw);
                     u.driverDocId = res.driver.id;
                     await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(u));
                 }
-            }
-            // Restore online status from memory
-            const onlineStatus = await AsyncStorage.getItem('driver_online_status');
-            if (onlineStatus === 'true' && bgCheckStatus === 'approved') {
-                handleToggleOnline(true);
+
+                // Restore online status from memory
+                const onlineStatus = await AsyncStorage.getItem('driver_online_status');
+                if (onlineStatus === 'true' && currentStatus === 'approved') {
+                    handleToggleOnline(true);
+                }
             }
         } catch { /* use cached data */ }
     };
