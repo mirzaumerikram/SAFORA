@@ -427,6 +427,50 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
+// @route   PATCH /api/admin/users/:id
+// @desc    Update passenger details
+// @access  Admin
+router.patch('/users/:id', async (req, res) => {
+    try {
+        const { name, phone, email, cnic, gender } = req.body;
+
+        // 1. Validation
+        if (!name || !phone || !cnic) {
+            return res.status(400).json({ message: 'Name, Phone, and CNIC are required' });
+        }
+        if (name.length < 3) return res.status(400).json({ message: 'Name must be at least 3 characters' });
+        if (phone.length !== 11) return res.status(400).json({ message: 'Phone must be exactly 11 digits' });
+        if (cnic.length !== 13) return res.status(400).json({ message: 'CNIC must be exactly 13 digits' });
+        if (email && !/^\S+@\S+\.\S+$/.test(email)) return res.status(400).json({ message: 'Invalid email format' });
+
+        const user = await User.findById(req.params.id);
+        if (!user) return res.status(404).json({ message: 'Passenger not found' });
+
+        // Check for duplicates if phone/cnic changed
+        if (phone !== user.phone) {
+            const existingPhone = await User.findOne({ phone, _id: { $ne: user._id } });
+            if (existingPhone) return res.status(400).json({ message: 'Phone number already in use' });
+        }
+        if (cnic !== user.cnic) {
+            const existingCnic = await User.findOne({ cnic, _id: { $ne: user._id } });
+            if (existingCnic) return res.status(400).json({ message: 'CNIC already in use' });
+        }
+
+        // 2. Update fields
+        user.name = name;
+        user.phone = phone;
+        user.email = email;
+        user.cnic = cnic;
+        if (gender) user.gender = gender;
+
+        await user.save();
+        res.json({ success: true, message: 'Passenger updated successfully', user });
+    } catch (error) {
+        console.error('[Admin] Passenger update error:', error);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
 // end of admin routes
 module.exports = router;
 
