@@ -107,11 +107,19 @@ router.patch('/drivers/:id/approve', async (req, res) => {
 router.patch('/drivers/:id', async (req, res) => {
     try {
         const { name, phone, email, cnic, vehicleInfo } = req.body;
-        const driver = await Driver.findById(req.params.id).populate('user');
+        
+        // 1. Validation
+        if (!name || !phone || !cnic) {
+            return res.status(400).json({ message: 'Name, Phone, and CNIC are required' });
+        }
+        if (phone.length < 10) return res.status(400).json({ message: 'Invalid phone number' });
+        if (cnic.length !== 13) return res.status(400).json({ message: 'CNIC must be exactly 13 digits' });
+
+        const driver = await Driver.findById(req.params.id);
         if (!driver) return res.status(404).json({ message: 'Driver not found' });
 
-        // Update Driver fields
-        if (cnic !== undefined) driver.cnic = cnic;
+        // 2. Update Driver fields
+        driver.cnic = cnic;
         if (vehicleInfo) {
             if (vehicleInfo.make) driver.vehicleInfo.make = vehicleInfo.make;
             if (vehicleInfo.model) driver.vehicleInfo.model = vehicleInfo.model;
@@ -119,19 +127,20 @@ router.patch('/drivers/:id', async (req, res) => {
         }
         await driver.save();
 
-        // Update linked User fields
+        // 3. Update linked User fields
         if (driver.user) {
-            const user = await User.findById(driver.user._id);
+            const user = await User.findById(driver.user);
             if (user) {
-                if (name) user.name = name;
-                if (phone) user.phone = phone;
+                user.name = name;
+                user.phone = phone;
                 if (email) user.email = email;
-                if (cnic) user.cnic = cnic;
+                user.cnic = cnic;
                 await user.save();
             }
         }
 
-        res.json({ success: true, message: 'Driver updated successfully', driver });
+        const updated = await Driver.findById(req.params.id).populate('user', 'name phone email gender cnic');
+        res.json({ success: true, message: 'Driver updated successfully', driver: updated });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }

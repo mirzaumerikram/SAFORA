@@ -14,6 +14,7 @@ export default function Drivers() {
   // Edit Modal State
   const [editDriver, setEditDriver] = useState(null);
   const [editForm, setEditForm]     = useState({ name: '', phone: '', email: '', cnic: '', make: '', model: '', plateNumber: '' });
+  const [formErrors, setFormErrors] = useState({});
 
   const load = () => {
     setLoading(true);
@@ -34,6 +35,16 @@ export default function Drivers() {
   );
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
+
+  const validate = () => {
+    const errors = {};
+    if (!editForm.name.trim()) errors.name = 'Name is required';
+    if (!editForm.phone.trim() || editForm.phone.length < 10) errors.phone = 'Valid phone is required';
+    if (!editForm.cnic.trim() || editForm.cnic.length !== 13) errors.cnic = 'CNIC must be 13 digits';
+    if (!editForm.plateNumber.trim()) errors.plateNumber = 'Plate number is required';
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const approve = async (id) => {
     setAction(id + '_approve');
@@ -68,6 +79,7 @@ export default function Drivers() {
 
   const openEdit = (d) => {
     setEditDriver(d);
+    setFormErrors({});
     setEditForm({
       name: d.user?.name || '',
       phone: d.user?.phone || '',
@@ -81,6 +93,8 @@ export default function Drivers() {
 
   const handleUpdate = async (e) => {
     e.preventDefault();
+    if (!validate()) return;
+    
     setAction('updating');
     try {
       const payload = {
@@ -94,12 +108,15 @@ export default function Drivers() {
           plateNumber: editForm.plateNumber
         }
       };
-      await api.patch(`/admin/drivers/${editDriver._id}`, payload);
-      showToast('✅ Driver updated successfully');
-      setEditDriver(null);
-      load(); // Reload data
+      const res = await api.patch(`/admin/drivers/${editDriver._id}`, payload);
+      if (res.success) {
+        showToast('✅ Driver updated successfully');
+        setEditDriver(null);
+        // Direct state update for immediate feedback
+        setDrivers(prev => prev.map(d => d._id === editDriver._id ? res.driver : d));
+      }
     } catch (err) {
-      showToast('❌ Update failed: ' + err.message);
+      showToast('❌ ' + (err.message || 'Update failed'));
     } finally {
       setAction(null);
     }
@@ -210,15 +227,18 @@ export default function Drivers() {
             <form onSubmit={handleUpdate} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               <div className="form-group">
                 <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '5px' }}>Full Name</label>
-                <input style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }} value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} />
+                <input style={{ width: '100%', padding: '10px', borderRadius: '6px', border: formErrors.name ? '1px solid red' : '1px solid #ddd' }} value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} />
+                {formErrors.name && <span style={{ color: 'red', fontSize: '10px' }}>{formErrors.name}</span>}
               </div>
               <div className="form-group">
                 <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '5px' }}>Phone</label>
-                <input style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }} value={editForm.phone} onChange={e => setEditForm({...editForm, phone: e.target.value})} />
+                <input style={{ width: '100%', padding: '10px', borderRadius: '6px', border: formErrors.phone ? '1px solid red' : '1px solid #ddd' }} value={editForm.phone} onChange={e => setEditForm({...editForm, phone: e.target.value})} maxLength={11} />
+                {formErrors.phone && <span style={{ color: 'red', fontSize: '10px' }}>{formErrors.phone}</span>}
               </div>
               <div className="form-group">
                 <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '5px' }}>CNIC</label>
-                <input style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }} value={editForm.cnic} onChange={e => setEditForm({...editForm, cnic: e.target.value})} />
+                <input style={{ width: '100%', padding: '10px', borderRadius: '6px', border: formErrors.cnic ? '1px solid red' : '1px solid #ddd' }} value={editForm.cnic} onChange={e => setEditForm({...editForm, cnic: e.target.value})} maxLength={13} />
+                {formErrors.cnic && <span style={{ color: 'red', fontSize: '10px' }}>{formErrors.cnic}</span>}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div className="form-group">
@@ -232,7 +252,8 @@ export default function Drivers() {
               </div>
               <div className="form-group">
                 <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '5px' }}>Plate Number</label>
-                <input style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }} value={editForm.plateNumber} onChange={e => setEditForm({...editForm, plateNumber: e.target.value})} />
+                <input style={{ width: '100%', padding: '10px', borderRadius: '6px', border: formErrors.plateNumber ? '1px solid red' : '1px solid #ddd' }} value={editForm.plateNumber} onChange={e => setEditForm({...editForm, plateNumber: e.target.value})} />
+                {formErrors.plateNumber && <span style={{ color: 'red', fontSize: '10px' }}>{formErrors.plateNumber}</span>}
               </div>
               <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
                 <button type="button" onClick={() => setEditDriver(null)} style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid #ddd', background: '#fff', cursor: 'pointer' }}>Cancel</button>
