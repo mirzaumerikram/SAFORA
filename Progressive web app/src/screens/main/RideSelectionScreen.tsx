@@ -148,6 +148,7 @@ const RideSelectionScreen: React.FC = () => {
             });
 
             navigation.navigate('Searching', {
+                rideId: response.data?.ride?.id || response.data?.ride?._id,
                 pickup,
                 dropoff,
                 pickupCoords,

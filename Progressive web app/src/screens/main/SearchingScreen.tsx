@@ -41,12 +41,9 @@ const SearchingScreen: React.FC = () => {
             })
         ).start();
 
-        // Simulate finding a driver
-        const timer = setTimeout(() => {
-            navigation.navigate('Tracking', { rideId: 'test_ride_123' });
-        }, 8000);
-
-        return () => clearTimeout(timer);
+        // Wait for real driver match via socket (handled in a separate service or effect)
+        // For now, we remove the auto-redirect to placeholder
+        return () => {};
     }, []);
 
     const spin = rotateAnim.interpolate({
