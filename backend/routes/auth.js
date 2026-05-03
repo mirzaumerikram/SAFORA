@@ -349,8 +349,8 @@ router.post('/verify-otp', otpVerifyLimiter, async (req, res) => {
             ]
         });
 
-        // If found by phone but not linked, fix the link now
-        if (driver && !driver.user) {
+        // If found but linked to a different (or no) user, update it to the current one
+        if (driver && (!driver.user || driver.user.toString() !== user._id.toString())) {
             driver.user = user._id;
             await driver.save();
         }
@@ -538,8 +538,8 @@ router.post('/verify-firebase-token', async (req, res) => {
             ]
         });
 
-        // If found by phone but not linked, fix the link now
-        if (driver && !driver.user) {
+        // If found but linked to a different (or no) user, update it to the current one
+        if (driver && (!driver.user || driver.user.toString() !== user._id.toString())) {
             driver.user = user._id;
             await driver.save();
         }
