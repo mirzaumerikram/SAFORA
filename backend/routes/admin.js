@@ -264,22 +264,6 @@ router.post('/add', async (req, res) => {
     }
 });
 
-// @route   DELETE /api/admin/:id
-// @desc    Remove admin role from a user (demote to passenger)
-// @access  Admin
-router.delete('/:id', async (req, res) => {
-    try {
-        const user = await User.findById(req.params.id);
-        if (!user) return res.status(404).json({ message: 'User not found' });
-        
-        // Prevent removing yourself if needed? For now just allow it.
-        user.role = 'passenger';
-        await user.save();
-        
-        res.json({ success: true, message: 'Admin role removed' });
-    } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
-    }
 // @route   DELETE /api/admin/users/:id
 // @desc    Hard delete a user from the system
 // @access  Admin
@@ -288,6 +272,23 @@ router.delete('/users/:id', async (req, res) => {
         const user = await User.findByIdAndDelete(req.params.id);
         if (!user) return res.status(404).json({ message: 'User not found' });
         res.json({ success: true, message: 'User record permanently removed' });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// @route   DELETE /api/admin/:id
+// @desc    Remove admin role from a user (demote to passenger)
+// @access  Admin
+router.delete('/:id', async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+        
+        user.role = 'passenger';
+        await user.save();
+        
+        res.json({ success: true, message: 'Admin role removed' });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }

@@ -20,9 +20,17 @@ const request = async (method, url, data) => {
   if (data) options.body = JSON.stringify(data);
 
   const res = await fetch(`${BASE_URL}${url}`, options);
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.message || 'Request failed');
-  return json;
+  const contentType = res.headers.get('content-type');
+  
+  if (contentType && contentType.includes('application/json')) {
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Request failed');
+    return json;
+  } else {
+    const text = await res.text();
+    if (!res.ok) throw new Error(`Server Error (${res.status}): ${text.slice(0, 100)}...`);
+    return text;
+  }
 };
 
 export const api = {
