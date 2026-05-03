@@ -8,7 +8,6 @@ import socketService from '../../services/socket.service';
 const SearchingScreen: React.FC = () => {
     const navigation = useNavigation<any>();
     const route = useRoute<any>();
-    const { rideId } = route.params || {};
     const { theme } = useAppTheme();
     const { t } = useLanguage();
     
