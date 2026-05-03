@@ -74,54 +74,61 @@ router.post('/request', auth, authorize('passenger'), async (req, res) => {
 
         await ride.save();
 
-        // Driver matching: find nearest online driver
-        // For Pink Pass rides, only match female drivers with pinkPassCertified
-        const matchQuery = {
-            status: 'online',
-            currentLocation: {
-                $near: {
-                    $geometry: {
-                        type: 'Point',
-                        coordinates: [pickupLocation.lng, pickupLocation.lat]
-                    },
-                    $maxDistance: 10000 // 10km radius
+        try {
+            // Driver matching: find nearest online driver
+            // For Pink Pass rides, only match female drivers with pinkPassCertified
+            const matchQuery = {
+                status: 'online',
+                currentLocation: {
+                    $near: {
+                        $geometry: {
+                            type: 'Point',
+                            coordinates: [pickupLocation.lng, pickupLocation.lat]
+                        },
+                        $maxDistance: 15000 // 15km radius (expanded)
+                    }
+                }
+            };
+
+            const nearbyDrivers = await Driver.find(matchQuery)
+                .populate('user', 'name gender phone')
+                .limit(10);
+
+            let matchedDriver = null;
+
+            if (type === 'pink-pass') {
+                // Pink Pass: must be female and certified
+                matchedDriver = nearbyDrivers.find(
+                    d => d.user.gender === 'female' && d.pinkPassCertified
+                );
+            } else {
+                // Standard: nearest available driver
+                matchedDriver = nearbyDrivers[0] || null;
+            }
+
+            if (matchedDriver) {
+                ride.driver = matchedDriver._id;
+                ride.status = 'matched';
+                await ride.save();
+
+                // Notify matched driver via Socket.io
+                const io = req.app.get('io');
+                if (io) {
+                    io.to(`driver-${matchedDriver._id}`).emit('ride:request', {
+                        rideId: ride._id,
+                        passenger: { name: 'Passenger' },
+                        pickup: pickupLocation,
+                        dropoff: dropoffLocation,
+                        estimatedPrice,
+                        estimatedDuration,
+                        distance,
+                        type: ride.type
+                    });
                 }
             }
-        };
-
-        const nearbyDrivers = await Driver.find(matchQuery)
-            .populate('user', 'name gender phone')
-            .limit(10);
-
-        let matchedDriver = null;
-
-        if (type === 'pink-pass') {
-            // Pink Pass: must be female and certified
-            matchedDriver = nearbyDrivers.find(
-                d => d.user.gender === 'female' && d.pinkPassCertified
-            );
-        } else {
-            // Standard: nearest available driver
-            matchedDriver = nearbyDrivers[0] || null;
-        }
-
-        if (matchedDriver) {
-            ride.driver = matchedDriver._id;
-            ride.status = 'matched';
-            await ride.save();
-
-            // Notify matched driver via Socket.io
-            const io = req.app.get('io');
-            io.to(`driver-${matchedDriver._id}`).emit('ride:request', {
-                rideId: ride._id,
-                passenger: { name: 'Passenger' },
-                pickup: pickupLocation,
-                dropoff: dropoffLocation,
-                estimatedPrice,
-                estimatedDuration,
-                distance,
-                type: ride.type
-            });
+        } catch (matchErr) {
+            console.error('[RIDE] Matching failed but ride saved:', matchErr.message);
+            // We still proceed since the ride was already saved as 'requested' at line 72
         }
 
         res.status(201).json({
@@ -131,7 +138,7 @@ router.post('/request', auth, authorize('passenger'), async (req, res) => {
                 estimatedPrice,
                 estimatedDuration,
                 status: ride.status,
-                driverMatched: !!matchedDriver
+                driverMatched: !!ride.driver
             }
         });
     } catch (error) {
