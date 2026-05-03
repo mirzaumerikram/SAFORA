@@ -180,10 +180,22 @@ const DriverOnboardingScreen: React.FC = () => {
                 >
                     <Text style={s.backText}>←</Text>
                 </TouchableOpacity>
-                <View style={{ flex: 1 }} />
-                <View style={s.stepBadge}>
-                    <Text style={s.stepBadgeText}>STEP {step} OF 2</Text>
+                
+                <View style={s.headerCenter}>
+                    <View style={s.stepBadge}>
+                        <Text style={s.stepBadgeText}>STEP {step} OF 2</Text>
+                    </View>
                 </View>
+
+                <TouchableOpacity
+                    onPress={async () => {
+                        await AsyncStorage.clear();
+                        navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] });
+                    }}
+                    style={s.exitBtn}
+                >
+                    <Text style={s.exitText}>Exit</Text>
+                </TouchableOpacity>
             </View>
 
             {/* Progress track */}
@@ -397,6 +409,23 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
     backText: {
         color: t.colors.text,
         fontSize: 20,
+    },
+    headerCenter: {
+        flex: 1,
+        alignItems: 'center',
+    },
+    exitBtn: {
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 8,
+        backgroundColor: 'rgba(239,68,68,0.1)',
+        borderWidth: 1,
+        borderColor: 'rgba(239,68,68,0.2)',
+    },
+    exitText: {
+        color: t.colors.danger,
+        fontSize: 12,
+        fontWeight: '700',
     },
     stepBadge: {
         backgroundColor: t.colors.primary,
