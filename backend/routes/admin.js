@@ -294,4 +294,6 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
+// end of admin routes
 module.exports = router;
+
