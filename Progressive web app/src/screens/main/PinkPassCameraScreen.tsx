@@ -18,11 +18,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS } from '../../utils/constants';
 import { PinkPassState } from './PinkPassCnicScreen';
 
-type Step = 'loading' | 'ready' | 'countdown' | 'recording' | 'submitting' | 'passed' | 'failed';
-
-const RECORD_MS      = 5000;   // 5 seconds
+const RECORD_MS      = 8000;   // 8 seconds
 const TARGET_FRAMES  = 12;     // capture 12 frames total
-const MIN_MOTION     = 4.0;    // min avg pixel-diff for liveness
+const MIN_MOTION     = 3.0;     // min avg pixel-diff for liveness
 
 const PinkPassCameraScreen: React.FC = () => {
     const navigation  = useNavigation<any>();
@@ -290,7 +288,7 @@ const PinkPassCameraScreen: React.FC = () => {
                     <Text style={s.backText}>←</Text>
                 </TouchableOpacity>
                 <Text style={[s.headerTitle, step === 'recording' && { color: '#000' }]}>Face Liveness Check</Text>
-                <View style={s.verBadge}><Text style={s.verBadgeText}>v1.2.3</Text></View>
+                <View style={s.verBadge}><Text style={s.verBadgeText}>v1.2.4</Text></View>
             </View>
 
             {/* Camera box */}

@@ -43,7 +43,7 @@ router.post('/enroll', auth, async (req, res) => {
                 const aiRes = await axios.post(
                     `${aiServiceUrl}/api/pink-pass/verify-frames`,
                     { frames, cnic: cnics, userId },
-                    { timeout: 15000 }
+                    { timeout: 45000 }
                 );
                 verified    = aiRes.data.verified;
                 confidence  = aiRes.data.confidence ?? 0;
