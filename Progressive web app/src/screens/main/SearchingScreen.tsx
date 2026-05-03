@@ -32,6 +32,16 @@ const SearchingScreen: React.FC = () => {
             ])
         ).start();
 
+        // Rotation Animation
+        Animated.loop(
+            Animated.timing(rotateAnim, {
+                toValue: 1,
+                duration: 4000,
+                easing: Easing.linear,
+                useNativeDriver: true,
+            })
+        ).start();
+
         // Real Socket Listener for Driver Match
         socketService.onRideAccepted((data: any) => {
             console.log('[Searching] Ride accepted by driver!', data);
