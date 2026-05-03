@@ -142,7 +142,14 @@ const PinkPassCameraScreen: React.FC = () => {
         setFrameCount(0);
         setProgress(0);
         setStep('recording');
-        setMessage('Blink naturally · Face the light…');
+        
+        const instructions = [
+            'Look straight & blink',
+            'Slowly turn head RIGHT',
+            'Slowly turn head LEFT',
+            'Look straight again'
+        ];
+
         startPulse();
 
         const frameInterval = RECORD_MS / TARGET_FRAMES; 
@@ -151,6 +158,11 @@ const PinkPassCameraScreen: React.FC = () => {
             const elapsed = now - startTimeRef.current;
             const pct = Math.min(100, (elapsed / RECORD_MS) * 100);
             setProgress(Math.round(pct));
+
+            // Update instructions based on time
+            const instIdx = Math.floor((elapsed / RECORD_MS) * instructions.length);
+            const msg = instructions[Math.min(instIdx, instructions.length - 1)];
+            setMessage(msg);
 
             if (now - lastFrameTimeRef.current >= frameInterval) {
                 const f = captureFrame();
@@ -224,7 +236,7 @@ const PinkPassCameraScreen: React.FC = () => {
         try {
             const score = await computeMotion(frames);
             // Lowered threshold as we are sampling less, but it's more stable
-            if (score < 3.0) {
+            if (score < 2.5) { // Lowered further to 2.5 for easier pass
                 setStep('failed');
                 setMessage('Liveness failed — please move or blink naturally.');
                 return;
@@ -278,7 +290,7 @@ const PinkPassCameraScreen: React.FC = () => {
                     <Text style={s.backText}>←</Text>
                 </TouchableOpacity>
                 <Text style={[s.headerTitle, step === 'recording' && { color: '#000' }]}>Face Liveness Check</Text>
-                <View style={s.pinkBadge}><Text style={s.pinkBadgeText}>🎀 PINK PASS</Text></View>
+                <View style={s.verBadge}><Text style={s.verBadgeText}>v1.2.3</Text></View>
             </View>
 
             {/* Camera box */}
@@ -394,6 +406,8 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
     backBtn:       { width: 38, height: 38, borderRadius: 12, backgroundColor: '#1A1A1A', alignItems: 'center', justifyContent: 'center' },
     backText:      { color: '#FFF', fontSize: 20 },
     headerTitle:   { flex: 1, fontSize: 16, fontWeight: '800', color: '#FFF' },
+    verBadge:      { backgroundColor: 'rgba(236,72,153,0.15)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(236,72,153,0.3)' },
+    verBadgeText:  { fontSize: 10, color: '#EC4899', fontWeight: '800' },
     pinkBadge:     { backgroundColor: 'rgba(236,72,153,0.2)', borderColor: 'rgba(236,72,153,0.5)', borderWidth: 1, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 },
     pinkBadgeText: { fontSize: 11, fontWeight: '800', color: '#EC4899' },
 

@@ -126,17 +126,27 @@ const PinkPassCnicScreen: React.FC = () => {
         try {
             const video = videoRef.current;
             const canvas = document.createElement('canvas');
-            const W = video.videoWidth  || 1280;
-            const H = video.videoHeight || 720;
-            canvas.width  = W;
-            canvas.height = H;
+            const videoW = video.videoWidth  || 1280;
+            const videoH = video.videoHeight || 720;
+
+            // Define crop area (centered box, 85% of width, typical card aspect)
+            const cropW = videoW * 0.85;
+            const cropH = cropW * 0.63; // ID card aspect ratio
+            const startX = (videoW - cropW) / 2;
+            const startY = (videoH - cropH) / 2;
+
+            canvas.width  = 1000; // Standardize output size
+            canvas.height = 630;
             const ctx = canvas.getContext('2d')!;
-            // Boost brightness/contrast for CNIC clarity
-            ctx.filter = 'brightness(1.15) contrast(1.1)';
-            ctx.drawImage(video, 0, 0, W, H);
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
             
-            console.log(`[Capture] W:${W} H:${H} Aspect:${(W/H).toFixed(2)}`);
+            // Boost brightness/contrast for CNIC clarity
+            ctx.filter = 'brightness(1.1) contrast(1.1)';
+            
+            // Draw only the cropped portion
+            ctx.drawImage(video, startX, startY, cropW, cropH, 0, 0, 1000, 630);
+            
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+            console.log(`[Capture] Cropped from ${videoW}x${videoH}`);
 
             setCnicsUri(dataUrl);
             setCnicsBase64(dataUrl);
@@ -192,7 +202,7 @@ const PinkPassCnicScreen: React.FC = () => {
                     <Text style={s.backText}>←</Text>
                 </TouchableOpacity>
                 <Text style={s.headerTitle}>VERIFICATION</Text>
-                <View style={s.verBadge}><Text style={s.verBadgeText}>v1.2.2</Text></View>
+                <View style={s.verBadge}><Text style={s.verBadgeText}>v1.2.3</Text></View>
             </View>
 
             <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
@@ -350,7 +360,9 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
         backgroundColor: '#000', marginBottom: 14, position: 'relative',
     },
     cnicsFrame: {
-        position: 'absolute', inset: 8,
+        position: 'absolute', 
+        width: '85%', height: '54%', // matches ~0.63 aspect ratio of the 85% width
+        top: '23%', left: '7.5%',
         borderWidth: 2, borderColor: '#EC4899', borderRadius: 8,
         alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 8,
     } as any,
