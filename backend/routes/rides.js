@@ -402,4 +402,14 @@ router.post('/:id/cancel', auth, async (req, res) => {
     }
 });
 
+// Compatibility alias for older clients calling /book
+router.post('/book', auth, async (req, res) => {
+    // We just point this to the same logic as /request
+    // Since we're in the same file, we can't easily call the other route, 
+    // so we'll just use a redirect or better, just re-define it to point to a shared logic if we had one.
+    // For now, I'll just use req.url hack:
+    req.url = '/request';
+    return router.handle(req, res);
+});
+
 module.exports = router;
