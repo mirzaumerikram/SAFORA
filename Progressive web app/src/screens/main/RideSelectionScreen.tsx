@@ -141,7 +141,7 @@ const RideSelectionScreen: React.FC = () => {
     const handleConfirm = async () => {
         setBooking(true);
         try {
-            await apiService.post('/rides/book', {
+            await apiService.post('/rides/request', {
                 pickupLocation:  { address: pickup,  lat: pickupCoords.latitude, lng: pickupCoords.longitude },
                 dropoffLocation: { address: dropoff, lat: dropoffCoords.latitude, lng: dropoffCoords.longitude },
                 type: selected,

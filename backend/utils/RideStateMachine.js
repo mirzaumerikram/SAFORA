@@ -10,6 +10,7 @@
 
 const STATES = {
     REQUESTED:  'requested',
+    MATCHED:    'matched',
     ACCEPTED:   'accepted',
     STARTED:    'started',
     COMPLETED:  'completed',
@@ -18,7 +19,8 @@ const STATES = {
 
 // Valid transitions: current state → allowed next states
 const TRANSITIONS = {
-    [STATES.REQUESTED]:  [STATES.ACCEPTED,  STATES.CANCELLED],
+    [STATES.REQUESTED]:  [STATES.MATCHED,   STATES.ACCEPTED, STATES.CANCELLED],
+    [STATES.MATCHED]:    [STATES.ACCEPTED,  STATES.REQUESTED, STATES.CANCELLED],
     [STATES.ACCEPTED]:   [STATES.STARTED,   STATES.CANCELLED],
     [STATES.STARTED]:    [STATES.COMPLETED, STATES.CANCELLED],
     [STATES.COMPLETED]:  [],   // terminal state
