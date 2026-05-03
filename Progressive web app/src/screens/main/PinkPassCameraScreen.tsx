@@ -10,12 +10,13 @@ import {
     View, Text, StyleSheet, TouchableOpacity,
     ActivityIndicator, Platform, StatusBar, Animated,
 } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { useAppTheme } from '../../context/ThemeContext';
 import { AppTheme } from '../../utils/theme';
 import apiService from '../../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS } from '../../utils/constants';
+import { PinkPassState } from './PinkPassCnicScreen';
 
 type Step = 'loading' | 'ready' | 'countdown' | 'recording' | 'submitting' | 'passed' | 'failed';
 
@@ -25,14 +26,12 @@ const MIN_MOTION     = 4.0;    // min avg pixel-diff for liveness
 
 const PinkPassCameraScreen: React.FC = () => {
     const navigation  = useNavigation<any>();
-    const route       = useRoute<any>();
-    const cnicsBase64 = route.params?.cnicsBase64 ?? null;
+    const cnicsBase64 = PinkPassState.cnicBase64;
     const { theme }   = useAppTheme();
-    const s           = useMemo(() => makeStyles(theme), [theme]);
-
-    const videoRef    = useRef<any>(null);
+    const s           = useMemo(() => makeStyles(theme), [theme]);    const videoRef    = useRef<any>(null);
     const streamRef   = useRef<MediaStream | null>(null);
     const rafRef      = useRef<number | null>(null);
+    const canvasRef   = useRef<HTMLCanvasElement | null>(null); // Persistent canvas
     const framesRef   = useRef<string[]>([]);
     const startTimeRef = useRef<number>(0);
     const lastFrameTimeRef = useRef<number>(0);
@@ -51,6 +50,12 @@ const PinkPassCameraScreen: React.FC = () => {
             setMessage('Please use a browser to complete this check.');
             return;
         }
+        // Create persistent canvas for reuse
+        if (typeof document !== 'undefined') {
+            canvasRef.current = document.createElement('canvas');
+            canvasRef.current.width  = 320;
+            canvasRef.current.height = 240;
+        }
         startCamera();
         return cleanup;
     }, []);
@@ -61,8 +66,8 @@ const PinkPassCameraScreen: React.FC = () => {
             const stream = await (navigator as any).mediaDevices.getUserMedia({
                 video: {
                     facingMode: 'user',
-                    width:  { ideal: 640 },
-                    height: { ideal: 480 },
+                    width:  { ideal: 1280 }, // Bumped from 640
+                    height: { ideal: 720 },  // Bumped from 480
                 },
                 audio: false,
             });
@@ -117,15 +122,15 @@ const PinkPassCameraScreen: React.FC = () => {
     // ── Capture one frame to base64 ────────────────────────────────────────────
     const captureFrame = (): string | null => {
         const video = videoRef.current;
-        if (!video || !video.videoWidth) return null;
+        const canvas = canvasRef.current;
+        if (!video || !video.videoWidth || !canvas) return null;
         try {
-            const canvas = document.createElement('canvas');
-            canvas.width  = 320;
-            canvas.height = 240;
-            const ctx = canvas.getContext('2d')!;
+            const ctx = canvas.getContext('2d', { alpha: false })!;
             ctx.scale(-1, 1);  // mirror
             ctx.drawImage(video, 0, 0, -320, 240);
-            return canvas.toDataURL('image/jpeg', 0.5);
+            const b64 = canvas.toDataURL('image/jpeg', 0.45); // Lower quality for memory
+            ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform for next call
+            return b64;
         } catch { return null; }
     };
 
@@ -137,17 +142,16 @@ const PinkPassCameraScreen: React.FC = () => {
         setFrameCount(0);
         setProgress(0);
         setStep('recording');
-        setMessage('Look at the camera · Blink naturally…');
+        setMessage('Blink naturally · Face the light…');
         startPulse();
 
-        const frameInterval = RECORD_MS / TARGET_FRAMES; // ms between captures
+        const frameInterval = RECORD_MS / TARGET_FRAMES; 
 
         const loop = (now: number) => {
             const elapsed = now - startTimeRef.current;
             const pct = Math.min(100, (elapsed / RECORD_MS) * 100);
             setProgress(Math.round(pct));
 
-            // Capture a frame if enough time has passed
             if (now - lastFrameTimeRef.current >= frameInterval) {
                 const f = captureFrame();
                 if (f) {
@@ -168,7 +172,7 @@ const PinkPassCameraScreen: React.FC = () => {
         rafRef.current = requestAnimationFrame(loop);
     };
 
-    // ── Motion analysis (synchronous, tiny images) ─────────────────────────────
+    // ── Optimized Motion analysis (lightweight pixel sampling) ──────────────────
     const computeMotion = async (frames: string[]): Promise<number> => {
         if (frames.length < 2) return 0;
 
@@ -177,25 +181,30 @@ const PinkPassCameraScreen: React.FC = () => {
                 const img = new window.Image();
                 img.onload = () => {
                     const c = document.createElement('canvas');
-                    c.width = 40; c.height = 30;
-                    c.getContext('2d')!.drawImage(img, 0, 0, 40, 30);
-                    res(c.getContext('2d')!.getImageData(0, 0, 40, 30).data);
+                    c.width = 30; c.height = 30; // Smaller sample
+                    c.getContext('2d')!.drawImage(img, 0, 0, 30, 30);
+                    const data = c.getContext('2d')!.getImageData(0, 0, 30, 30).data;
+                    res(data);
                 };
-                img.onerror = () => res(new Uint8ClampedArray(40 * 30 * 4));
+                img.onerror = () => res(new Uint8ClampedArray(0));
                 img.src = b64;
             });
 
         let total = 0, count = 0;
-        const limit = Math.min(frames.length - 1, 8);
-        for (let i = 0; i < limit; i++) {
-            const [a, b] = await Promise.all([toPixels(frames[i]), toPixels(frames[i + 1])]);
+        // Compare only 5 strategic pairs to save CPU/Memory
+        const pairs = [[0, 2], [3, 5], [6, 8], [9, 11]];
+        for (const [idxA, idxB] of pairs) {
+            if (!frames[idxA] || !frames[idxB]) continue;
+            const [a, b] = await Promise.all([toPixels(frames[idxA]), toPixels(frames[idxB])]);
+            if (a.length === 0 || b.length === 0) continue;
+            
             let diff = 0;
-            for (let j = 0; j < a.length; j += 4) {
+            for (let j = 0; j < a.length; j += 8) { // Skip pixels for speed
                 const ga = 0.299 * a[j] + 0.587 * a[j+1] + 0.114 * a[j+2];
                 const gb = 0.299 * b[j] + 0.587 * b[j+1] + 0.114 * b[j+2];
                 diff += Math.abs(ga - gb);
             }
-            total += diff / (40 * 30);
+            total += diff / (a.length / 4);
             count++;
         }
         return count > 0 ? total / count : 0;
@@ -208,20 +217,21 @@ const PinkPassCameraScreen: React.FC = () => {
 
         if (frames.length < 4) {
             setStep('failed');
-            setMessage('Not enough frames captured. Ensure your face is visible and try again.');
+            setMessage('Not enough frames captured. Keep the camera steady.');
             return;
         }
 
         try {
             const score = await computeMotion(frames);
-            if (score < MIN_MOTION) {
+            // Lowered threshold as we are sampling less, but it's more stable
+            if (score < 3.0) {
                 setStep('failed');
-                setMessage('Liveness check failed — no movement detected.\nPlease blink or move slightly during the recording.');
+                setMessage('Liveness failed — please move or blink naturally.');
                 return;
             }
-        } catch { /* if analysis fails, still submit */ }
+        } catch { /* submit anyway */ }
 
-        setMessage('Submitting verification…');
+        setMessage('Finalizing verification…');
         try {
             const res: any = await apiService.post('/pink-pass/enroll', {
                 cnics:          cnicsBase64,
@@ -241,11 +251,11 @@ const PinkPassCameraScreen: React.FC = () => {
                 setTimeout(() => navigation.navigate('PinkPass'), 2500);
             } else {
                 setStep('failed');
-                setMessage(res.message || 'Verification failed. Please try again.');
+                setMessage(res.message || 'Verification failed. Try again.');
             }
         } catch (err: any) {
             setStep('failed');
-            setMessage(err?.message || 'Network error. Please check connection and try again.');
+            setMessage('Connection issue. Please try again.');
         }
     };
 
@@ -260,20 +270,20 @@ const PinkPassCameraScreen: React.FC = () => {
     };
 
     return (
-        <View style={s.root}>
-            <StatusBar barStyle="light-content" backgroundColor="#0A0A0A" />
+        <View style={[s.root, step === 'recording' && { backgroundColor: '#FFF' }]}>
+            <StatusBar barStyle={step === 'recording' ? 'dark-content' : 'light-content'} backgroundColor={step === 'recording' ? '#FFF' : '#0A0A0A'} />
 
             <View style={s.header}>
                 <TouchableOpacity style={s.backBtn} onPress={() => { cleanup(); navigation.goBack(); }}>
                     <Text style={s.backText}>←</Text>
                 </TouchableOpacity>
-                <Text style={s.headerTitle}>Face Liveness Check</Text>
+                <Text style={[s.headerTitle, step === 'recording' && { color: '#000' }]}>Face Liveness Check</Text>
                 <View style={s.pinkBadge}><Text style={s.pinkBadgeText}>🎀 PINK PASS</Text></View>
             </View>
 
             {/* Camera box */}
             {Platform.OS === 'web' && (
-                <View style={s.cameraBox}>
+                <View style={[s.cameraBox, step === 'recording' && { borderColor: '#EC4899', borderWidth: 2, shadowColor: '#EC4899', shadowOpacity: 0.5, shadowRadius: 20 }]}>
                     {/* @ts-ignore */}
                     <video
                         ref={videoRef}
@@ -289,7 +299,7 @@ const PinkPassCameraScreen: React.FC = () => {
                     {/* Oval guide */}
                     {['ready','countdown','recording'].includes(step) && (
                         <Animated.View
-                            style={[s.ovalGuide, step === 'recording' && { transform: [{ scale: pulseAnim }] }]}
+                            style={[s.ovalGuide, step === 'recording' && { transform: [{ scale: pulseAnim }], borderColor: '#EC4899' }]}
                             pointerEvents="none"
                         />
                     )}
@@ -333,8 +343,13 @@ const PinkPassCameraScreen: React.FC = () => {
             )}
 
             {/* Info panel */}
-            <View style={s.infoBox}>
-                <Text style={[s.message, step === 'passed' && s.msgPassed, step === 'failed' && s.msgFailed]}>
+            <View style={[s.infoBox, step === 'recording' && { backgroundColor: '#FFF' }]}>
+                <Text style={[
+                    s.message, 
+                    step === 'passed' && s.msgPassed, 
+                    step === 'failed' && s.msgFailed,
+                    step === 'recording' && { color: '#EC4899', fontWeight: '800' }
+                ]}>
                     {message}
                 </Text>
 

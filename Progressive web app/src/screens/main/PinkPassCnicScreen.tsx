@@ -11,6 +11,11 @@ import { STORAGE_KEYS } from '../../utils/constants';
 
 type Step = 'info' | 'cnic' | 'not_eligible';
 
+// Global state to store large images and avoid navigation param crashes on mobile browsers
+export const PinkPassState = {
+    cnicBase64: null as string | null
+};
+
 const PinkPassCnicScreen: React.FC = () => {
     const navigation = useNavigation<any>();
     const { theme }  = useAppTheme();
@@ -34,7 +39,10 @@ const PinkPassCnicScreen: React.FC = () => {
                 if (user.gender !== 'female') setStep('not_eligible');
             }
         });
-        return () => stopCamera();
+        return () => {
+            stopCamera();
+            PinkPassState.cnicBase64 = null; // Clear on unmount
+        };
     }, []);
 
     useEffect(() => {
@@ -49,19 +57,27 @@ const PinkPassCnicScreen: React.FC = () => {
             const stream = await (navigator as any).mediaDevices.getUserMedia({
                 video: {
                     facingMode: { ideal: 'environment' }, // rear camera
-                    width:  { ideal: 3840, min: 1280 },   // max resolution
-                    height: { ideal: 2160, min: 720 },
+                    width:  { ideal: 1920, min: 1280 },   // 1080p ideal
+                    height: { ideal: 1080, min: 720 },
                 },
                 audio: false,
             });
             streamRef.current = stream;
 
-            // Try to enable torch
-            const track = stream.getVideoTracks()[0];
-            torchTrackRef.current = track;
-            if (track?.getCapabilities?.()?.torch) {
-                try { await track.applyConstraints({ advanced: [{ torch: true } as any] }); setTorchOn(true); } catch {}
-            }
+            // Try to enable torch (with small delay for mobile browsers to initialize track)
+            setTimeout(async () => {
+                const track = stream.getVideoTracks()[0];
+                torchTrackRef.current = track;
+                const caps = track?.getCapabilities?.();
+                if (caps && (caps as any).torch) {
+                    try { 
+                        await track.applyConstraints({ advanced: [{ torch: true } as any] }); 
+                        setTorchOn(true); 
+                        // Force video play in case constraint update paused it
+                        videoRef.current?.play().catch(() => {});
+                    } catch (e) { console.log('Torch error:', e); }
+                }
+            }, 300);
 
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
@@ -90,6 +106,7 @@ const PinkPassCnicScreen: React.FC = () => {
 
     const toggleTorch = async () => {
         const track = torchTrackRef.current;
+        const video = videoRef.current;
         if (!track?.getCapabilities?.()?.torch) {
             Alert.alert('Flash', 'Flash/torch is not available on this device via browser.');
             return;
@@ -98,6 +115,8 @@ const PinkPassCnicScreen: React.FC = () => {
             const next = !torchOn;
             await track.applyConstraints({ advanced: [{ torch: next } as any] });
             setTorchOn(next);
+            // Crucial: keep video playing
+            if (video) video.play().catch(() => {});
         } catch {}
     };
 
@@ -116,8 +135,17 @@ const PinkPassCnicScreen: React.FC = () => {
             ctx.filter = 'brightness(1.15) contrast(1.1)';
             ctx.drawImage(video, 0, 0, W, H);
             const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+            
+            // Basic shape validation (CNIC is ~1.58 aspect ratio)
+            const aspect = W / H;
+            if (aspect < 1.2 || aspect > 2.0) {
+                Alert.alert('Low Quality', 'The photo does not look like a standard CNIC card. Please ensure it is in landscape mode and try again.');
+                return;
+            }
+
             setCnicsUri(dataUrl);
             setCnicsBase64(dataUrl);
+            PinkPassState.cnicBase64 = dataUrl; // Save to global state
             stopCamera();
         } finally {
             setCapturing(false);
@@ -127,12 +155,17 @@ const PinkPassCnicScreen: React.FC = () => {
     const retake = () => {
         setCnicsUri(null);
         setCnicsBase64(null);
+        PinkPassState.cnicBase64 = null;
         startCamera();
     };
 
     const proceed = () => {
-        if (!cnicsBase64) { Alert.alert('CNIC Required', 'Please capture your CNIC photo first.'); return; }
-        navigation.navigate('PinkPassCamera', { cnicsBase64 });
+        if (!PinkPassState.cnicBase64) { 
+            Alert.alert('CNIC Required', 'Please capture your CNIC photo first.'); 
+            return; 
+        }
+        // Navigate WITHOUT passing the massive base64 string in params
+        navigation.navigate('PinkPassCamera');
     };
 
     // ── Not eligible ─────────────────────────────────────────────────────────
