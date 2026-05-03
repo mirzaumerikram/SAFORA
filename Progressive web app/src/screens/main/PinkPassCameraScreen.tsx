@@ -246,7 +246,7 @@ const PinkPassCameraScreen: React.FC = () => {
             const res: any = await apiService.post('/pink-pass/enroll', {
                 cnics:          cnicsBase64,
                 livenessFrames: frames,
-            });
+            }, { timeout: 60000 }); // Give it a full minute for AI processing
 
             if (res.success) {
                 const raw = await AsyncStorage.getItem(STORAGE_KEYS.USER_DATA);
@@ -288,7 +288,7 @@ const PinkPassCameraScreen: React.FC = () => {
                     <Text style={s.backText}>←</Text>
                 </TouchableOpacity>
                 <Text style={[s.headerTitle, step === 'recording' && { color: '#000' }]}>Face Liveness Check</Text>
-                <View style={s.verBadge}><Text style={s.verBadgeText}>v1.2.4</Text></View>
+                <View style={s.verBadge}><Text style={s.verBadgeText}>v1.2.5</Text></View>
             </View>
 
             {/* Camera box */}
