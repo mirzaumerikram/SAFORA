@@ -136,12 +136,7 @@ const PinkPassCnicScreen: React.FC = () => {
             ctx.drawImage(video, 0, 0, W, H);
             const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
             
-            // Basic shape validation (CNIC is ~1.58 aspect ratio)
-            const aspect = W / H;
-            if (aspect < 1.2 || aspect > 2.0) {
-                Alert.alert('Low Quality', 'The photo does not look like a standard CNIC card. Please ensure it is in landscape mode and try again.');
-                return;
-            }
+            console.log(`[Capture] W:${W} H:${H} Aspect:${(W/H).toFixed(2)}`);
 
             setCnicsUri(dataUrl);
             setCnicsBase64(dataUrl);
@@ -164,7 +159,6 @@ const PinkPassCnicScreen: React.FC = () => {
             Alert.alert('CNIC Required', 'Please capture your CNIC photo first.'); 
             return; 
         }
-        // Navigate WITHOUT passing the massive base64 string in params
         navigation.navigate('PinkPassCamera');
     };
 
@@ -198,7 +192,7 @@ const PinkPassCnicScreen: React.FC = () => {
                     <Text style={s.backText}>←</Text>
                 </TouchableOpacity>
                 <Text style={s.headerTitle}>VERIFICATION</Text>
-                <View style={{ width: 40 }} />
+                <View style={s.verBadge}><Text style={s.verBadgeText}>v1.2.2</Text></View>
             </View>
 
             <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
@@ -332,6 +326,8 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
     backBtn:   { width: 40, height: 40, borderRadius: 12, backgroundColor: t.colors.cardSecondary, alignItems: 'center', justifyContent: 'center' },
     backText:  { color: t.colors.text, fontSize: 20 },
     headerTitle: { fontSize: 13, fontWeight: '900', color: t.colors.text, letterSpacing: 3 },
+    verBadge:    { backgroundColor: 'rgba(236,72,153,0.15)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(236,72,153,0.3)' },
+    verBadgeText:{ fontSize: 10, color: '#EC4899', fontWeight: '800' },
     scroll:    { paddingHorizontal: 20, paddingBottom: 60 },
 
     pinkBanner:      { alignItems: 'center', paddingVertical: 24, marginBottom: 12 },
