@@ -112,8 +112,6 @@ router.patch('/drivers/:id', async (req, res) => {
         if (!name || !phone || !cnic) {
             return res.status(400).json({ message: 'Name, Phone, and CNIC are required' });
         }
-        if (phone.length < 10) return res.status(400).json({ message: 'Invalid phone number' });
-        if (cnic.length !== 13) return res.status(400).json({ message: 'CNIC must be exactly 13 digits' });
 
         const driver = await Driver.findById(req.params.id);
         if (!driver) return res.status(404).json({ message: 'Driver not found' });
@@ -129,20 +127,26 @@ router.patch('/drivers/:id', async (req, res) => {
 
         // 3. Update linked User fields
         if (driver.user) {
-            const user = await User.findById(driver.user);
+            // driver.user might be an ID or an object depending on population state
+            const userId = driver.user._id || driver.user;
+            const user = await User.findById(userId);
             if (user) {
                 user.name = name;
                 user.phone = phone;
                 if (email) user.email = email;
                 user.cnic = cnic;
                 await user.save();
+            } else {
+                console.log(`[Admin] User linked to driver ${req.params.id} not found in DB`);
             }
         }
 
+        // Return fully populated driver to sync frontend state
         const updated = await Driver.findById(req.params.id).populate('user', 'name phone email gender cnic');
         res.json({ success: true, message: 'Driver updated successfully', driver: updated });
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        console.error('[Admin] Driver update error:', error);
+        res.status(500).json({ message: error.message || 'Server error' });
     }
 });
 

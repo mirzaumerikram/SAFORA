@@ -112,8 +112,8 @@ export default function Drivers() {
       if (res.success) {
         showToast('✅ Driver updated successfully');
         setEditDriver(null);
-        // Direct state update for immediate feedback
-        setDrivers(prev => prev.map(d => d._id === editDriver._id ? res.driver : d));
+        // Direct reload to ensure clean state
+        load();
       }
     } catch (err) {
       showToast('❌ ' + (err.message || 'Update failed'));
