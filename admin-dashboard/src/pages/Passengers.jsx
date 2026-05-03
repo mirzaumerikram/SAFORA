@@ -19,12 +19,22 @@ export default function Passengers() {
     !search || (u.name || '').toLowerCase().includes(search.toLowerCase()) || (u.phone || '').includes(search)
   );
 
+  const deleteUser = async (id) => {
+    if (!window.confirm('Are you sure you want to PERMANENTLY delete this user record? This cannot be undone.')) return;
+    try {
+      await api.delete(`/admin/users/${id}`);
+      setUsers(prev => prev.filter(u => u._id !== id));
+    } catch (e) {
+      alert('Failed to delete user: ' + e.message);
+    }
+  };
+
   return (
     <div className="page">
       <div className="page-head">
         <div>
           <h2 className="page-title">Passengers</h2>
-          <p className="page-sub">{users.length} registered passengers</p>
+          <p className="page-sub">{filtered.length} registered passengers</p>
         </div>
       </div>
 
@@ -39,7 +49,7 @@ export default function Passengers() {
           <div className="table-card">
             <table className="data-table">
               <thead>
-                <tr><th>Name</th><th>Phone</th><th>Email</th><th>Gender</th><th>Pink Pass</th><th>Joined</th></tr>
+                <tr><th>Name</th><th>Phone</th><th>Email</th><th>Gender</th><th>Pink Pass</th><th>Joined</th><th>Actions</th></tr>
               </thead>
               <tbody>
                 {filtered.map(u => (
@@ -59,6 +69,22 @@ export default function Passengers() {
                         : <span className="badge-no">Not verified</span>}
                     </td>
                     <td>{u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—'}</td>
+                    <td>
+                      <button 
+                        onClick={() => deleteUser(u._id)}
+                        style={{ 
+                          background: '#fff0f0', 
+                          color: '#e74c3c', 
+                          border: '1px solid #ffcccc',
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          fontSize: '11px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
