@@ -84,6 +84,11 @@ const DriverDashboard: React.FC = () => {
                     await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(u));
                 }
             }
+            // Restore online status from memory
+            const onlineStatus = await AsyncStorage.getItem('driver_online_status');
+            if (onlineStatus === 'true' && bgCheckStatus === 'approved') {
+                handleToggleOnline(true);
+            }
         } catch { /* use cached data */ }
     };
 
@@ -131,6 +136,8 @@ const DriverDashboard: React.FC = () => {
             return;
         }
         setIsOnline(value);
+        await AsyncStorage.setItem('driver_online_status', value ? 'true' : 'false');
+
         if (value) {
             try {
                 await socketService.connect();
