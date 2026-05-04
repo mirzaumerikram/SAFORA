@@ -16,8 +16,17 @@ export default function Login() {
   const handleSendOtp = async (e) => {
     e.preventDefault();
     setError('');
-    const cleaned = phone.replace(/\s/g, '');
+    
+    // Smart Format: remove spaces, fix prefixes
+    let cleaned = phone.replace(/\s/g, '');
+    if (cleaned.startsWith('0')) {
+      cleaned = '+92' + cleaned.slice(1);
+    } else if (cleaned.startsWith('3') && cleaned.length === 10) {
+      cleaned = '+92' + cleaned;
+    }
+    
     if (!cleaned) return setError('Please enter your phone number.');
+    if (!cleaned.startsWith('+')) return setError('Please include your country code (e.g., +92).');
 
     setLoading(true);
     try {
@@ -37,9 +46,17 @@ export default function Login() {
     setError('');
     if (otp.length < 5) return setError('Enter the 5-digit code from your email.');
 
+    // Same Smart Format logic as Send
+    let cleaned = phone.replace(/\s/g, '');
+    if (cleaned.startsWith('0')) {
+      cleaned = '+92' + cleaned.slice(1);
+    } else if (cleaned.startsWith('3') && cleaned.length === 10) {
+      cleaned = '+92' + cleaned;
+    }
+
     setLoading(true);
     try {
-      await verifyOtp(phone.replace(/\s/g, ''), otp.trim());
+      await verifyOtp(cleaned, otp.trim());
     } catch (err) {
       setError(err.message || 'Incorrect code. Please try again.');
       setOtp('');
