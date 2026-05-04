@@ -99,11 +99,11 @@ const DriverDashboard: React.FC = () => {
         try {
             await socketService.connect();
             socketConnected.current = true;
-            socketService.emitDriverOnline(id);
-            socketService.onRideRequest((ride: IncomingRide) => {
+            socketService.onNewRide((ride: IncomingRide) => {
                 setIncoming(ride);
                 setRideStatus('incoming');
-                startCountdown(30);
+                setCountdown(30);
+                startCountdown();
             });
         } catch (err) {
             console.error('[Driver] Socket connection failed:', err);
