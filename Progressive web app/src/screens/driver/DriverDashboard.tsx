@@ -102,7 +102,8 @@ const DriverDashboard: React.FC = () => {
         try {
             await socketService.connect();
             socketConnected.current = true;
-            socketService.onNewRide((ride: IncomingRide) => {
+            socketService.emitDriverOnline(id);
+            socketService.onRideRequest((ride: IncomingRide) => {
                 setIncoming(ride);
                 setRideStatus('incoming');
                 setCountdown(30);

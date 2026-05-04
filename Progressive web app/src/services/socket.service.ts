@@ -73,12 +73,12 @@ class SocketService {
         this.socket?.on('chat:message', cb);
     }
 
-    offChat(): void {
-        this.socket?.off('chat:message');
+    emitSOS(rideId: string): void {
+        this.socket?.emit('sos:trigger', { rideId, timestamp: new Date().toISOString() });
     }
 
     emitDriverOnline(driverId: string): void {
-        this.socket?.emit('driver:online', { driverId });
+        this.socket?.emit('join:driver', { driverId });
     }
 
     emitDriverOffline(driverId: string): void {
@@ -89,17 +89,16 @@ class SocketService {
         this.socket?.emit('driver:location-update', { rideId, lat, lng });
     }
 
-    offAll(): void {
-        this.socket?.off('driver:location');
-        this.socket?.off('ride-status-updated');
-        this.socket?.off('ride:accepted');
+    offAll() {
         this.socket?.off('ride:request');
-        this.socket?.off('safety:deviation-alert');
+        this.socket?.off('ride:accepted');
+        this.socket?.off('ride-status-updated');
+        this.socket?.off('driver:location');
         this.socket?.off('chat:message');
+        this.socket?.off('safety:deviation-alert');
     }
 
-    disconnect(): void {
-        this.offAll();
+    disconnect() {
         this.socket?.disconnect();
         this.socket = null;
     }

@@ -120,7 +120,7 @@ router.post('/request', auth, async (req, res) => {
                 // Notify matched driver via Socket.io
                 const io = req.app.get('io');
                 if (io) {
-                    io.to(`driver-${matchedDriver._id}`).emit('ride:request', {
+                    io.to(`driver:${matchedDriver._id}`).emit('ride:request', {
                         rideId: ride._id,
                         passenger: { name: 'Passenger' },
                         pickup: pickupLocation,

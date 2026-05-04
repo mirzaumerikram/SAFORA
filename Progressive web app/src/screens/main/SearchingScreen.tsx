@@ -8,6 +8,7 @@ import socketService from '../../services/socket.service';
 const SearchingScreen: React.FC = () => {
     const navigation = useNavigation<any>();
     const route = useRoute<any>();
+    const { rideId } = route.params || {};
     const { theme } = useAppTheme();
     const { t } = useLanguage();
     
@@ -42,6 +43,15 @@ const SearchingScreen: React.FC = () => {
                 useNativeDriver: true,
             })
         ).start();
+
+        // Ensure socket is connected and room is joined
+        const initSocket = async () => {
+            await socketService.connect();
+            if (rideId) {
+                socketService.joinRide(rideId);
+            }
+        };
+        initSocket();
 
         // Real Socket Listener for Driver Match
         socketService.onRideAccepted((data: any) => {
