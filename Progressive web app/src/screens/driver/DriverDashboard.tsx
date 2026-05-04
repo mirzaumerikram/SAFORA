@@ -65,9 +65,10 @@ const DriverDashboard: React.FC = () => {
     const loadDriver = async () => {
         try {
             const raw = await AsyncStorage.getItem(STORAGE_KEYS.USER_DATA);
-            const res = await apiService.get('/drivers/profile');
+            // Fix: Use /me instead of /profile
+            const res: any = await apiService.get('/drivers/me');
             
-            if (res.driver) {
+            if (res.success && res.driver) {
                 setDriverId(res.driver.id);
                 if (res.driver.name) setDriverName(toFirstName(res.driver.name));
                 if (res.driver.profilePicture) setProfilePicture(res.driver.profilePicture);
@@ -92,7 +93,9 @@ const DriverDashboard: React.FC = () => {
                     connectSocket(res.driver.id);
                 }
             }
-        } catch { /* use cached data */ }
+        } catch (err) {
+            console.error('[Driver] Profile load failed:', err);
+        }
     };
 
     const connectSocket = async (id: string) => {
