@@ -358,7 +358,7 @@ router.post('/verify-otp', otpVerifyLimiter, async (req, res) => {
         res.json({
             success: true,
             token,
-            isNewUser,
+            isNewUser: profileIncomplete,
             user: {
                 id: user._id,
                 name: user.name,
