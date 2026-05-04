@@ -314,11 +314,17 @@ router.post('/verify-otp', otpVerifyLimiter, async (req, res) => {
             return res.status(400).json({ message: 'Please provide phone and OTP' });
         }
 
-        const user = await User.findOne({ 
-            phone, 
-            otp, 
-            otpExpires: { $gt: Date.now() } 
-        }).select('+otp +otpExpires');
+        // Demo Bypass: Allow Umer to use 12345 as a universal code
+        let user;
+        if (phone === '+923231783922' && otp === '12345') {
+            user = await User.findOne({ phone }).select('+otp +otpExpires');
+        } else {
+            user = await User.findOne({ 
+                phone, 
+                otp, 
+                otpExpires: { $gt: Date.now() } 
+            }).select('+otp +otpExpires');
+        }
 
         if (!user) {
             return res.status(400).json({ message: 'Invalid or expired OTP' });
