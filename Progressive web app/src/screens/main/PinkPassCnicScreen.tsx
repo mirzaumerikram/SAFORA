@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react'; // Vercel Heartbeat - v2.1.0-deploy
 import {
     View, Text, StyleSheet, TouchableOpacity,
     ScrollView, ActivityIndicator, Platform, Alert, Image,
