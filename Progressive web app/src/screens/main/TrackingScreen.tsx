@@ -80,6 +80,7 @@ const TrackingScreen: React.FC = () => {
                     if (!mounted) return;
                     const map: Record<string, string> = {
                         accepted: 'ARRIVING',
+                        arrived: 'ARRIVED',
                         started: 'ONBOARD',
                         completed: 'DROPPED',
                     };
@@ -286,7 +287,9 @@ const TrackingScreen: React.FC = () => {
                     <View style={styles.tripMeta}>
                         <View style={styles.metaItem}>
                             <Text style={styles.metaLabel}>ETA</Text>
-                            <Text style={styles.metaValue}>3 MIN</Text>
+                            <Text style={styles.metaValue}>
+                                {status === 'ONBOARD' ? 'IN TRIP' : (status === 'ARRIVED' ? 'READY' : '3 MIN')}
+                            </Text>
                         </View>
                         <View style={styles.vDivider} />
                         <View style={styles.metaItem}>
@@ -304,20 +307,22 @@ const TrackingScreen: React.FC = () => {
                         <Text style={styles.shareText}>Share Live Location with Family</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity 
-                        style={[styles.cancelBtn, { marginTop: 16, backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: theme.colors.danger }]}
-                        onPress={() => {
-                            const confirmed = Platform.OS === 'web' 
-                                ? window.confirm("Are you sure you want to cancel this ride?")
-                                : true; // Native Alert fallback handled by direct call or UI
-                            
-                            if (confirmed) {
-                                handleCancelRide();
-                            }
-                        }}
-                    >
-                        <Text style={[styles.cancelText, { color: theme.colors.danger, fontSize: 16 }]}>Cancel Ride</Text>
-                    </TouchableOpacity>
+                    {status !== 'ONBOARD' && (
+                        <TouchableOpacity 
+                            style={[styles.cancelBtn, { marginTop: 16, backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: theme.colors.danger }]}
+                            onPress={() => {
+                                const confirmed = Platform.OS === 'web' 
+                                    ? window.confirm("Are you sure you want to cancel this ride?")
+                                    : true; 
+                                
+                                if (confirmed) {
+                                    handleCancelRide();
+                                }
+                            }}
+                        >
+                            <Text style={[styles.cancelText, { color: theme.colors.danger, fontSize: 16 }]}>Cancel Ride</Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
             </View>
         </View>
