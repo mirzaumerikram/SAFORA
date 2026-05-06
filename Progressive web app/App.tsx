@@ -3,6 +3,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Platform } from 'react-native';
 import AppNavigator from './src/navigation/AppNavigator';
 import ErrorBoundary from './src/components/ErrorBoundary';
+import { ThemeProvider } from './src/context/ThemeContext';
 import { AlertProvider, useSaforaAlert, setGlobalAlert } from './src/context/AlertContext';
 
 const GlobalAlertSetter = () => {
@@ -36,12 +37,14 @@ const App: React.FC = () => {
 
     return (
         <ErrorBoundary>
-            <AlertProvider>
-                <SafeAreaProvider>
-                    <GlobalAlertSetter />
-                    <AppNavigator />
-                </SafeAreaProvider>
-            </AlertProvider>
+            <ThemeProvider>
+                <AlertProvider>
+                    <SafeAreaProvider>
+                        <GlobalAlertSetter />
+                        <AppNavigator />
+                    </SafeAreaProvider>
+                </AlertProvider>
+            </ThemeProvider>
         </ErrorBoundary>
     );
 };

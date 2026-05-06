@@ -18,7 +18,7 @@ import ChatScreen from '../screens/main/ChatScreen';
 
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { LanguageProvider } from '../context/LanguageContext';
-import { ThemeProvider, useAppTheme } from '../context/ThemeContext';
+import { useAppTheme } from '../context/ThemeContext';
 import { STORAGE_KEYS } from '../utils/constants';
 
 const RootStack = createStackNavigator();
@@ -147,15 +147,13 @@ const linking = {
 
 const AppNavigator: React.FC = () => {
     return (
-        <ThemeProvider>
-            <LanguageProvider>
-                <AuthProvider>
-                    <NavigationContainer linking={linking}>
-                        <RootNavigator />
-                    </NavigationContainer>
-                </AuthProvider>
-            </LanguageProvider>
-        </ThemeProvider>
+        <LanguageProvider>
+            <AuthProvider>
+                <NavigationContainer linking={linking}>
+                    <RootNavigator />
+                </NavigationContainer>
+            </AuthProvider>
+        </LanguageProvider>
     );
 };
 
