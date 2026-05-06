@@ -23,6 +23,8 @@ const TrackingScreen: React.FC = () => {
     const [driverData, setDriverData] = useState<any>(null);
     const [price, setPrice] = useState<number | null>(estimatedPrice);
     const [driverLocation, setDriverLocation] = useState<Coordinates | null>(null);
+    const [pCoords, setPCoords] = useState<Coordinates | null>(pickupCoords || null);
+    const [dCoords, setDCoords] = useState<Coordinates | null>(dropoffCoords || null);
     const pulseAnim = useRef(new Animated.Value(0)).current;
 
     // SafetySentinel deviation alert state
@@ -48,6 +50,12 @@ const TrackingScreen: React.FC = () => {
                 if (res.success && res.ride) {
                     setDriverData(res.ride.driver?.user || null);
                     setPrice(res.ride.estimatedPrice);
+                    if (!pCoords && res.ride.pickupLocation) {
+                        setPCoords({ latitude: res.ride.pickupLocation.lat, longitude: res.ride.pickupLocation.lng });
+                    }
+                    if (!dCoords && res.ride.dropoffLocation) {
+                        setDCoords({ latitude: res.ride.dropoffLocation.lat, longitude: res.ride.dropoffLocation.lng });
+                    }
                 }
             } catch (err) {
                 console.error('[Tracking] Fetch ride failed:', err);
@@ -195,8 +203,8 @@ const TrackingScreen: React.FC = () => {
             <SaforaMap 
                 type="tracking" 
                 driverLocation={driverLocation ?? undefined}
-                pickupLocation={pickupCoords}
-                dropoffLocation={dropoffCoords}
+                pickupLocation={pCoords ?? undefined}
+                dropoffLocation={dCoords ?? undefined}
             />
 
             {/* SafetySentinel Deviation Alert Modal */}
