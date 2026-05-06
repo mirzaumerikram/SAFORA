@@ -36,8 +36,7 @@ const ChatScreen: React.FC = () => {
     const navigation = useNavigation<any>();
     const route      = useRoute<any>();
     const { rideId, senderRole, driverName, passengerName, rideType } = route.params || {};
-
-    const isPinkRide = rideType?.toLowerCase() === 'pink';
+    const isPinkRide = (actualRideType || rideType)?.toLowerCase() === 'pink';
     const primaryColor = isPinkRide ? '#EC4899' : '#F5C518';
 
     const { theme } = useAppTheme();
@@ -51,12 +50,31 @@ const ChatScreen: React.FC = () => {
 
     // ── Socket / storage setup ────────────────────────────────────────────────
 
+    const [driverData, setDriverData] = useState<any>(null);
+    const [passengerData, setPassengerData] = useState<any>(null);
+    const [actualRideType, setActualRideType] = useState<string>(rideType || 'Standard');
+
     useEffect(() => {
         let mounted = true;
 
         AsyncStorage.getItem(STORAGE_KEYS.USER_DATA).then(raw => {
             if (raw && mounted) setUserName(JSON.parse(raw)?.name || senderRole);
         });
+
+        const fetchRideDetails = async () => {
+            if (!rideId || rideId === 'demo') return;
+            try {
+                const res: any = await apiService.get(`/rides/${rideId}`);
+                if (mounted && res.success && res.ride) {
+                    setDriverData(res.ride.driver?.user || null);
+                    setPassengerData(res.ride.passenger || null);
+                    setActualRideType(res.ride.type || 'Standard');
+                }
+            } catch (err) {
+                console.error('[Chat] Detail fetch failed:', err);
+            }
+        };
+        fetchRideDetails();
 
         socketService.connect().then(() => {
             if (!mounted) return;
@@ -124,7 +142,9 @@ const ChatScreen: React.FC = () => {
 
     // ── Display name helpers ──────────────────────────────────────────────────
 
-    const headerName = senderRole === 'passenger' ? (driverName || 'Driver') : (passengerName || 'Passenger');
+    const headerName = senderRole === 'passenger' 
+        ? (driverData?.name || driverName || 'Driver') 
+        : (passengerData?.name || passengerName || 'Passenger');
     const headerInitial = headerName.charAt(0).toUpperCase();
 
     // ─── Render ───────────────────────────────────────────────────────────────
