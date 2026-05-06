@@ -432,7 +432,7 @@ const DriverDashboard: React.FC = () => {
                         <Text style={s.greeting}>Hello, {driverName || 'Driver'} 👋</Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
                             <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: isConnected ? '#22C55E' : '#EF4444', marginRight: 6 }} />
-                            <Text style={{ fontSize: 10, color: t.colors.textSecondary, fontWeight: '700' }}>
+                            <Text style={{ fontSize: 10, color: theme.colors.textSecondary, fontWeight: '700' }}>
                                 {isConnected ? 'NETWORK: CONNECTED' : 'NETWORK: DISCONNECTED'}
                             </Text>
                         </View>
