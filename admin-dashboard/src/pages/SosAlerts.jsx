@@ -18,7 +18,7 @@ export default function SosAlerts() {
 
   const load = () => {
     setLoading(true);
-    api.get('/admin/alerts/active')
+    api.get('/admin/alerts/all')
       .then(res => setAlerts(res.alerts || []))
       .catch(() => setAlerts([]))
       .finally(() => setLoading(false));

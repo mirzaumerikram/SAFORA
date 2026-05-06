@@ -204,11 +204,37 @@ router.get('/alerts/active', async (req, res) => {
         const alerts = await Alert.find({ status: 'active' })
             .populate('passenger', 'name phone')
             .populate({
-                path: 'driver',
-                populate: { path: 'user', select: 'name phone' }
+                path: 'ride',
+                populate: {
+                    path: 'passenger driver',
+                    populate: { path: 'user', select: 'name phone' }
+                }
             })
             .sort({ createdAt: -1 })
             .limit(50);
+
+        res.json({ success: true, count: alerts.length, alerts });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// @route   GET /api/admin/alerts/all
+// @desc    Get all SOS alerts (history)
+// @access  Admin
+router.get('/alerts/all', async (req, res) => {
+    try {
+        const alerts = await Alert.find()
+            .populate('passenger', 'name phone')
+            .populate({
+                path: 'ride',
+                populate: {
+                    path: 'passenger driver',
+                    populate: { path: 'user', select: 'name phone' }
+                }
+            })
+            .sort({ createdAt: -1 })
+            .limit(100);
 
         res.json({ success: true, count: alerts.length, alerts });
     } catch (error) {
