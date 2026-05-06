@@ -89,6 +89,10 @@ class SocketService {
         this.socket?.emit('driver:location-update', { rideId, lat, lng });
     }
 
+    offChat(): void {
+        this.socket?.off('chat:message');
+    }
+
     offAll() {
         this.socket?.off('ride:request');
         this.socket?.off('ride:accepted');
