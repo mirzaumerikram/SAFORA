@@ -29,7 +29,8 @@ const formatTime = (iso: string) => {
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-const QUICK_REPLIES = ["I'm here 📍", "On my way", "2 more min"];
+const DRIVER_REPLIES = ["I'm here 📍", "On my way", "2 more min"];
+const PASSENGER_REPLIES = ["Where are you? 📍", "Coming down!", "Wait 2 min"];
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -93,7 +94,9 @@ const ChatScreen: React.FC = () => {
 
         return () => {
             mounted = false;
-            socketService.offChat();
+            if (socketService && typeof socketService.offChat === 'function') {
+                socketService.offChat();
+            }
         };
     }, [rideId, senderRole]);
 
@@ -223,7 +226,7 @@ const ChatScreen: React.FC = () => {
                     contentContainerStyle={s.quickRepliesContent}
                     style={s.quickRepliesRow}
                 >
-                    {QUICK_REPLIES.map(reply => (
+                    {(senderRole === 'passenger' ? PASSENGER_REPLIES : DRIVER_REPLIES).map(reply => (
                         <TouchableOpacity
                             key={reply}
                             style={s.quickChip}

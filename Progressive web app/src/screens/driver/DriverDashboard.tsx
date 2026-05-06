@@ -51,6 +51,7 @@ const DriverDashboard: React.FC = () => {
     const [bgCheckStatus, setBgCheckStatus] = useState('pending');
     const [isConnected, setIsConnected]     = useState(false);
     const [countdown, setCountdown]         = useState(0);
+    const [hasNewMessage, setHasNewMessage] = useState(false);
 
     const socketConnected = useRef(false);
     const watchId   = useRef<any>(null);
@@ -139,6 +140,11 @@ const DriverDashboard: React.FC = () => {
                 setIncoming(ride);
                 setRideStatus('incoming');
                 startCountdown(30);
+            });
+            socketService.onChatMessage((msg) => {
+                if (msg.sender !== 'driver') {
+                    setHasNewMessage(true);
+                }
             });
         } catch (err) {
             console.error('[Driver] Socket connection failed:', err);
@@ -578,15 +584,19 @@ const DriverDashboard: React.FC = () => {
                         <View style={s.actionRow}>
                             <TouchableOpacity
                                 style={[s.chatBtn, { flex: 1 }]}
-                                onPress={() => navigation.navigate('Chat', {
-                                    rideId: activeRide.rideId,
-                                    senderRole: 'driver',
-                                    driverName: driverName,
-                                    passengerName: activeRide.passenger?.name || 'Passenger',
-                                    rideType: activeRide.type || 'Standard',
-                                })}
+                                onPress={() => {
+                                    setHasNewMessage(false);
+                                    navigation.navigate('Chat', {
+                                        rideId: activeRide.rideId,
+                                        senderRole: 'driver',
+                                        driverName: driverName,
+                                        passengerName: activeRide.passenger?.name || 'Passenger',
+                                        rideType: activeRide.type || 'Standard',
+                                    });
+                                }}
                             >
                                 <Text style={s.chatIcon}>💬</Text>
+                                {hasNewMessage && <View style={s.chatBadge} />}
                             </TouchableOpacity>
                             <TouchableOpacity
                                 style={[s.rideActionBtn, { flex: 3 }, rideStatus === 'started' && s.endBtn, actionLoading && { opacity: 0.6 }]}
@@ -694,6 +704,17 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
     actionRow:        { flexDirection: 'row', gap: 12 },
     chatBtn:          { backgroundColor: t.dark ? '#252525' : '#E8E8E8', borderRadius: 14, paddingVertical: 14, alignItems: 'center', borderWidth: 1, borderColor: t.dark ? '#333' : '#DDD' },
     chatIcon:         { fontSize: 20 },
+    chatBadge: {
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: '#ef4444',
+        borderWidth: 1.5,
+        borderColor: t.dark ? '#252525' : '#E8E8E8',
+    },
     rideActionBtn:    { backgroundColor: t.colors.primary, borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
     endBtn:           { backgroundColor: '#EF4444' },
     rideActionText:   { color: t.colors.black, fontWeight: '700', fontSize: 13 },

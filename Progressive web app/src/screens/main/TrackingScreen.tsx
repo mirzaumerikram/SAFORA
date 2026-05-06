@@ -29,6 +29,7 @@ const TrackingScreen: React.FC = () => {
     const [deviationAlert, setDeviationAlert] = useState<{ description: string; distance?: number } | null>(null);
     const [countdown, setCountdown]           = useState(30);
     const countdownRef                        = useRef<ReturnType<typeof setInterval> | null>(null);
+    const [hasNewMessage, setHasNewMessage]   = useState(false);
 
     useEffect(() => {
         Animated.loop(
@@ -106,6 +107,15 @@ const TrackingScreen: React.FC = () => {
                             return c - 1;
                         });
                     }, 1000);
+                });
+
+                // Chat notifications
+                socketService.onChatMessage((msg) => {
+                    if (!mounted) return;
+                    // Only show badge if it's from the OTHER person
+                    if (msg.sender !== 'passenger') {
+                        setHasNewMessage(true);
+                    }
                 });
 
             } catch {
@@ -247,15 +257,19 @@ const TrackingScreen: React.FC = () => {
                         </View>
                         <TouchableOpacity
                             style={styles.chatBtn}
-                            onPress={() => navigation.navigate('Chat', {
-                                rideId,
-                                senderRole: 'passenger',
-                                driverName: driverData?.name || 'Driver',
-                                passengerName: 'Me',
-                                rideType: route.params?.type || 'Standard',
-                            })}
+                            onPress={() => {
+                                setHasNewMessage(false);
+                                navigation.navigate('Chat', {
+                                    rideId,
+                                    senderRole: 'passenger',
+                                    driverName: driverData?.name || 'Driver',
+                                    passengerName: 'Me',
+                                    rideType: route.params?.type || 'Standard',
+                                });
+                            }}
                         >
                             <Text style={styles.chatIcon}>💬</Text>
+                            {hasNewMessage && <View style={styles.chatBadge} />}
                         </TouchableOpacity>
                     </View>
 
@@ -535,6 +549,17 @@ const styles = StyleSheet.create({
     },
     chatIcon: {
         fontSize: 18,
+    },
+    chatBadge: {
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: '#ef4444',
+        borderWidth: 1.5,
+        borderColor: theme.colors.card,
     },
     divider: {
         height: 1,
