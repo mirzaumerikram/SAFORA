@@ -1,6 +1,5 @@
 import React from 'react';
-import { View, Text, Modal, StyleSheet, TouchableOpacity, Animated, Dimensions } from 'react-native';
-import { useAppTheme } from '../../context/ThemeContext';
+import { View, Text, Modal, StyleSheet, TouchableOpacity, Animated, Dimensions, Platform } from 'react-native';
 
 interface CustomAlertProps {
     visible: boolean;
@@ -10,8 +9,7 @@ interface CustomAlertProps {
 }
 
 export const CustomAlert: React.FC<CustomAlertProps> = ({ visible, title, message, onClose }) => {
-    const themeContext = useAppTheme();
-    const t = themeContext?.theme || { colors: { primary: '#F5C518' } }; // Fail-safe
+    const t = { colors: { primary: '#F5C518' } }; // Hardcoded SAFORA Gold for safety
     const [fadeAnim] = React.useState(new Animated.Value(0));
     const { width } = Dimensions.get('window');
 
