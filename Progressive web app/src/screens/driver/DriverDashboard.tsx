@@ -559,7 +559,6 @@ const DriverDashboard: React.FC = () => {
                         <Text style={s.searchingIcon}>🔍</Text>
                         <View style={s.searchingTexts}>
                             <Text style={s.searchingTitle}>Searching for Passengers…</Text>
-                            <Text style={s.searchingSubtitle}>Lahore · Active zone</Text>
                         </View>
                         <ActivityIndicator color={theme.colors.primary} size="small" />
                     </View>
