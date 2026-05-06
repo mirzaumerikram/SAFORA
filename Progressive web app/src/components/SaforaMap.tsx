@@ -129,49 +129,56 @@ const SaforaMap: React.FC<SaforaMapProps> = ({
         if (!mapReady || !mapDivRef.current || loading) return;
         if (mapObjRef.current) return; // already created
 
-        const center = userLocation || LAHORE;
-
-        // Final safety check: if the script is "loaded" but the object isn't ready
-        if (typeof google === 'undefined' || !google.maps || !google.maps.Map) {
-            console.warn('[SaforaMap] Google Maps API not fully initialized yet.');
-            return;
-        }
-
-        const map = new google.maps.Map(mapDivRef.current, {
-            center:    { lat: center.latitude, lng: center.longitude },
-            zoom:      15,
-            mapTypeControl:      false,
-            streetViewControl:   false,
-            fullscreenControl:   false,
-            zoomControlOptions:  { 
-                position: (google.maps.ControlPosition && google.maps.ControlPosition.RIGHT_CENTER) 
-                          ? google.maps.ControlPosition.RIGHT_CENTER 
-                          : 7 // Fallback to 7 (RIGHT_CENTER's value)
-            },
-            gestureHandling: 'greedy', // Unlock manual pan and zoom
-            clickableIcons: false,
-            styles: [
-                { elementType: 'geometry',          stylers: [{ color: '#f5f5f5' }] },
-                { elementType: 'labels.icon',        stylers: [{ visibility: 'off' }] },
-                { featureType: 'road',               elementType: 'geometry', stylers: [{ color: '#ffffff' }] },
-                { featureType: 'road.arterial',      elementType: 'labels.text.fill', stylers: [{ color: '#757575' }] },
-                { featureType: 'water',              elementType: 'geometry', stylers: [{ color: '#c9c9c9' }] },
-                { featureType: 'poi',                stylers: [{ visibility: 'off' }] },
-            ],
-        });
-        mapObjRef.current = map;
-
-        // Init directions
-        directionsServiceRef.current  = new google.maps.DirectionsService();
-        directionsRendererRef.current = new google.maps.DirectionsRenderer({
-            map,
-            suppressMarkers: true,
-            polylineOptions: {
-                strokeColor: '#F5C518',
-                strokeWeight: 5,
-                strokeOpacity: 0.8,
+        const initMap = () => {
+            if (mapObjRef.current) return;
+            
+            // Final safety check: if the script is "loaded" but the object isn't ready
+            if (typeof google === 'undefined' || !google.maps || !google.maps.Map) {
+                console.warn('[SaforaMap] Google Maps API not fully initialized yet. Retrying...');
+                setTimeout(initMap, 500); // Retry in 500ms
+                return;
             }
-        });
+
+            const center = userLocation || LAHORE;
+
+            const map = new google.maps.Map(mapDivRef.current!, {
+                center:    { lat: center.latitude, lng: center.longitude },
+                zoom:      15,
+                mapTypeControl:      false,
+                streetViewControl:   false,
+                fullscreenControl:   false,
+                zoomControlOptions:  { 
+                    position: (google.maps.ControlPosition && google.maps.ControlPosition.RIGHT_CENTER) 
+                              ? google.maps.ControlPosition.RIGHT_CENTER 
+                              : 7 
+                },
+                gestureHandling: 'greedy', 
+                clickableIcons: false,
+                styles: [
+                    { elementType: 'geometry',          stylers: [{ color: '#f5f5f5' }] },
+                    { elementType: 'labels.icon',        stylers: [{ visibility: 'off' }] },
+                    { featureType: 'road',               elementType: 'geometry', stylers: [{ color: '#ffffff' }] },
+                    { featureType: 'road.arterial',      elementType: 'labels.text.fill', stylers: [{ color: '#757575' }] },
+                    { featureType: 'water',              elementType: 'geometry', stylers: [{ color: '#c9c9c9' }] },
+                    { featureType: 'poi',                stylers: [{ visibility: 'off' }] },
+                ],
+            });
+            mapObjRef.current = map;
+
+            // Init directions
+            directionsServiceRef.current  = new google.maps.DirectionsService();
+            directionsRendererRef.current = new google.maps.DirectionsRenderer({
+                map,
+                suppressMarkers: true,
+                polylineOptions: {
+                    strokeColor: '#F5C518',
+                    strokeWeight: 5,
+                    strokeOpacity: 0.8,
+                }
+            });
+        };
+
+        initMap();
     }, [mapReady, loading, userLocation]);
 
     // ── 4. Update markers whenever props change ───────────────────────────────
