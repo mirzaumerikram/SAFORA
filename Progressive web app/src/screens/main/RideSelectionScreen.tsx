@@ -221,6 +221,11 @@ const RideSelectionScreen: React.FC = () => {
                             <View style={s.routeLine} />
                             <Text style={s.routeTo}>{dropoff}</Text>
                         </View>
+                        {routeInfo && (
+                            <View style={s.distanceBadge}>
+                                <Text style={s.distanceText}>{routeInfo.distance.toFixed(1)} km</Text>
+                            </View>
+                        )}
                     </View>
                 </View>
 
@@ -406,6 +411,19 @@ const makeStyles = (t: AppTheme) => {
             fontSize: t.fontSize.sm,
             fontWeight: t.fontWeight.medium,
             color: t.colors.textSecondary,
+        },
+        distanceBadge: {
+            backgroundColor: 'rgba(245,197,24,0.15)',
+            paddingHorizontal: 10,
+            paddingVertical: 6,
+            borderRadius: 10,
+            borderWidth: 1,
+            borderColor: t.colors.primary,
+        },
+        distanceText: {
+            fontSize: 13,
+            fontWeight: t.fontWeight.heavy,
+            color: t.colors.primary,
         },
 
         // Section label
