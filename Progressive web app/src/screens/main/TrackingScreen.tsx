@@ -24,6 +24,11 @@ const TrackingScreen: React.FC = () => {
     const [price, setPrice] = useState<number | null>(estimatedPrice);
     const [driverLocation, setDriverLocation] = useState<Coordinates | null>(null);
 
+    // SafetySentinel deviation alert state
+    const [deviationAlert, setDeviationAlert] = useState<{ description: string; distance?: number } | null>(null);
+    const [countdown, setCountdown]           = useState(30);
+    const countdownRef                        = useRef<ReturnType<typeof setInterval> | null>(null);
+
     useEffect(() => {
         const fetchRide = async () => {
             if (!rideId || rideId === 'demo') return;
