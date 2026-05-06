@@ -556,6 +556,7 @@ const DriverDashboard: React.FC = () => {
                                     senderRole: 'driver',
                                     driverName: driverName,
                                     passengerName: activeRide.passenger?.name || 'Passenger',
+                                    rideType: activeRide.type || 'Standard',
                                 })}
                             >
                                 <Text style={s.chatIcon}>💬</Text>

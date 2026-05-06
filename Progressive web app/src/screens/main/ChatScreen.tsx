@@ -35,10 +35,13 @@ const QUICK_REPLIES = ["I'm here 📍", "On my way", "2 more min"];
 const ChatScreen: React.FC = () => {
     const navigation = useNavigation<any>();
     const route      = useRoute<any>();
-    const { rideId, senderRole, driverName } = route.params || {};
+    const { rideId, senderRole, driverName, passengerName, rideType } = route.params || {};
+
+    const isPinkRide = rideType?.toLowerCase() === 'pink';
+    const primaryColor = isPinkRide ? '#EC4899' : '#F5C518';
 
     const { theme } = useAppTheme();
-    const s     = useMemo(() => makeStyles(theme), [theme]);
+    const s     = useMemo(() => makeStyles(theme, primaryColor), [theme, primaryColor]);
 
     const flatRef                     = useRef<FlatList>(null);
     const [messages, setMessages]     = useState<Message[]>([]);
@@ -95,9 +98,9 @@ const ChatScreen: React.FC = () => {
         return (
             <View style={[s.bubbleRow, isMe ? s.bubbleRowRight : s.bubbleRowLeft]}>
                 {!isMe && (
-                    <View style={s.driverAvatar}>
+                    <View style={[s.driverAvatar, { backgroundColor: primaryColor }]}>
                         <Text style={s.driverAvatarText}>
-                            {(driverName || item.senderName || 'D').charAt(0).toUpperCase()}
+                            {(headerName || item.senderName || 'D').charAt(0).toUpperCase()}
                         </Text>
                     </View>
                 )}
@@ -105,7 +108,7 @@ const ChatScreen: React.FC = () => {
                 <View style={[s.bubble, isMe ? s.bubbleMe : s.bubbleThem]}>
                     {!isMe && (
                         <Text style={s.bubbleSenderName}>
-                            {driverName || item.senderName}
+                            {headerName || item.senderName}
                         </Text>
                     )}
                     <Text style={[s.bubbleText, isMe && s.bubbleTextMe]}>
@@ -121,7 +124,7 @@ const ChatScreen: React.FC = () => {
 
     // ── Display name helpers ──────────────────────────────────────────────────
 
-    const headerName   = senderRole === 'passenger' ? (driverName || 'Ahmed Raza') : 'Passenger';
+    const headerName = senderRole === 'passenger' ? (driverName || 'Driver') : (passengerName || 'Passenger');
     const headerInitial = headerName.charAt(0).toUpperCase();
 
     // ─── Render ───────────────────────────────────────────────────────────────
@@ -142,7 +145,7 @@ const ChatScreen: React.FC = () => {
                 {/* Center: avatar + name + status */}
                 <View style={s.headerCenter}>
                     <View style={s.headerAvatarWrap}>
-                        <View style={s.headerAvatar}>
+                        <View style={[s.headerAvatar, { backgroundColor: primaryColor }]}>
                             <Text style={s.headerAvatarText}>{headerInitial}</Text>
                         </View>
 
@@ -240,7 +243,7 @@ const ChatScreen: React.FC = () => {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const makeStyles = (t: AppTheme) => StyleSheet.create({
+const makeStyles = (t: AppTheme, primaryColor: string) => StyleSheet.create({
 
     // ── Root ──────────────────────────────────────────────────────────────────
     container: {
@@ -300,7 +303,7 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
         width: 42,
         height: 42,
         borderRadius: 21,
-        backgroundColor: '#EC4899',
+        backgroundColor: primaryColor,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -340,7 +343,7 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: '#FDEAF3',
+        backgroundColor: t.colors.cardSecondary,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -391,9 +394,9 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
         paddingHorizontal: 14,
         paddingVertical: 10,
     },
-    // Passenger bubble — signature pink
+    // Passenger bubble — dynamic
     bubbleMe: {
-        backgroundColor: '#EC4899',
+        backgroundColor: primaryColor,
         borderBottomRightRadius: 4,
     },
     // Driver bubble — soft theme-aware gray
@@ -516,7 +519,7 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
         width: 44,
         height: 44,
         borderRadius: 22,
-        backgroundColor: '#F5C518',
+        backgroundColor: primaryColor,
         alignItems: 'center',
         justifyContent: 'center',
     },
