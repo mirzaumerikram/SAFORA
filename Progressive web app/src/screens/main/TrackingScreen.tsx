@@ -212,6 +212,7 @@ const TrackingScreen: React.FC = () => {
                                 </View>
                                 <Text style={styles.carInfo}>White Toyota Corolla • LEC-405</Text>
                             </View>
+                        </View>
                         <TouchableOpacity
                             style={styles.chatBtn}
                             onPress={() => navigation.navigate('Chat', {

@@ -37,6 +37,11 @@ const ChatScreen: React.FC = () => {
     const navigation = useNavigation<any>();
     const route      = useRoute<any>();
     const { rideId, senderRole, driverName, passengerName, rideType } = route.params || {};
+
+    const [driverData, setDriverData] = useState<any>(null);
+    const [passengerData, setPassengerData] = useState<any>(null);
+    const [actualRideType, setActualRideType] = useState<string>(rideType || 'Standard');
+
     const isPinkRide = (actualRideType || rideType)?.toLowerCase() === 'pink';
     const primaryColor = isPinkRide ? '#EC4899' : '#F5C518';
 
@@ -50,10 +55,6 @@ const ChatScreen: React.FC = () => {
     const [connecting, setConnecting] = useState(true);
 
     // ── Socket / storage setup ────────────────────────────────────────────────
-
-    const [driverData, setDriverData] = useState<any>(null);
-    const [passengerData, setPassengerData] = useState<any>(null);
-    const [actualRideType, setActualRideType] = useState<string>(rideType || 'Standard');
 
     useEffect(() => {
         let mounted = true;
