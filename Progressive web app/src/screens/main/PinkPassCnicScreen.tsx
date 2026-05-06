@@ -289,7 +289,7 @@ const PinkPassCnicScreen: React.FC = () => {
                     <Text style={s.backText}>←</Text>
                 </TouchableOpacity>
                 <Text style={s.headerTitle}>VERIFICATION</Text>
-                <View style={s.verBadge}><Text style={s.verBadgeText}>v1.3.2</Text></View>
+                <View style={s.verBadge}><Text style={s.verBadgeText}>v2.1.0 (AI-READY)</Text></View>
             </View>
 
             <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
