@@ -23,11 +23,21 @@ const TrackingScreen: React.FC = () => {
     const [driverData, setDriverData] = useState<any>(null);
     const [price, setPrice] = useState<number | null>(estimatedPrice);
     const [driverLocation, setDriverLocation] = useState<Coordinates | null>(null);
+    const pulseAnim = useRef(new Animated.Value(0)).current;
 
     // SafetySentinel deviation alert state
     const [deviationAlert, setDeviationAlert] = useState<{ description: string; distance?: number } | null>(null);
     const [countdown, setCountdown]           = useState(30);
     const countdownRef                        = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    useEffect(() => {
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(pulseAnim, { toValue: 1, duration: 1500, useNativeDriver: true }),
+                Animated.timing(pulseAnim, { toValue: 0, duration: 0, useNativeDriver: true }),
+            ])
+        ).start();
+    }, []);
 
     useEffect(() => {
         const fetchRide = async () => {
