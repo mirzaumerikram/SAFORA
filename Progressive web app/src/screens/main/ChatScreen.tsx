@@ -72,6 +72,10 @@ const ChatScreen: React.FC = () => {
                     setDriverData(res.ride.driver?.user || null);
                     setPassengerData(res.ride.passenger || null);
                     setActualRideType(res.ride.type || 'Standard');
+                    if (res.ride.chatMessages) {
+                        setMessages(res.ride.chatMessages);
+                        setTimeout(() => flatRef.current?.scrollToEnd({ animated: false }), 100);
+                    }
                 }
             } catch (err) {
                 console.error('[Chat] Detail fetch failed:', err);

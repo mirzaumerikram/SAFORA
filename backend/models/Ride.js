@@ -80,7 +80,14 @@ const rideSchema = new mongoose.Schema({
             comment: String,
             ratedAt: Date
         }
-    }
+    },
+    chatMessages: [{
+        id: String,
+        text: String,
+        sender: { type: String, enum: ['passenger', 'driver'] },
+        senderName: String,
+        timestamp: { type: Date, default: Date.now }
+    }]
 }, {
     timestamps: true
 });

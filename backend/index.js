@@ -4,6 +4,7 @@ const dotenv = require('dotenv');
 const http = require('http');
 const { Server } = require('socket.io');
 const connectDB = require('./config/database');
+const Ride = require('./models/Ride');
 
 // Load environment variables
 dotenv.config();
@@ -131,7 +132,7 @@ io.on('connection', (socket) => {
     if (rideId) socket.join(`chat-${rideId}`);
   });
 
-  socket.on('chat:send', ({ rideId, text, sender, senderName }) => {
+  socket.on('chat:send', async ({ rideId, text, sender, senderName }) => {
     if (!rideId || !text?.trim()) return;
     const message = {
       id:         `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -140,6 +141,16 @@ io.on('connection', (socket) => {
       senderName: senderName || sender,
       timestamp:  new Date().toISOString(),
     };
+    
+    // Save to DB
+    try {
+      await Ride.findByIdAndUpdate(rideId, {
+        $push: { chatMessages: message }
+      });
+    } catch (err) {
+      console.error('[Chat] Save failed:', err.message);
+    }
+
     // Broadcast to both sides in the chat room (including sender for confirmation)
     io.to(`chat-${rideId}`).emit('chat:message', message);
   });
