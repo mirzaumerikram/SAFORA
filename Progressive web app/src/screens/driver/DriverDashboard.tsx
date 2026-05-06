@@ -115,7 +115,13 @@ const DriverDashboard: React.FC = () => {
                         setActiveRide(mappedRide);
                         setRideStatus(ride.status);
                     }
-                    if (isOnline) connectSocket(res.driver.id);
+                    
+                    // CRITICAL: Ensure driver re-joins the ride room and starts GPS if online
+                    if (isOnline) {
+                        connectSocket(res.driver.id);
+                        socketService.joinRide(mappedRide.rideId);
+                        startGPS(mappedRide.rideId);
+                    }
                 } else if (isOnline) {
                     // Force connect if online, even if check status is pending for testing
                     connectSocket(res.driver.id);
