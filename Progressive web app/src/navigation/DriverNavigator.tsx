@@ -62,7 +62,10 @@ const DriverNavigator: React.FC = () => {
             <Tab.Screen
                 name="DriverHome"
                 component={DriverDashboard}
-                options={{ tabBarIcon: makeIcon('Drive', '🚗') }}
+                options={{ 
+                    tabBarIcon: makeIcon('Drive', '🚗'),
+                    title: 'SAFORA — Driver'
+                }}
             />
             <Tab.Screen
                 name="Earnings"
