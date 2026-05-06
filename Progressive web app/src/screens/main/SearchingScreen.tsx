@@ -38,7 +38,7 @@ const SearchingScreen: React.FC = () => {
         Animated.loop(
             Animated.timing(rotateAnim, {
                 toValue: 1,
-                duration: 4000,
+                duration: 2000,
                 easing: Easing.linear,
                 useNativeDriver: true,
             })
@@ -68,6 +68,11 @@ const SearchingScreen: React.FC = () => {
         inputRange: [0, 1],
         outputRange: ['0deg', '360deg'],
     });
+
+    const handleCancel = () => {
+        socketService.offAll();
+        navigation.navigate('Home');
+    };
 
     return (
         <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -128,7 +133,7 @@ const SearchingScreen: React.FC = () => {
 
             <TouchableOpacity 
                 style={[styles.cancelBtn, { borderColor: theme.colors.danger }]}
-                onPress={() => navigation.goBack()}
+                onPress={handleCancel}
             >
                 <Text style={[styles.cancelBtnText, { color: theme.colors.danger }]}>{t.cancelRequest || 'Cancel Request'}</Text>
             </TouchableOpacity>
