@@ -137,9 +137,32 @@ const RideSelectionScreen: React.FC = () => {
     const selectedRide = dynamicRideTypes.find(r => r.id === selected)!;
 
     // -----------------------------------------------------------------------
+    // Geofencing Check (Lahore & Sialkot Restriction)
+    // -----------------------------------------------------------------------
+    const isLocationAllowed = (coords: Coordinates) => {
+        const { latitude: lat, longitude: lng } = coords;
+        
+        // Lahore Boundary (approx)
+        const inLahore = (lat >= 31.2 && lat <= 31.7) && (lng >= 74.0 && lng <= 74.7);
+        // Sialkot Boundary (approx)
+        const inSialkot = (lat >= 32.3 && lat <= 32.7) && (lng >= 74.2 && lng <= 74.8);
+        
+        return inLahore || inSialkot;
+    };
+
+    // -----------------------------------------------------------------------
     // Confirm handler
     // -----------------------------------------------------------------------
     const handleConfirm = async () => {
+        // Validate City Restriction
+        if (!isLocationAllowed(pickupCoords) || !isLocationAllowed(dropoffCoords)) {
+            SaforaAlert(
+                'Service Unavailable', 
+                'SAFORA is currently only operational in Lahore and Sialkot. Please select a location within these cities.'
+            );
+            return;
+        }
+
         setBooking(true);
         try {
             const resp = await apiService.post('/rides/request', {
