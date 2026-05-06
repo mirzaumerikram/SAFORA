@@ -66,23 +66,32 @@ const DriverDashboard: React.FC = () => {
     // ── Load driver profile + Driver doc _id ──────────────────────────────────
     const loadDriver = async () => {
         try {
+            // IMMEDIATE: Check local storage first for instant UI update
             const raw = await AsyncStorage.getItem(STORAGE_KEYS.USER_DATA);
-            // Fix: Use /me instead of /profile
+            if (raw) {
+                const u = JSON.parse(raw);
+                if (u.profilePicture) setProfilePicture(u.profilePicture);
+                if (u.name) setDriverName(toFirstName(u.name));
+            }
+
             const res: any = await apiService.get('/drivers/me');
             
             if (res.success && res.driver) {
                 setDriverId(res.driver.id);
                 setDriverName(toFirstName(res.driver.name || 'Driver'));
                 
-                // Prioritize server photo, fallback to local if needed
                 if (res.driver.profilePicture) {
                     setProfilePicture(res.driver.profilePicture);
-                } else if (raw) {
-                    const u = JSON.parse(raw);
-                    if (u.profilePicture) setProfilePicture(u.profilePicture);
+                    // Update local storage to keep it in sync
+                    if (raw) {
+                        const u = JSON.parse(raw);
+                        u.profilePicture = res.driver.profilePicture;
+                        await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(u));
+                    }
                 }
 
                 setBgCheckStatus('approved'); // Force approved for demo stability
+
 
                 setEarnings(prev => ({
                     ...prev,
