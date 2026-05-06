@@ -451,7 +451,7 @@ const DriverDashboard: React.FC = () => {
                             </View>
                             <View style={s.statDivider} />
                             <View style={s.statItem}>
-                                <Text style={s.statVal}>{incoming?.estimatedDuration || '—'} min</Text>
+                                <Text style={s.statVal}>{Math.round(Number(incoming?.estimatedDuration || 0))} min</Text>
                                 <Text style={s.statLabel}>ETA</Text>
                             </View>
                         </View>
