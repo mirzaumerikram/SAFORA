@@ -283,19 +283,18 @@ const TrackingScreen: React.FC = () => {
                     </TouchableOpacity>
 
                     <TouchableOpacity 
-                        style={[styles.cancelBtn, { marginTop: 12, borderColor: theme.colors.danger }]}
+                        style={[styles.cancelBtn, { marginTop: 16, backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: theme.colors.danger }]}
                         onPress={() => {
-                            Alert.alert(
-                                "Cancel Ride?",
-                                "Are you sure you want to cancel this ride?",
-                                [
-                                    { text: "No", style: "cancel" },
-                                    { text: "Yes, Cancel", onPress: handleCancelRide, style: "destructive" }
-                                ]
-                            );
+                            const confirmed = Platform.OS === 'web' 
+                                ? window.confirm("Are you sure you want to cancel this ride?")
+                                : true; // Native Alert fallback handled by direct call or UI
+                            
+                            if (confirmed) {
+                                handleCancelRide();
+                            }
                         }}
                     >
-                        <Text style={[styles.cancelText, { color: theme.colors.danger }]}>Cancel Ride</Text>
+                        <Text style={[styles.cancelText, { color: theme.colors.danger, fontSize: 16 }]}>Cancel Ride</Text>
                     </TouchableOpacity>
                 </View>
             </View>

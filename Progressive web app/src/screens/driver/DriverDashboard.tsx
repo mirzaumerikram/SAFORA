@@ -106,8 +106,14 @@ const DriverDashboard: React.FC = () => {
                         passenger: ride.passenger || { name: 'Passenger' }
                     };
 
-                    setActiveRide(mappedRide);
-                    setRideStatus(ride.status);
+                    if (ride.status === 'matched') {
+                        setIncoming(mappedRide);
+                        setRideStatus('incoming');
+                        startCountdown(30); // Resume countdown
+                    } else {
+                        setActiveRide(mappedRide);
+                        setRideStatus(ride.status);
+                    }
                     if (isOnline) connectSocket(res.driver.id);
                 } else if (isOnline) {
                     // Force connect if online, even if check status is pending for testing
