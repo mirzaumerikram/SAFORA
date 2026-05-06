@@ -20,22 +20,24 @@ const TrackingScreen: React.FC = () => {
 
     const [status, setStatus]               = useState('ARRIVING');
     const [socketStatus, setSocketStatus]   = useState<'connecting' | 'live' | 'offline'>('connecting');
-    const [driverLocation, setDriverLocation] = useState<Coordinates | null>(null);
-    const pulseAnim = useRef(new Animated.Value(0)).current;
-
-    // SafetySentinel deviation alert state
-    const [deviationAlert, setDeviationAlert] = useState<{ description: string; distance?: number } | null>(null);
-    const [countdown, setCountdown]           = useState(30);
-    const countdownRef                        = useRef<ReturnType<typeof setInterval> | null>(null);
+    const [driverData, setDriverData] = useState<any>(null);
+    const [price, setPrice] = useState<number | null>(estimatedPrice);
 
     useEffect(() => {
-        Animated.loop(
-            Animated.sequence([
-                Animated.timing(pulseAnim, { toValue: 1, duration: 1500, useNativeDriver: true }),
-                Animated.timing(pulseAnim, { toValue: 0, duration: 0, useNativeDriver: true }),
-            ])
-        ).start();
-    }, []);
+        const fetchRide = async () => {
+            if (!rideId || rideId === 'demo') return;
+            try {
+                const res: any = await apiService.get(`/rides/${rideId}`);
+                if (res.success && res.ride) {
+                    setDriverData(res.ride.driver?.user || null);
+                    setPrice(res.ride.estimatedPrice);
+                }
+            } catch (err) {
+                console.error('[Tracking] Fetch ride failed:', err);
+            }
+        };
+        fetchRide();
+    }, [rideId]);
 
     // Socket.io: connect and join ride room for real-time updates
     useEffect(() => {
@@ -198,12 +200,12 @@ const TrackingScreen: React.FC = () => {
                     <View style={styles.driverHeader}>
                         <View style={styles.driverDetails}>
                             <Image 
-                                source={{ uri: 'https://via.placeholder.com/60' }} 
+                                source={{ uri: driverData?.profilePicture || 'https://via.placeholder.com/60' }} 
                                 style={styles.driverImg} 
                             />
                             <View>
                                 <View style={styles.nameRow}>
-                                    <Text style={styles.driverName}>Ahmed Khan</Text>
+                                    <Text style={styles.driverName}>{driverData?.name || 'Driver'}</Text>
                                     <View style={styles.ratingBadge}>
                                         <Text style={styles.ratingText}>⭐ 4.9</Text>
                                     </View>
@@ -216,7 +218,7 @@ const TrackingScreen: React.FC = () => {
                             onPress={() => navigation.navigate('Chat', {
                                 rideId,
                                 senderRole: 'passenger',
-                                driverName: 'Ahmed Khan',
+                                driverName: driverData?.name || 'Driver',
                             })}
                         >
                             <Text style={styles.chatIcon}>💬</Text>
@@ -233,7 +235,7 @@ const TrackingScreen: React.FC = () => {
                         <View style={styles.vDivider} />
                         <View style={styles.metaItem}>
                             <Text style={styles.metaLabel}>FEE</Text>
-                            <Text style={styles.metaValue}>RS {estimatedPrice || '—'}</Text>
+                            <Text style={styles.metaValue}>RS {price || '—'}</Text>
                         </View>
                         <View style={styles.vDivider} />
                         <View style={styles.metaItem}>
