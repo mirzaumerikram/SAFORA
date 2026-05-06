@@ -168,34 +168,72 @@ const PinkPassCnicScreen: React.FC = () => {
     const [scanError, setScanError] = useState('');
     const [extractedCnic, setExtractedCnic] = useState<{ number: string, gender: string, name: string } | null>(null);
 
-    const runAiVerification = () => {
+    const runAiVerification = async () => {
         if (!PinkPassState.cnicBase64) return;
 
         setVerifying(true);
         setScanError('');
         setExtractedCnic(null);
 
-        // Simulation of deep AI analysis
-        setTimeout(() => {
-            // Mock Data Extraction
-            const extracted = {
-                number: "35202-8172635-4", // Last digit 4 = Female
-                gender: "Female",
-                name: "Ayesha Bibi" // Mock name from card
-            };
+        try {
+            // Import dynamically to avoid bundle bloat if not used
+            const Tesseract = (await import('tesseract.js')).default;
+            
+            console.log('[PinkPass] Starting Real OCR Scan...');
+            const result = await Tesseract.recognize(
+                PinkPassState.cnicBase64,
+                'eng',
+                { logger: m => console.log(`[OCR] ${m.status}: ${Math.round(m.progress * 100)}%`) }
+            );
 
-            const digits = extracted.number.replace(/-/g, '');
-            const lastDigit = parseInt(digits.charAt(digits.length - 1));
+            const text = result.data.text || '';
+            console.log('[PinkPass] Raw OCR Text:', text);
 
-            // Strict Validation
-            if (lastDigit % 2 !== 0) {
-                setScanError('MALE_CNIC_DETECTED');
+            // 1. Detection: Check if it's a CNIC
+            const isCnic = /IDENTITY|CARD|PAKISTAN|GOVERNMENT|NATIONAL/i.test(text);
+            if (!isCnic && text.length < 20) {
+                setScanError('CNIC_NOT_DETECTED');
                 setVerifying(false);
+                return;
+            }
+
+            // 2. Extraction: Find 13-digit pattern (XXXXX-XXXXXXX-X)
+            const cnicMatch = text.match(/\d{5}-\d{7}-\d{1}/);
+            if (!cnicMatch) {
+                // Try without dashes
+                const plainMatch = text.match(/\d{13}/);
+                if (!plainMatch) {
+                    setScanError('CNIC_NUMBER_NOT_FOUND');
+                    setVerifying(false);
+                    return;
+                }
+                processCnic(plainMatch[0]);
             } else {
-                setExtractedCnic(extracted);
+                processCnic(cnicMatch[0]);
+            }
+
+            function processCnic(num: string) {
+                const digits = num.replace(/-/g, '');
+                const lastDigit = parseInt(digits.charAt(digits.length - 1));
+                
+                // Real Validation
+                if (lastDigit % 2 !== 0) {
+                    setScanError('MALE_CNIC_DETECTED');
+                } else {
+                    setExtractedCnic({
+                        number: num,
+                        gender: 'Female',
+                        name: 'Verified Identity' // OCRing the name is less reliable on mobile, so we verify identity
+                    });
+                }
                 setVerifying(false);
             }
-        }, 3000);
+
+        } catch (err: any) {
+            console.error('[PinkPass] OCR Error:', err);
+            setScanError('SCAN_FAILED');
+            setVerifying(false);
+        }
     };
 
     const proceedToFaceCheck = () => {
@@ -205,6 +243,7 @@ const PinkPassCnicScreen: React.FC = () => {
     };
 
     // ── Not eligible ─────────────────────────────────────────────────────────
+
 
     if (step === 'not_eligible') {
         return (
@@ -349,6 +388,24 @@ const PinkPassCnicScreen: React.FC = () => {
                                     <View style={s.errorBanner}>
                                         <Text style={s.errorBannerTitle}>🛡️ AI SECURITY ALERT</Text>
                                         <Text style={s.errorBannerText}>Gender Mismatch: This CNIC belongs to a Male. Pink Pass is restricted to female passengers only.</Text>
+                                    </View>
+                                )}
+                                {scanError === 'CNIC_NOT_DETECTED' && (
+                                    <View style={s.errorBanner}>
+                                        <Text style={s.errorBannerTitle}>⚠️ CARD NOT DETECTED</Text>
+                                        <Text style={s.errorBannerText}>The AI could not identify a valid Pakistani CNIC in this image. Please ensure the card is flat and well-lit.</Text>
+                                    </View>
+                                )}
+                                {scanError === 'CNIC_NUMBER_NOT_FOUND' && (
+                                    <View style={s.errorBanner}>
+                                        <Text style={s.errorBannerTitle}>🔍 TEXT UNREADABLE</Text>
+                                        <Text style={s.errorBannerText}>Found a card, but could not read the 13-digit CNIC number. Please retake with better focus and lighting.</Text>
+                                    </View>
+                                )}
+                                {scanError === 'SCAN_FAILED' && (
+                                    <View style={s.errorBanner}>
+                                        <Text style={s.errorBannerTitle}>❌ SCAN FAILED</Text>
+                                        <Text style={s.errorBannerText}>AI Engine encountered an error. Please try again or use a clearer photo.</Text>
                                     </View>
                                 )}
 
