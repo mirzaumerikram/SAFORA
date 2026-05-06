@@ -215,6 +215,7 @@ router.patch('/alerts/:id/resolve', auth, authorize('admin'), async (req, res) =
 router.post('/sos', auth, async (req, res) => {
     try {
         const { location, message } = req.body;
+        const user = await User.findById(req.user.userId);
 
         const alert = new Alert({
             passenger: req.user.userId,
@@ -237,7 +238,10 @@ router.post('/sos', auth, async (req, res) => {
                 type: 'sos',
                 severity: 'critical',
                 location,
-                passengerId: req.user.userId,
+                passenger: {
+                    name: user?.name || 'Passenger',
+                    phone: user?.phone || ''
+                },
                 timestamp: alert.createdAt
             });
         }
@@ -248,6 +252,7 @@ router.post('/sos', auth, async (req, res) => {
             message: 'SOS sent to SAFORA safety team'
         });
     } catch (error) {
+        console.error('SOS error:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });

@@ -50,11 +50,17 @@ const TrackingScreen: React.FC = () => {
                 if (res.success && res.ride) {
                     setDriverData(res.ride.driver?.user || null);
                     setPrice(res.ride.estimatedPrice);
-                    if (!pCoords && res.ride.pickupLocation) {
-                        setPCoords({ latitude: res.ride.pickupLocation.lat, longitude: res.ride.pickupLocation.lng });
+                    if (!pCoords && res.ride.pickupLocation?.coordinates) {
+                        setPCoords({ 
+                            latitude: res.ride.pickupLocation.coordinates[1], 
+                            longitude: res.ride.pickupLocation.coordinates[0] 
+                        });
                     }
-                    if (!dCoords && res.ride.dropoffLocation) {
-                        setDCoords({ latitude: res.ride.dropoffLocation.lat, longitude: res.ride.dropoffLocation.lng });
+                    if (!dCoords && res.ride.dropoffLocation?.coordinates) {
+                        setDCoords({ 
+                            latitude: res.ride.dropoffLocation.coordinates[1], 
+                            longitude: res.ride.dropoffLocation.coordinates[0] 
+                        });
                     }
                 }
             } catch (err) {
