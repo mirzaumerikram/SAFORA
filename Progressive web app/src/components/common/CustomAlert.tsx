@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, Modal, StyleSheet, TouchableOpacity, Animated, Dimensions } from 'react-native';
-import { theme as t } from '../../theme/theme';
+import { useAppTheme } from '../../context/ThemeContext';
 
 interface CustomAlertProps {
     visible: boolean;
@@ -10,6 +10,7 @@ interface CustomAlertProps {
 }
 
 export const CustomAlert: React.FC<CustomAlertProps> = ({ visible, title, message, onClose }) => {
+    const { theme: t } = useAppTheme();
     const [fadeAnim] = React.useState(new Animated.Value(0));
 
     React.useEffect(() => {
