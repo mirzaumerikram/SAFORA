@@ -94,14 +94,14 @@ const RideSelectionScreen: React.FC = () => {
 
         const { distance, duration } = routeInfo;
         
-        // Base SAFORA Linear AI Formula: (Distance * 25) + (Duration * 2) + 30
-        const baseFare = (distance * 25) + (duration * 2) + 30;
+        // Base SAFORA Linear AI Formula: (Distance * 35) + (Duration * 4) + 30
+        const baseFare = (distance * 35) + (duration * 4) + 30;
         
         // Multipliers (Scientific Scaling)
         let multiplier = 0.8; // Eco Bike (Cheap)
-        if (typeId === 'rickshaw') multiplier = 1.2;
-        if (typeId === 'standard') multiplier = 1.8;
-        if (typeId === 'pink-pass') multiplier = 1.7;
+        if (typeId === 'rickshaw') multiplier = 1.5;
+        if (typeId === 'standard') multiplier = 2.0;
+        if (typeId === 'pink-pass') multiplier = 2.0;
 
         // Surge (Dynamic Demand Factor)
         const hour = new Date().getHours();
