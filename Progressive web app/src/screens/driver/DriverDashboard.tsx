@@ -73,7 +73,15 @@ const DriverDashboard: React.FC = () => {
             if (res.success && res.driver) {
                 setDriverId(res.driver.id);
                 setDriverName(toFirstName(res.driver.name || 'Driver'));
-                if (res.driver.profilePicture) setProfilePicture(res.driver.profilePicture);
+                
+                // Prioritize server photo, fallback to local if needed
+                if (res.driver.profilePicture) {
+                    setProfilePicture(res.driver.profilePicture);
+                } else if (raw) {
+                    const u = JSON.parse(raw);
+                    if (u.profilePicture) setProfilePicture(u.profilePicture);
+                }
+
                 setBgCheckStatus('approved'); // Force approved for demo stability
 
                 setEarnings(prev => ({

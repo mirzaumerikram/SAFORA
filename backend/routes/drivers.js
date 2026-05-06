@@ -180,7 +180,7 @@ router.get('/nearby', auth, async (req, res) => {
 router.get('/me', auth, async (req, res) => {
     try {
         const driver = await Driver.findOne({ user: req.user.userId })
-            .populate('user', 'name phone email gender createdAt');
+            .populate('user', 'name phone email gender createdAt profilePicture');
 
         if (!driver) {
             return res.status(404).json({ success: false, message: 'Driver profile not found. Please complete registration.' });
