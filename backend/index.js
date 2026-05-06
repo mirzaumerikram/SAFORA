@@ -74,36 +74,33 @@ io.on('connection', (socket) => {
     console.log(`[Socket] Client joined ride room: ride-${rideId}`);
   });
 
-  // Driver joins their personal room to receive ride requests
+  // Driver joins their personal room to receive ride requests and manage status
   socket.on('join:driver', ({ driverId }) => {
-    socket.join(`driver-${driverId}`);
-    console.log(`[Socket] Driver joined room: driver-${driverId}`);
+    if (driverId) {
+      socket.join(`driver-${driverId}`);
+      console.log(`[Socket] Driver ${driverId} joined room: driver-${driverId}`);
+    }
   });
 
-  // Driver broadcasts live GPS location during a trip → relay to passenger's ride room only
+  // Driver broadcasts live GPS location during a trip or while online
   socket.on('driver:location-update', async ({ rideId, driverId, lat, lng }) => {
-    if (rideId) {
-      // 1. Relay live location to passenger
-      socket.to(`ride-${rideId}`).emit('driver:location', { lat, lng });
+    if (!driverId || !lat || !lng) return;
 
-      // 1b. Cache location in Redis (30s TTL) for quick dashboard lookups
-      if (driverId) cacheDriverLocation(driverId, lat, lng).catch(() => {});
+    // 1. Relay live location to passenger if they are in a ride
+    if (rideId) {
+      socket.to(`ride-${rideId}`).emit('driver:location', { lat, lng });
 
       // 2. SafetySentinel — check for route deviation / suspicious stops
       try {
         const alert = await safetySentinel.updateLocation(rideId, { lat, lng });
         if (alert) {
-          // Emit deviation alert to passenger in ride room
           io.to(`ride-${rideId}`).emit('safety:deviation-alert', {
             rideId,
             type: alert.type,
             description: alert.description,
-            distance: alert.distance,
-            duration: alert.duration,
             location: alert.location,
             timestamp: new Date().toISOString()
           });
-          // Also broadcast to admin dashboard
           io.emit('safety-alert', {
             alertId: `sentinel-${rideId}-${Date.now()}`,
             rideId,
@@ -113,11 +110,24 @@ io.on('connection', (socket) => {
             location: alert.location,
             timestamp: new Date().toISOString()
           });
-          console.log(`[SafetySentinel] Alert emitted for ride ${rideId}: ${alert.type}`);
         }
       } catch (err) {
-        console.error('[SafetySentinel] Error checking location:', err.message);
+        console.error('[SafetySentinel] Error:', err.message);
       }
+    }
+
+    // 3. Cache location in Redis (30s TTL) for quick dashboard lookups
+    cacheDriverLocation(driverId, lat, lng).catch(() => {});
+
+    // 4. Update Driver document in DB for persistent status
+    try {
+      const Driver = require('./models/Driver');
+      await Driver.findByIdAndUpdate(driverId, {
+        currentLocation: { type: 'Point', coordinates: [lng, lat] },
+        lastLocationUpdate: new Date()
+      });
+    } catch (err) {
+      console.error('[Socket] Driver DB update failed:', err.message);
     }
   });
 
@@ -153,29 +163,6 @@ io.on('connection', (socket) => {
 
     // Broadcast to both sides in the chat room (including sender for confirmation)
     io.to(`chat-${rideId}`).emit('chat:message', message);
-  });
-
-  // Driver joins their unique room to receive ride requests
-  socket.on('join:driver', ({ driverId }) => {
-    if (driverId) {
-      socket.join(`driver:${driverId}`);
-      console.log(`[Socket] Driver ${driverId} is online and listening for rides.`);
-    }
-  });
-
-  // Real-time driver location updates for matching
-  socket.on('driver:location-update', async ({ driverId, lat, lng }) => {
-    if (driverId && lat && lng) {
-      try {
-        const Driver = require('./models/Driver');
-        await Driver.findByIdAndUpdate(driverId, {
-          currentLocation: { type: 'Point', coordinates: [lng, lat] },
-          lastLocationUpdate: new Date()
-        });
-      } catch (err) {
-        console.error('[Socket] Driver location update failed:', err.message);
-      }
-    }
   });
 
   socket.on('disconnect', () => {
