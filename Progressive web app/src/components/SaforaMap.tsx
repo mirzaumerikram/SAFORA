@@ -193,17 +193,8 @@ const SaforaMap: React.FC<SaforaMapProps> = ({
             const m = new google.maps.Marker({
                 position: { lat: coords.latitude, lng: coords.longitude },
                 map,
-                label: { text: label, color: '#fff', fontWeight: '700', fontSize: '12px' },
-                icon: {
-                    path: (google.maps.SymbolPath && google.maps.SymbolPath.CIRCLE)
-                          ? google.maps.SymbolPath.CIRCLE
-                          : 0, // Fallback to 0 (CIRCLE's value)
-                    scale: 14,
-                    fillColor: color,
-                    fillOpacity: 1,
-                    strokeColor: '#fff',
-                    strokeWeight: 2,
-                },
+                title: label,
+                icon: `https://maps.google.com/mapfiles/ms/icons/${color}-dot.png`
             });
             markersRef.current.push(m);
             return m;
@@ -212,12 +203,35 @@ const SaforaMap: React.FC<SaforaMapProps> = ({
         const center = userLocation || LAHORE;
 
         if (type === 'home' || type === 'driver' || centerOnUser) {
-            addMarker(center, '●', '#F5C518');
+            addMarker(center, 'You', 'yellow');
             map.panTo({ lat: center.latitude, lng: center.longitude });
         }
-        if (pickupLocation)  addMarker(pickupLocation,  'P', '#22C55E');
-        if (dropoffLocation) addMarker(dropoffLocation, 'D', '#EF4444');
-        if (driverLocation)  addMarker(driverLocation,  '🚗', '#F5C518');
+        
+        if (pickupLocation) {
+            console.log('[SaforaMap] Adding Pickup Marker:', pickupLocation);
+            addMarker(pickupLocation, 'Pickup', 'green');
+        }
+        if (dropoffLocation) {
+            console.log('[SaforaMap] Adding Dropoff Marker:', dropoffLocation);
+            addMarker(dropoffLocation, 'Dropoff', 'red');
+        }
+        if (driverLocation) {
+            console.log('[SaforaMap] Adding Driver Marker:', driverLocation);
+            addMarker(driverLocation, 'Driver', 'blue');
+        }
+
+        // Auto-fit bounds if we have multiple points
+        if (map && (pickupLocation || dropoffLocation || driverLocation)) {
+            const bounds = new google.maps.LatLngBounds();
+            if (pickupLocation)  bounds.extend({ lat: pickupLocation.latitude,  lng: pickupLocation.longitude });
+            if (dropoffLocation) bounds.extend({ lat: dropoffLocation.latitude, lng: dropoffLocation.longitude });
+            if (driverLocation)  bounds.extend({ lat: driverLocation.latitude,  lng: driverLocation.longitude });
+            
+            // Only fit if we have more than one point or it's a tracking type
+            if (type === 'tracking') {
+                map.fitBounds(bounds, { top: 50, bottom: 250, left: 50, right: 50 });
+            }
+        }
 
         // Clear previous directions
         if (directionsRendererRef.current) {

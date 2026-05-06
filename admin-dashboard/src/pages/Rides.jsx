@@ -4,6 +4,7 @@ import { api } from '../services/api';
 import './TablePage.css';
 
 const chipStyle = {
+  requested: { bg: '#fef9e7', color: '#f39c12' },
   started:   { bg: '#eafbea', color: '#27ae60' },
   accepted:  { bg: '#e8f4fd', color: '#3498db' },
   matched:   { bg: '#fef9e7', color: '#f39c12' },
@@ -25,14 +26,28 @@ export default function Rides() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab]         = useState('active'); // 'active' or 'completed'
 
-  useEffect(() => {
+  const load = () => {
     setLoading(true);
     const endpoint = tab === 'active' ? '/admin/rides/active' : '/admin/rides/completed';
     api.get(endpoint)
       .then(res => setRides(res.rides || []))
       .catch(() => setRides([]))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    load();
   }, [tab]);
+
+  const deleteRide = async (id) => {
+    if (!window.confirm('Delete this ride record permanently?')) return;
+    try {
+      await api.delete(`/admin/rides/${id}`);
+      setRides(prev => prev.filter(r => r._id !== id));
+    } catch {
+      alert('Failed to delete ride');
+    }
+  };
 
   const filtered = rides.filter(r =>
     !search ||
@@ -84,6 +99,7 @@ export default function Rides() {
                   <th>Type</th>
                   <th>Fare</th>
                   <th>Status</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -123,6 +139,14 @@ export default function Rides() {
                         <span className="status-chip" style={{ background: cs.bg, color: cs.color }}>
                           {r.status}
                         </span>
+                      </td>
+                      <td>
+                        <button
+                          onClick={() => deleteRide(r._id)}
+                          style={{ background: 'transparent', color: '#e74c3c', border: 'none', padding: '4px', cursor: 'pointer', fontSize: 16 }}
+                        >
+                          🗑️
+                        </button>
                       </td>
                     </tr>
                   );

@@ -75,6 +75,17 @@ export default function SosAlerts() {
     return `${Math.floor(diff / 60)}h ago`;
   };
 
+  const deleteAlert = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this alert?')) return;
+    try {
+      await api.delete(`/admin/alerts/${id}`);
+      setAlerts(prev => prev.filter(a => a._id !== id));
+      showToast('Alert deleted');
+    } catch {
+      showToast('Failed to delete alert');
+    }
+  };
+
   const filtered = filter === 'all' ? alerts : alerts.filter(a => a.status === filter || a.severity === filter);
 
   return (
@@ -157,14 +168,22 @@ export default function SosAlerts() {
                       </span>
                     </td>
                     <td>
-                      {a.status === 'active' && (
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        {a.status === 'active' && (
+                          <button
+                            onClick={() => resolve(a._id)}
+                            style={{ background: '#27ae60', color: '#fff', border: 'none', borderRadius: 6, padding: '4px 12px', fontSize: 12, cursor: 'pointer' }}
+                          >
+                            Resolve
+                          </button>
+                        )}
                         <button
-                          onClick={() => resolve(a._id)}
-                          style={{ background: '#27ae60', color: '#fff', border: 'none', borderRadius: 6, padding: '4px 12px', fontSize: 12, cursor: 'pointer' }}
+                          onClick={() => deleteAlert(a._id)}
+                          style={{ background: 'transparent', color: '#e74c3c', border: '1px solid #e74c3c', borderRadius: 6, padding: '4px 8px', fontSize: 12, cursor: 'pointer' }}
                         >
-                          Resolve
+                          Delete
                         </button>
-                      )}
+                      </div>
                     </td>
                   </tr>
                 ))}

@@ -31,7 +31,7 @@ router.get('/dashboard', async (req, res) => {
             Driver.countDocuments(),
             Driver.countDocuments({ status: 'online' }),
             Ride.countDocuments({ createdAt: { $gte: today } }),
-            Ride.countDocuments({ status: { $in: ['matched', 'accepted', 'started'] } }),
+            Ride.countDocuments({ status: { $in: ['requested', 'matched', 'accepted', 'started'] } }),
             Alert.countDocuments({ status: 'active' }),
             Driver.countDocuments({ 'backgroundCheck.status': 'pending' }),
             User.countDocuments({ pinkPassStatus: 'pending_review' })
@@ -497,5 +497,29 @@ router.patch('/users/:id', async (req, res) => {
 });
 
 // end of admin routes
+// @route   DELETE /api/admin/alerts/:id
+// @desc    Delete an alert
+// @access  Admin
+router.delete('/alerts/:id', async (req, res) => {
+    try {
+        await Alert.findByIdAndDelete(req.params.id);
+        res.json({ success: true, message: 'Alert deleted' });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// @route   DELETE /api/admin/rides/:id
+// @desc    Delete a ride record
+// @access  Admin
+router.delete('/rides/:id', async (req, res) => {
+    try {
+        await Ride.findByIdAndDelete(req.params.id);
+        res.json({ success: true, message: 'Ride deleted' });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 module.exports = router;
 
