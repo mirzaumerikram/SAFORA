@@ -557,11 +557,11 @@ const DriverDashboard: React.FC = () => {
                     </View>
                 )}
 
-                {(rideStatus === 'accepted' || rideStatus === 'started') && activeRide && (
+                {(rideStatus === 'accepted' || rideStatus === 'arrived' || rideStatus === 'started') && activeRide && (
                     <View style={s.activeCard}>
                         <View style={s.activeCardHeader}>
                             <Text style={s.activeCardTitle}>
-                                {rideStatus === 'accepted' ? '🚗 Head to Pickup' : '🛣️ Ride in Progress'}
+                                {rideStatus === 'accepted' ? '🚗 Head to Pickup' : rideStatus === 'arrived' ? '✅ You have Arrived' : '🛣️ Ride in Progress'}
                             </Text>
                             <Text style={s.activeFareVal}>RS {activeRide.estimatedPrice}</Text>
                         </View>
@@ -590,7 +590,7 @@ const DriverDashboard: React.FC = () => {
                                 {actionLoading
                                     ? <ActivityIndicator color="#000" />
                                     : <Text style={s.rideActionText}>
-                                        {rideStatus === 'accepted' ? '▶ Arrived — Start Ride' : '■ End Ride'}
+                                        {rideStatus === 'accepted' ? '▶ I have Arrived' : rideStatus === 'arrived' ? '▶ Start Ride' : '■ End Ride'}
                                       </Text>
                                 }
                             </TouchableOpacity>
