@@ -94,24 +94,24 @@ const RideSelectionScreen: React.FC = () => {
 
         const { distance, duration } = routeInfo;
         
-        // Base SAFORA Formula: (Distance * 35) + (Duration * 5) + 50
-        const baseFare = (distance * 35) + (duration * 5) + 50;
+        // Base SAFORA Linear AI Formula: (Distance * 25) + (Duration * 2) + 30
+        const baseFare = (distance * 25) + (duration * 2) + 30;
+        
+        // Multipliers (Scientific Scaling)
+        let multiplier = 0.6; // Eco Bike (Cheap)
+        if (typeId === 'rickshaw') multiplier = 0.8;
+        if (typeId === 'standard') multiplier = 1.3;
+        if (typeId === 'pink-pass') multiplier = 1.2;
 
-        // Multipliers
-        let multiplier = 1.0;
-        if (typeId === 'rickshaw') multiplier = 1.1;
-        if (typeId === 'standard') multiplier = 1.35;
-        if (typeId === 'pink-pass') multiplier = 1.25;
-
-        // Surge (Rush Hour: 8-9 AM, 5-7 PM)
+        // Surge (Dynamic Demand Factor)
         const hour = new Date().getHours();
-        const isRushHour = (hour === 8 || hour === 9 || hour === 17 || hour === 18);
-        const surge = isRushHour ? 1.5 : 1.0;
+        const isRushHour = (hour >= 8 && hour <= 10) || (hour >= 17 && hour <= 19);
+        const surge = isRushHour ? 1.4 : 1.0;
 
         const finalPrice = Math.round(baseFare * multiplier * surge);
         
-        // Minimum price protection
-        return Math.max(finalPrice, typeId === 'eco' ? 80 : typeId === 'rickshaw' ? 120 : 180);
+        // Minimum price protection (Realistic Pakistan rates)
+        return Math.max(finalPrice, typeId === 'eco' ? 50 : typeId === 'rickshaw' ? 80 : 150);
     };
 
     // Update rideTypes with dynamic data
