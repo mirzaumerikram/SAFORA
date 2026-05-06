@@ -175,7 +175,10 @@ router.get('/active-ride', auth, async (req, res) => {
         }
 
         const ride = await Ride.findOne(query)
-            .populate('passenger', 'name phone')
+            .populate({
+                path: 'passenger',
+                select: 'name phone profilePicture'
+            })
             .populate({
                 path: 'driver',
                 populate: { path: 'user', select: 'name phone gender profilePicture' }
@@ -195,11 +198,14 @@ router.get('/active-ride', auth, async (req, res) => {
 // @route   GET /api/rides/:id
 // @desc    Get ride details
 // @access  Private
-router.get('/:id', auth, async (req, res) => {
-    try {
-        const ride = await Ride.findById(req.params.id)
-            .populate('passenger', 'name phone')
-            .populate('driver');
+            .populate({
+                path: 'passenger',
+                select: 'name phone profilePicture'
+            })
+            .populate({
+                path: 'driver',
+                populate: { path: 'user', select: 'name phone gender profilePicture' }
+            });
 
         if (!ride) {
             return res.status(404).json({ message: 'Ride not found' });

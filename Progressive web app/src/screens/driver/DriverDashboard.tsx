@@ -14,7 +14,7 @@ import apiService from '../../services/api';
 import { STORAGE_KEYS } from '../../utils/constants';
 import { useAuth } from '../../context/AuthContext';
 
-type RideStatus = 'idle' | 'incoming' | 'accepted' | 'started' | 'completed';
+type RideStatus = 'idle' | 'incoming' | 'accepted' | 'arrived' | 'started' | 'completed';
 
 interface IncomingRide {
     rideId: string;
@@ -85,8 +85,30 @@ const DriverDashboard: React.FC = () => {
                 // Check for active ride persistence
                 const rideRes: any = await apiService.get('/rides/active-ride');
                 if (rideRes.success && rideRes.ride) {
-                    setIncoming(rideRes.ride);
-                    setRideStatus(rideRes.ride.status);
+                    console.log('[Driver] Found active ride on refresh:', rideRes.ride._id);
+                    // Map backend ride object to local IncomingRide shape
+                    const ride = rideRes.ride;
+                    const mappedRide: IncomingRide = {
+                        rideId: ride._id,
+                        pickup: { 
+                            address: ride.pickupLocation?.address || '',
+                            lng: ride.pickupLocation?.coordinates?.[0],
+                            lat: ride.pickupLocation?.coordinates?.[1]
+                        },
+                        dropoff: { 
+                            address: ride.dropoffLocation?.address || '',
+                            lng: ride.dropoffLocation?.coordinates?.[0],
+                            lat: ride.dropoffLocation?.coordinates?.[1]
+                        },
+                        estimatedPrice: ride.estimatedPrice,
+                        estimatedDuration: ride.estimatedDuration,
+                        distance: ride.distance,
+                        type: ride.type,
+                        passenger: ride.passenger || { name: 'Passenger' }
+                    };
+
+                    setActiveRide(mappedRide);
+                    setRideStatus(ride.status);
                     if (isOnline) connectSocket(res.driver.id);
                 } else if (isOnline) {
                     // Force connect if online, even if check status is pending for testing
