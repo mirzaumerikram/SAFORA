@@ -175,7 +175,8 @@ router.get('/active-ride', auth, async (req, res) => {
             query = { 
                 $or: [
                     { driver: driver ? driver._id : userId },
-                    { driver: userId }
+                    { driver: userId },
+                    { driverId: userId } // Legacy/Backup ID check
                 ],
                 status: { $in: ['matched', 'accepted', 'arrived', 'started'] } 
             };

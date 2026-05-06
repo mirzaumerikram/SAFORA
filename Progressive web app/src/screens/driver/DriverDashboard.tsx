@@ -113,9 +113,12 @@ const DriverDashboard: React.FC = () => {
                         setIncoming(mappedRide);
                         setRideStatus('incoming');
                         startCountdown(30); // Resume countdown
+                        if (Platform.OS === 'web') localStorage.setItem('last_ride_id', mappedRide.rideId);
                     } else {
                         setActiveRide(mappedRide);
                         setRideStatus(ride.status);
+                        if (Platform.OS === 'web') localStorage.setItem('last_ride_id', mappedRide.rideId);
+                        socketService.joinRide(mappedRide.rideId);
                     }
                     
                     // CRITICAL: Ensure driver re-joins the ride room and starts GPS if online
@@ -232,6 +235,8 @@ const DriverDashboard: React.FC = () => {
             if (driverId) socketService.emitDriverOffline(driverId);
             socketService.offAll();
             setRideStatus('idle');
+            setActiveRide(null);
+            if (Platform.OS === 'web') localStorage.removeItem('last_ride_id');
             setIncoming(null);
         }
     };
