@@ -128,6 +128,15 @@ const TrackingScreen: React.FC = () => {
         setDeviationAlert(null);
     };
 
+    const handleCancelRide = async () => {
+        try {
+            await apiService.post(`/rides/${rideId}/cancel`, { cancelledBy: 'passenger' });
+            navigation.navigate('Home');
+        } catch (err) {
+            Alert.alert("Error", "Could not cancel ride. Please try again.");
+        }
+    };
+
     // Manual SOS press
     const handleSOS = async () => {
         dismissAlert();
@@ -264,6 +273,22 @@ const TrackingScreen: React.FC = () => {
 
                     <TouchableOpacity style={styles.shareBtn}>
                         <Text style={styles.shareText}>Share Live Location with Family</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity 
+                        style={[styles.cancelBtn, { marginTop: 12, borderColor: theme.colors.danger }]}
+                        onPress={() => {
+                            Alert.alert(
+                                "Cancel Ride?",
+                                "Are you sure you want to cancel this ride?",
+                                [
+                                    { text: "No", style: "cancel" },
+                                    { text: "Yes, Cancel", onPress: handleCancelRide, style: "destructive" }
+                                ]
+                            );
+                        }}
+                    >
+                        <Text style={[styles.cancelText, { color: theme.colors.danger }]}>Cancel Ride</Text>
                     </TouchableOpacity>
                 </View>
             </View>
