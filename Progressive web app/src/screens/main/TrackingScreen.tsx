@@ -22,6 +22,7 @@ const TrackingScreen: React.FC = () => {
     const [socketStatus, setSocketStatus]   = useState<'connecting' | 'live' | 'offline'>('connecting');
     const [driverData, setDriverData] = useState<any>(null);
     const [price, setPrice] = useState<number | null>(estimatedPrice);
+    const [driverLocation, setDriverLocation] = useState<Coordinates | null>(null);
 
     useEffect(() => {
         const fetchRide = async () => {
