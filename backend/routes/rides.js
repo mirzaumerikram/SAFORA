@@ -14,7 +14,7 @@ router.post('/request', auth, async (req, res) => {
         console.log('[RIDE] New request from user:', req.user.userId, 'role:', req.user.role);
         console.log('[RIDE] Body:', JSON.stringify(req.body, null, 2));
 
-        const { pickupLocation, dropoffLocation, type } = req.body;
+        const { pickupLocation, dropoffLocation, type, estimatedPrice: clientPrice } = req.body;
         
         if (!pickupLocation || !dropoffLocation) {
             return res.status(400).json({ success: false, message: 'Pickup and dropoff locations are required' });
@@ -40,8 +40,9 @@ router.post('/request', auth, async (req, res) => {
         const distance = parseFloat((R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))).toFixed(2)) || 1.0;
         const estimatedDuration = Math.max(5, Math.round(distance * 3)); // ~3 min/km average
 
-        // Get price prediction from AI service (fallback to formula if service is down)
-        let estimatedPrice = Math.round((distance * 35) + (estimatedDuration * 5) + 50); // base formula
+        // Use client price if provided, otherwise fallback to formula
+        let estimatedPrice = clientPrice || Math.round((distance * 35) + (estimatedDuration * 5) + 50); 
+        
         try {
             const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:5001';
             const pricingResponse = await axios.post(`${aiServiceUrl}/api/pricing/predict`, {

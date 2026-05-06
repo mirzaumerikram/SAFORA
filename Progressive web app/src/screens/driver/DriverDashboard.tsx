@@ -130,6 +130,7 @@ const DriverDashboard: React.FC = () => {
 
     // ── Countdown timer for incoming ride ─────────────────────────────────────
     const startCountdown = (seconds: number) => {
+        stopCountdown(); // Clear any existing timer first!
         setCountdown(seconds);
         countdownRef.current = setInterval(() => {
             setCountdown(prev => {
@@ -228,7 +229,7 @@ const DriverDashboard: React.FC = () => {
         stopCountdown();
         setActionLoading(true);
         try {
-            await apiService.patch(`/rides/${incoming.rideId}/accept`, {});
+            await apiService.post(`/rides/${incoming.rideId}/accept`, {});
             setActiveRide(incoming);
             setIncoming(null);
             setRideStatus('accepted');
