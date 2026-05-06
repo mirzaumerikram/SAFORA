@@ -32,7 +32,7 @@ router.get('/dashboard', async (req, res) => {
             Driver.countDocuments({ status: 'online' }),
             Ride.countDocuments({ createdAt: { $gte: today } }),
             Ride.countDocuments({ status: { $in: ['requested', 'matched', 'accepted', 'started'] } }),
-            Alert.countDocuments({ status: 'active' }),
+            Alert.countDocuments({ status: 'active', passenger: { $exists: true } }),
             Driver.countDocuments({ 'backgroundCheck.status': 'pending' }),
             User.countDocuments({ pinkPassStatus: 'pending_review' })
         ]);
@@ -201,7 +201,7 @@ router.patch('/drivers/:id/reject', async (req, res) => {
 // @access  Admin
 router.get('/alerts/active', async (req, res) => {
     try {
-        const alerts = await Alert.find({ status: 'active' })
+        const alerts = await Alert.find({ status: 'active', passenger: { $exists: true } })
             .populate('passenger', 'name phone')
             .populate({
                 path: 'ride',
@@ -224,7 +224,7 @@ router.get('/alerts/active', async (req, res) => {
 // @access  Admin
 router.get('/alerts/all', async (req, res) => {
     try {
-        const alerts = await Alert.find()
+        const alerts = await Alert.find({ passenger: { $exists: true } })
             .populate('passenger', 'name phone')
             .populate({
                 path: 'ride',
