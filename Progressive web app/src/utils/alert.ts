@@ -1,9 +1,9 @@
 import { Alert, Platform } from 'react-native';
-import { saforaAlert } from '../context/AlertContext';
 
 const SaforaAlert = (title: string, message: string) => {
     if (Platform.OS === 'web') {
-        saforaAlert(title, message);
+        // @ts-ignore
+        alert(`${title}\n\n${message}`);
     } else {
         Alert.alert(title, message);
     }
