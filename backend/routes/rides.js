@@ -198,6 +198,9 @@ router.get('/active-ride', auth, async (req, res) => {
 // @route   GET /api/rides/:id
 // @desc    Get ride details
 // @access  Private
+router.get('/:id', auth, async (req, res) => {
+    try {
+        const ride = await Ride.findById(req.params.id)
             .populate({
                 path: 'passenger',
                 select: 'name phone profilePicture'
