@@ -122,14 +122,19 @@ const PinkPassDriverScreen: React.FC = () => {
                     <Text style={s.headerTitle}>PINK PASS</Text>
                     <View style={{ width: 40 }} />
                 </View>
-                <View style={s.centered}>
-                    <Text style={s.bigIcon}>🎀</Text>
-                    <Text style={s.notEligibleTitle}>Female Drivers Only</Text>
-                    <Text style={s.notEligibleText}>
-                        Pink Pass is exclusively available for verified female drivers.{'\n\n'}
-                        Please update your gender to Female in your profile first.
-                    </Text>
-                    <TouchableOpacity style={s.primaryBtn} onPress={() => navigation.goBack()}>
+                <View style={[s.centered, { paddingBottom: 100 }]}>
+                    <View style={s.statusCard}>
+                        <Text style={s.bigIcon}>🎀</Text>
+                        <Text style={s.notEligibleTitle}>Female Drivers Only</Text>
+                        <Text style={s.notEligibleText}>
+                            Pink Pass is exclusively available for verified female drivers.{'\n\n'}
+                            Please update your gender to Female in your profile first.
+                        </Text>
+                    </View>
+                    <TouchableOpacity 
+                        style={[s.primaryBtn, { width: '100%', marginTop: 20 }]} 
+                        onPress={() => navigation.goBack()}
+                    >
                         <Text style={s.primaryBtnText}>Go Back to Profile</Text>
                     </TouchableOpacity>
                 </View>
@@ -148,24 +153,29 @@ const PinkPassDriverScreen: React.FC = () => {
                     <Text style={s.headerTitle}>PINK PASS</Text>
                     <View style={{ width: 40 }} />
                 </View>
-                <View style={s.centered}>
-                    {pinkPassStatus === 'approved' ? (
-                        <>
-                            <Text style={s.bigIcon}>✅</Text>
-                            <Text style={[s.notEligibleTitle, { color: theme.colors.success }]}>Pink Pass Certified!</Text>
-                            <Text style={s.notEligibleText}>You are a verified Pink Pass driver. You will receive rides from female passengers.</Text>
-                        </>
-                    ) : (
-                        <>
-                            <Text style={s.bigIcon}>⏳</Text>
-                            <Text style={s.notEligibleTitle}>Application Submitted!</Text>
-                            <Text style={s.notEligibleText}>
-                                Your CNIC and liveness check are under review.{'\n'}
-                                Our team will verify within 24–48 hours.
-                            </Text>
-                        </>
-                    )}
-                    <TouchableOpacity style={s.primaryBtn} onPress={() => navigation.goBack()}>
+                <View style={[s.centered, { paddingBottom: 100 }]}>
+                    <View style={s.statusCard}>
+                        {pinkPassStatus === 'approved' ? (
+                            <>
+                                <Text style={s.bigIcon}>✅</Text>
+                                <Text style={[s.notEligibleTitle, { color: theme.colors.success }]}>Pink Pass Certified!</Text>
+                                <Text style={s.notEligibleText}>You are a verified Pink Pass driver. You will receive rides from female passengers.</Text>
+                            </>
+                        ) : (
+                            <>
+                                <Text style={s.bigIcon}>⏳</Text>
+                                <Text style={s.notEligibleTitle}>Application Submitted!</Text>
+                                <Text style={s.notEligibleText}>
+                                    Your CNIC and liveness check are under review.{'\n'}
+                                    Our team will verify within 24–48 hours.
+                                </Text>
+                            </>
+                        )}
+                    </View>
+                    <TouchableOpacity 
+                        style={[s.primaryBtn, { width: '100%', marginTop: 20 }]} 
+                        onPress={() => navigation.goBack()}
+                    >
                         <Text style={s.primaryBtnText}>Back to Profile</Text>
                     </TouchableOpacity>
                 </View>
@@ -382,6 +392,21 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
     previewHint:  { fontSize: 12, color: t.colors.textSecondary, textAlign: 'center', marginBottom: 14 },
     retakeBtn:    { alignItems: 'center', paddingVertical: 12, marginBottom: 8 },
     retakeBtnText:{ color: t.colors.textSecondary, fontSize: 13, fontWeight: '600' },
+
+    statusCard: { 
+        width: '100%',
+        backgroundColor: t.colors.card, 
+        borderRadius: 24, 
+        padding: 32, 
+        alignItems: 'center', 
+        borderWidth: 1, 
+        borderColor: t.colors.border,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+        elevation: 5
+    },
 
     bigIcon:           { fontSize: 60, marginBottom: 16 },
     notEligibleTitle:  { fontSize: 20, fontWeight: '900', color: t.colors.text, marginBottom: 10, textAlign: 'center' },
