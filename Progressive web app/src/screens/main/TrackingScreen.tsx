@@ -222,7 +222,7 @@ const TrackingScreen: React.FC = () => {
                 </View>
             </Modal>
 
-            <View style={styles.overlay}>
+            <View style={styles.overlay} pointerEvents="box-none">
                 <View style={styles.topHeader}>
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                         <Text style={styles.backText}>←</Text>

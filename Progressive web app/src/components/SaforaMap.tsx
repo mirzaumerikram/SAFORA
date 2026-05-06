@@ -148,6 +148,8 @@ const SaforaMap: React.FC<SaforaMapProps> = ({
                           ? google.maps.ControlPosition.RIGHT_CENTER 
                           : 7 // Fallback to 7 (RIGHT_CENTER's value)
             },
+            gestureHandling: 'greedy', // Unlock manual pan and zoom
+            clickableIcons: false,
             styles: [
                 { elementType: 'geometry',          stylers: [{ color: '#f5f5f5' }] },
                 { elementType: 'labels.icon',        stylers: [{ visibility: 'off' }] },
