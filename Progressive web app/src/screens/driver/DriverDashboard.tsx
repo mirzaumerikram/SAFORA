@@ -278,7 +278,7 @@ const DriverDashboard: React.FC = () => {
 
     // ── Accept ride ───────────────────────────────────────────────────────────
     const handleAccept = async () => {
-        if (!incoming) return;
+        if (!incoming || countdown === 0) return;
         stopCountdown();
         setActionLoading(true);
         try {
@@ -470,13 +470,13 @@ const DriverDashboard: React.FC = () => {
                                 <Text style={s.rejectText}>✕ Reject</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
-                                style={[s.acceptBtn, actionLoading && { opacity: 0.5 }]}
+                                style={[s.acceptBtn, (actionLoading || countdown === 0) && { opacity: 0.5 }]}
                                 onPress={handleAccept}
-                                disabled={actionLoading}
+                                disabled={actionLoading || countdown === 0}
                             >
                                 {actionLoading
                                     ? <ActivityIndicator color="#000" />
-                                    : <Text style={s.acceptText}>✓ Accept</Text>
+                                    : <Text style={s.acceptText}>{countdown === 0 ? 'Expired' : '✓ Accept'}</Text>
                                 }
                             </TouchableOpacity>
                         </View>
