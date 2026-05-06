@@ -113,6 +113,27 @@ router.get('/status', auth, async (req, res) => {
     }
 });
 
+// @route   POST /api/pink-pass/reject-security
+// @desc    Permanently reject a user for security violation (e.g. Male CNIC)
+// @access  Private
+router.post('/reject-security', auth, async (req, res) => {
+    try {
+        const { reason } = req.body;
+        const user = await User.findById(req.user.userId);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        user.pinkPassStatus = 'rejected';
+        user.pinkPassVerified = false;
+        user.pinkPassSecurityNotes = reason || 'Security rejection triggered by AI Scan (Gender Mismatch)';
+        
+        await user.save();
+        res.json({ success: true, message: 'Application permanently rejected for security reasons' });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+
 // @route   POST /api/pink-pass/demo-verify
 // @desc    Demo verification (bypasses AI for demo/testing)
 // @access  Private

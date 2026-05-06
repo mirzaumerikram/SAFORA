@@ -45,6 +45,7 @@ export const PINK_PASS_ENDPOINTS = {
     ENROLL: '/pink-pass/enroll',
     VERIFY: '/pink-pass/verify',
     STATUS: '/pink-pass/status',
+    REJECT: '/pink-pass/reject-security',
 };
 
 // Safety endpoints

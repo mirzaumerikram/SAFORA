@@ -199,35 +199,50 @@ const PinkPassCnicScreen: React.FC = () => {
 
             // 2. Extraction: Find 13-digit pattern (XXXXX-XXXXXXX-X)
             const cnicMatch = text.match(/\d{5}-\d{7}-\d{1}/);
-            if (!cnicMatch) {
-                // Try without dashes
-                const plainMatch = text.match(/\d{13}/);
-                if (!plainMatch) {
-                    setScanError('CNIC_NUMBER_NOT_FOUND');
-                    setVerifying(false);
-                    return;
-                }
-                processCnic(plainMatch[0]);
-            } else {
-                processCnic(cnicMatch[0]);
-            }
+            const plainMatch = text.match(/\d{13}/);
 
-            function processCnic(num: string) {
+            const processCnic = async (num: string) => {
                 const digits = num.replace(/-/g, '');
                 const lastDigit = parseInt(digits.charAt(digits.length - 1));
                 
                 // Real Validation
                 if (lastDigit % 2 !== 0) {
                     setScanError('MALE_CNIC_DETECTED');
+                    
+                    // PERMANENT REJECTION IN BACKEND
+                    try {
+                        const token = await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+                        const { API_CONFIG, PINK_PASS_ENDPOINTS } = await import('../../utils/constants');
+                        
+                        await fetch(`${API_CONFIG.BASE_URL}${PINK_PASS_ENDPOINTS.REJECT}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: JSON.stringify({
+                                reason: `Automated rejection: Male CNIC detected (Last digit: ${lastDigit})`
+                            })
+                        });
+                    } catch (e) { console.log('Backend rejection failed:', e); }
+
                 } else {
                     setExtractedCnic({
                         number: num,
                         gender: 'Female',
-                        name: 'Verified Identity' // OCRing the name is less reliable on mobile, so we verify identity
+                        name: 'Verified Identity'
                     });
                 }
                 setVerifying(false);
+            };
+
+            if (!cnicMatch && !plainMatch) {
+                setScanError('CNIC_NUMBER_NOT_FOUND');
+                setVerifying(false);
+                return;
             }
+            
+            processCnic(cnicMatch ? cnicMatch[0] : plainMatch![0]);
 
         } catch (err: any) {
             console.error('[PinkPass] OCR Error:', err);
