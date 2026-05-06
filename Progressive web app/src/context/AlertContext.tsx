@@ -49,5 +49,11 @@ export const setGlobalAlert = (fn: typeof globalShowAlert) => {
     globalShowAlert = fn;
 };
 export const saforaAlert = (title: string, message: string) => {
-    globalShowAlert(title, message);
+    console.log('[SAFORA] Custom Alert Triggered:', title);
+    if (globalShowAlert && globalShowAlert.name !== '') {
+        globalShowAlert(title, message);
+    } else {
+        // Fallback for extreme cases (still better than doing nothing)
+        alert(`SAFORA: ${title}\n\n${message}`);
+    }
 };
