@@ -262,11 +262,14 @@ router.patch('/:id/status', auth, authorize('driver'), async (req, res) => {
 });
 
 
-// @route   PATCH /api/rides/:id/accept
+// @route   POST /api/rides/:id/accept
 // @desc    Driver accepts a ride
 // @access  Private (Driver)
-router.patch('/:id/accept', auth, authorize('driver'), async (req, res) => {
+router.post('/:id/accept', auth, authorize('driver'), async (req, res) => {
     try {
+        const driver = await Driver.findOne({ user: req.user.userId });
+        if (!driver) return res.status(404).json({ message: 'Driver not found' });
+
         const ride = await Ride.findById(req.params.id);
         if (!ride) return res.status(404).json({ message: 'Ride not found' });
 
@@ -275,13 +278,14 @@ router.patch('/:id/accept', auth, authorize('driver'), async (req, res) => {
         }
 
         ride.status = 'accepted';
+        ride.driver = driver._id; // Assign the driver!
         await ride.save();
 
         const io = req.app.get('io');
-        // Notify passenger - matching the room name used in frontend (chat-{id})
+        // Notify passenger
         io.to(`chat-${ride._id}`).emit('ride:accepted', {
             rideId: ride._id,
-            driverId: ride.driver
+            driverId: driver._id
         });
 
         res.json({ success: true, ride });
