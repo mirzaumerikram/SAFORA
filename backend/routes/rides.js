@@ -251,7 +251,15 @@ router.patch('/:id/status', auth, authorize('driver'), async (req, res) => {
 
         ride.status = status;
         if (status === 'started')    ride.startedAt   = new Date();
-        if (status === 'completed')  ride.completedAt = new Date();
+        if (status === 'completed') {
+            ride.completedAt = new Date();
+            // Update driver stats
+            if (ride.driver) {
+                await Driver.findByIdAndUpdate(ride.driver, {
+                    $inc: { totalRides: 1, totalEarnings: (ride.actualPrice || ride.estimatedPrice || 0) }
+                });
+            }
+        }
 
         await ride.save();
 
@@ -340,7 +348,9 @@ router.patch('/:id/reject', auth, authorize('driver'), async (req, res) => {
 // @access  Private (Driver)
 router.get('/driver/earnings', auth, authorize('driver'), async (req, res) => {
     try {
-        const driverId = req.user.userId;
+        const driver = await Driver.findOne({ user: req.user.userId });
+        if (!driver) return res.status(404).json({ message: 'Driver not found' });
+        const driverId = driver._id;
         
         // Find all completed rides for this driver
         const rides = await Ride.find({ driver: driverId, status: 'completed' })

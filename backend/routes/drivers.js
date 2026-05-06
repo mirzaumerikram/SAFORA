@@ -290,7 +290,7 @@ router.get('/earnings', auth, async (req, res) => {
                 date:          r.completedAt || r.createdAt,
                 fare:          r.actualPrice || r.estimatedPrice || 0,
                 passengerName: r.passenger?.name || 'Passenger',
-                distance:      r.distanceKm || 0,
+                distance:      r.distance || 0,
             })),
         });
     } catch (error) {
