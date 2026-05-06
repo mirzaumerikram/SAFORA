@@ -14,11 +14,14 @@ router.use(auth, authorize('admin'));
 // @access  Admin
 router.get('/dashboard', async (req, res) => {
     try {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
             const [
             totalUsers,
             totalDrivers,
             activeDrivers,
-            totalRides,
+            totalRidesToday,
             activeRides,
             openAlerts,
             pendingDriverApprovals,
@@ -27,7 +30,7 @@ router.get('/dashboard', async (req, res) => {
             User.countDocuments({ role: 'passenger' }),
             Driver.countDocuments(),
             Driver.countDocuments({ status: 'online' }),
-            Ride.countDocuments(),
+            Ride.countDocuments({ createdAt: { $gte: today } }),
             Ride.countDocuments({ status: { $in: ['matched', 'accepted', 'started'] } }),
             Alert.countDocuments({ status: 'active' }),
             Driver.countDocuments({ 'backgroundCheck.status': 'pending' }),
@@ -40,7 +43,7 @@ router.get('/dashboard', async (req, res) => {
                 totalUsers,
                 totalDrivers,
                 activeDrivers,
-                totalRides,
+                totalRides: totalRidesToday,
                 activeRides,
                 openAlerts,
                 pendingDriverApprovals,
@@ -227,6 +230,28 @@ router.get('/rides/active', async (req, res) => {
             populate: { path: 'user', select: 'name phone' }
         })
         .sort({ createdAt: -1 });
+
+        res.json({ success: true, count: rides.length, rides });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// @route   GET /api/admin/rides/completed
+// @desc    Get all completed/cancelled rides for history
+// @access  Admin
+router.get('/rides/completed', async (req, res) => {
+    try {
+        const rides = await Ride.find({
+            status: { $in: ['completed', 'cancelled'] }
+        })
+        .populate('passenger', 'name phone')
+        .populate({
+            path: 'driver',
+            populate: { path: 'user', select: 'name phone' }
+        })
+        .sort({ createdAt: -1 })
+        .limit(100);
 
         res.json({ success: true, count: rides.length, rides });
     } catch (error) {

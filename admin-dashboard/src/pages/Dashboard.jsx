@@ -139,10 +139,10 @@ export default function Dashboard() {
               ).slice(0, 6).map(r => (
                 <tr key={r._id}>
                   <td>{r.passenger?.name || '—'}</td>
-                  <td>{r.driver?.user?.name || '—'}</td>
+                  <td>{r.driver?.user?.name || <span className="td-unassigned">Not Assigned</span>}</td>
                   <td className="td-trunc">{r.pickupLocation?.address || '—'}</td>
                   <td className="td-trunc">{r.dropoffLocation?.address || '—'}</td>
-                  <td>RS {r.fare?.estimated ?? '—'}</td>
+                  <td style={{ fontWeight: 600 }}>RS {r.estimatedPrice || '—'}</td>
                   <td><span className={`status-chip chip-${r.status}`}>{r.status}</span></td>
                 </tr>
               ))}
