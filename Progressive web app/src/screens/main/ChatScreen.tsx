@@ -10,6 +10,7 @@ import { useAppTheme } from '../../context/ThemeContext';
 import { AppTheme } from '../../utils/theme';
 import socketService from '../../services/socket.service';
 import { STORAGE_KEYS } from '../../utils/constants';
+import apiService from '../../services/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
