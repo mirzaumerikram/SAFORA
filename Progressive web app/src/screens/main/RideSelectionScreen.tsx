@@ -169,6 +169,9 @@ const RideSelectionScreen: React.FC = () => {
                 pickupLocation:  { address: pickup,  lat: pickupCoords.latitude, lng: pickupCoords.longitude },
                 dropoffLocation: { address: dropoff, lat: dropoffCoords.latitude, lng: dropoffCoords.longitude },
                 type: selected,
+                estimatedPrice: selectedRide.price,
+                distance: routeInfo?.distance,
+                estimatedDuration: routeInfo?.duration,
             });
 
             const rideId = resp.data?.ride?._id || resp.data?.ride?.id;
