@@ -4,7 +4,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAppTheme } from '../../context/ThemeContext';
 import { useLanguage } from '../../context/LanguageContext';
 import socketService from '../../services/socket.service';
-import apiService from '../../services/api.service';
+import apiService from '../../services/api';
 
 const SearchingScreen: React.FC = () => {
     const navigation = useNavigation<any>();

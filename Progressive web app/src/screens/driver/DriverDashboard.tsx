@@ -10,7 +10,7 @@ import SaforaMap from '../../components/SaforaMap';
 import { useAppTheme } from '../../context/ThemeContext';
 import { AppTheme } from '../../utils/theme';
 import socketService from '../../services/socket.service';
-import apiService from '../../services/api.service';
+import apiService from '../../services/api';
 import { STORAGE_KEYS } from '../../utils/constants';
 import { useAuth } from '../../context/AuthContext';
 
