@@ -10,15 +10,17 @@ interface CustomAlertProps {
 }
 
 export const CustomAlert: React.FC<CustomAlertProps> = ({ visible, title, message, onClose }) => {
-    const { theme: t } = useAppTheme();
+    const themeContext = useAppTheme();
+    const t = themeContext?.theme || { colors: { primary: '#F5C518' } }; // Fail-safe
     const [fadeAnim] = React.useState(new Animated.Value(0));
+    const { width } = Dimensions.get('window');
 
     React.useEffect(() => {
         if (visible) {
             Animated.timing(fadeAnim, {
                 toValue: 1,
                 duration: 200,
-                useNativeDriver: true,
+                useNativeDriver: Platform.OS !== 'web',
             }).start();
         } else {
             fadeAnim.setValue(0);
@@ -30,17 +32,17 @@ export const CustomAlert: React.FC<CustomAlertProps> = ({ visible, title, messag
     return (
         <Modal transparent visible={visible} animationType="none">
             <View style={s.overlay}>
-                <Animated.View style={[s.alertBox, { opacity: fadeAnim, transform: [{ scale: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1] }) }] }]}>
+                <Animated.View style={[s.alertBox, { width: Math.min(width - 40, 340), opacity: fadeAnim, transform: [{ scale: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1] }) }] }]}>
                     <View style={s.header}>
-                        <View style={s.iconCircle}>
+                        <View style={[s.iconCircle, { borderColor: 'rgba(245, 197, 24, 0.2)' }]}>
                             <Text style={s.iconText}>🛡️</Text>
                         </View>
-                        <Text style={s.title}>{title}</Text>
+                        <Text style={[s.title, { color: t.colors.primary }]}>{title}</Text>
                     </View>
                     
                     <Text style={s.message}>{message}</Text>
 
-                    <TouchableOpacity style={s.button} onPress={onClose} activeOpacity={0.8}>
+                    <TouchableOpacity style={[s.button, { backgroundColor: t.colors.primary }]} onPress={onClose} activeOpacity={0.8}>
                         <Text style={s.buttonText}>Got it</Text>
                     </TouchableOpacity>
                 </Animated.View>
@@ -49,24 +51,21 @@ export const CustomAlert: React.FC<CustomAlertProps> = ({ visible, title, messag
     );
 };
 
-const { width } = Dimensions.get('window');
-
 const s = StyleSheet.create({
     overlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.7)',
+        backgroundColor: 'rgba(0,0,0,0.85)',
         justifyContent: 'center',
         alignItems: 'center',
         padding: 20,
     },
     alertBox: {
-        width: Math.min(width - 40, 340),
         backgroundColor: '#1C1C1E',
         borderRadius: 24,
         padding: 24,
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: 'rgba(245, 197, 24, 0.3)',
+        borderColor: 'rgba(245, 197, 24, 0.2)',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.5,
