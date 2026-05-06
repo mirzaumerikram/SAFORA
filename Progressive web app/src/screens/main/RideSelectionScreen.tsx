@@ -316,10 +316,12 @@ const RideSelectionScreen: React.FC = () => {
                             booking && s.confirmBtnDisabled,
                         ]}
                         onPress={handleConfirm}
-                        disabled={booking}
+                        disabled={booking || !routeInfo}
                         activeOpacity={0.88}
                     >
                         {booking ? (
+                            <ActivityIndicator color={theme.colors.black} />
+                        ) : !routeInfo ? (
                             <ActivityIndicator color={theme.colors.black} />
                         ) : (
                             <Text style={s.confirmText}>
