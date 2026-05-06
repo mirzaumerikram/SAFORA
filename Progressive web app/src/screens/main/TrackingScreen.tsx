@@ -130,10 +130,17 @@ const TrackingScreen: React.FC = () => {
 
     const handleCancelRide = async () => {
         try {
-            await apiService.post(`/rides/${rideId}/cancel`, { cancelledBy: 'passenger' });
+            // Robust ID check: use param or state
+            const targetId = rideId || ride?.id || ride?._id;
+            if (targetId && targetId !== 'demo') {
+                await apiService.post(`/rides/${targetId}/cancel`, { cancelledBy: 'passenger' });
+            }
+            // Always navigate home to "un-stuck" the user
             navigation.navigate('Home');
         } catch (err) {
-            Alert.alert("Error", "Could not cancel ride. Please try again.");
+            console.error('[Cancel] Error:', err);
+            // Even on error, force go home to let user retry
+            navigation.navigate('Home');
         }
     };
 
