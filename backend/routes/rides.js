@@ -44,21 +44,24 @@ router.post('/request', auth, async (req, res) => {
         let estimatedPrice = clientPrice || Math.round((distance * 35) + (estimatedDuration * 5) + 50); 
         
         try {
-            const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:5001';
-            const pricingResponse = await axios.post(`${aiServiceUrl}/api/pricing/predict`, {
-                distance,
-                duration: estimatedDuration,
-                time_of_day: new Date().getHours(),
-                day_of_week: new Date().getDay(),
-                demand_level: 'medium',
-                origin_area: 0,
-                traffic_multiplier: 1.0
-            }, { timeout: 3000 });
-            if (pricingResponse.data?.estimated_price) {
-                estimatedPrice = pricingResponse.data.estimated_price;
+            // ONLY use AI service if passenger hasn't already confirmed a price
+            if (!clientPrice) {
+                const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:5001';
+                const pricingResponse = await axios.post(`${aiServiceUrl}/api/pricing/predict`, {
+                    distance,
+                    duration: estimatedDuration,
+                    time_of_day: new Date().getHours(),
+                    day_of_week: new Date().getDay(),
+                    demand_level: 'medium',
+                    origin_area: 0,
+                    traffic_multiplier: 1.0
+                }, { timeout: 3000 });
+                if (pricingResponse.data?.estimated_price) {
+                    estimatedPrice = pricingResponse.data.estimated_price;
+                }
             }
         } catch {
-            // AI service not running — use formula price
+            // AI service not running or clientPrice exists — use existing price
         }
 
         // Create ride request

@@ -98,10 +98,10 @@ const RideSelectionScreen: React.FC = () => {
         const baseFare = (distance * 25) + (duration * 2) + 30;
         
         // Multipliers (Scientific Scaling)
-        let multiplier = 0.6; // Eco Bike (Cheap)
-        if (typeId === 'rickshaw') multiplier = 0.8;
-        if (typeId === 'standard') multiplier = 1.3;
-        if (typeId === 'pink-pass') multiplier = 1.2;
+        let multiplier = 0.8; // Eco Bike (Cheap)
+        if (typeId === 'rickshaw') multiplier = 1.2;
+        if (typeId === 'standard') multiplier = 1.8;
+        if (typeId === 'pink-pass') multiplier = 1.7;
 
         // Surge (Dynamic Demand Factor)
         const hour = new Date().getHours();
