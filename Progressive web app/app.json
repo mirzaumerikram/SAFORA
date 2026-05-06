@@ -62,7 +62,9 @@
 
                 "ACCESS_COARSE_LOCATION",
 
-                "ACCESS_BACKGROUND_LOCATION"
+                "ACCESS_BACKGROUND_LOCATION",
+
+                "CAMERA"
 
             ],
 
@@ -77,6 +79,34 @@
             }
 
         },
+
+        "plugins": [
+
+            [
+
+                "expo-camera",
+
+                {
+
+                    "cameraPermission": "Allow SAFORA to use your camera for Pink Pass verification."
+
+                }
+
+            ],
+
+            [
+
+                "expo-location",
+
+                {
+
+                    "locationAlwaysAndWhenInUsePermission": "Allow SAFORA to use your location for ride tracking and safety."
+
+                }
+
+            ]
+
+        ],
 
         "web": {
 
