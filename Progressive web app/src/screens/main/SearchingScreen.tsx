@@ -4,6 +4,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAppTheme } from '../../context/ThemeContext';
 import { useLanguage } from '../../context/LanguageContext';
 import socketService from '../../services/socket.service';
+import apiService from '../../services/api.service';
 
 const SearchingScreen: React.FC = () => {
     const navigation = useNavigation<any>();
@@ -56,14 +57,28 @@ const SearchingScreen: React.FC = () => {
         };
         initSocket();
 
-        // Real Socket Listener for Driver Match
+        // Real Socket Listener for Driver Match (Real-time)
         socketService.onRideAccepted((data: any) => {
             console.log('[Searching] Ride accepted by driver!', data);
             navigation.navigate('Tracking', { rideId: data.rideId || rideId });
         });
 
+        // Polling Safety Net: If socket fails, check API every 3s (Backup)
+        const pollInterval = setInterval(async () => {
+            try {
+                const res: any = await apiService.get('/rides/active-ride');
+                if (res.success && res.ride && res.ride.status === 'accepted') {
+                    console.log('[Searching] Polling found accepted ride!', res.ride._id);
+                    navigation.navigate('Tracking', { rideId: res.ride._id });
+                }
+            } catch (err) {
+                // Silently fail polling
+            }
+        }, 3000);
+
         return () => {
             socketService.offAll();
+            clearInterval(pollInterval);
         };
     }, []);
 

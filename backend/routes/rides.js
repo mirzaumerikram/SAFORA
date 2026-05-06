@@ -157,6 +157,40 @@ router.post('/request', auth, async (req, res) => {
     }
 });
 
+// @route   GET /api/rides/active-ride
+// @desc    Get current active ride for user (passenger or driver)
+// @access  Private
+router.get('/active-ride', auth, async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        let query = {};
+        
+        if (req.user.role === 'driver') {
+            const driver = await Driver.findOne({ user: userId });
+            if (!driver) return res.status(404).json({ message: 'Driver not found' });
+            query = { driver: driver._id, status: { $in: ['accepted', 'arrived', 'started'] } };
+        } else {
+            query = { passenger: userId, status: { $in: ['requested', 'matched', 'accepted', 'arrived', 'started'] } };
+        }
+
+        const ride = await Ride.findOne(query)
+            .populate('passenger', 'name phone')
+            .populate({
+                path: 'driver',
+                populate: { path: 'user', select: 'name phone gender profilePicture' }
+            })
+            .sort({ createdAt: -1 });
+
+        if (!ride) {
+            return res.json({ success: true, ride: null });
+        }
+
+        res.json({ success: true, ride });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
 // @route   GET /api/rides/:id
 // @desc    Get ride details
 // @access  Private

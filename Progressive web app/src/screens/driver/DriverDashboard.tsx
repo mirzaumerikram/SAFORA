@@ -82,8 +82,14 @@ const DriverDashboard: React.FC = () => {
                     trips: res.driver.totalRides || 0,
                 }));
 
-                // Force connect if online, even if check status is pending for testing
-                if (isOnline) {
+                // Check for active ride persistence
+                const rideRes: any = await apiService.get('/rides/active-ride');
+                if (rideRes.success && rideRes.ride) {
+                    setIncoming(rideRes.ride);
+                    setRideStatus(rideRes.ride.status);
+                    if (isOnline) connectSocket(res.driver.id);
+                } else if (isOnline) {
+                    // Force connect if online, even if check status is pending for testing
                     connectSocket(res.driver.id);
                     startGPS();
                 }
