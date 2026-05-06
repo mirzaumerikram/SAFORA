@@ -168,8 +168,14 @@ router.get('/active-ride', auth, async (req, res) => {
         
         if (req.user.role === 'driver') {
             const driver = await Driver.findOne({ user: userId });
-            if (!driver) return res.status(404).json({ message: 'Driver not found' });
-            query = { driver: driver._id, status: { $in: ['matched', 'accepted', 'arrived', 'started'] } };
+            // Search by EITHER driver doc ID or the user ID itself to be bulletproof
+            query = { 
+                $or: [
+                    { driver: driver ? driver._id : userId },
+                    { driver: userId }
+                ],
+                status: { $in: ['matched', 'accepted', 'arrived', 'started'] } 
+            };
         } else {
             query = { passenger: userId, status: { $in: ['requested', 'matched', 'accepted', 'arrived', 'started'] } };
         }

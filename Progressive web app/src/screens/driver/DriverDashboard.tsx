@@ -106,6 +106,8 @@ const DriverDashboard: React.FC = () => {
                         type: ride.type,
                         passenger: ride.passenger || { name: 'Passenger' }
                     };
+                    
+                    await AsyncStorage.setItem('last_active_ride', JSON.stringify(mappedRide));
 
                     if (ride.status === 'matched') {
                         setIncoming(mappedRide);
@@ -133,7 +135,14 @@ const DriverDashboard: React.FC = () => {
             }
         } catch (err) {
             console.error('[Driver] Profile load failed:', err);
-            setDriverName('Umer'); // Fallback to avoid 'undefined'
+            
+            // FALLBACK: Try to load from local storage if API fails
+            const localRide = await AsyncStorage.getItem('last_active_ride');
+            if (localRide) {
+                const mapped = JSON.parse(localRide);
+                setActiveRide(mapped);
+                setRideStatus(mapped.status || 'accepted');
+            }
         }
     };
 
@@ -274,6 +283,7 @@ const DriverDashboard: React.FC = () => {
             setRideStatus('accepted');
             startGPS(incoming.rideId);
             socketService.joinRide(incoming.rideId);
+            await AsyncStorage.setItem('last_active_ride', JSON.stringify(incoming));
         } catch (e: any) {
             Alert.alert('Error', e.message || 'Failed to accept ride');
         } finally {
@@ -331,6 +341,7 @@ const DriverDashboard: React.FC = () => {
                     fare: completedRide.estimatedPrice,
                 });
             }, 1500);
+            await AsyncStorage.removeItem('last_active_ride');
         } catch (e: any) {
             Alert.alert('Error', e.message || 'Failed to end ride');
         } finally {
