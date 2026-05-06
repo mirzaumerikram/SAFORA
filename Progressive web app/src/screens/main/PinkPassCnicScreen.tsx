@@ -310,9 +310,8 @@ const PinkPassCnicScreen: React.FC = () => {
                                 ) : null}
                             </View>
                         ) : (
-                            // Preview captured photo
                             <View style={s.previewBox}>
-                                <Image source={{ uri: cnicsUri }} style={s.previewImage} resizeMode="contain" />
+                                <Image source={{ uri: cnicsUri }} style={s.previewImage} resizeMode="cover" />
                             </View>
                         )}
 
@@ -440,7 +439,7 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
     retrySmallBtn:  { backgroundColor: '#EC4899', borderRadius: 10, paddingHorizontal: 20, paddingVertical: 8 },
     retrySmallText: { color: '#fff', fontWeight: '700', fontSize: 13 },
 
-    previewBox:   { height: 220, borderRadius: 16, overflow: 'hidden', marginBottom: 8, borderWidth: 2, borderColor: '#EC4899' },
+    previewBox:   { height: 200, width: '100%', borderRadius: 16, overflow: 'hidden', marginBottom: 12, borderWidth: 2, borderColor: '#EC4899', backgroundColor: '#000' },
     previewImage: { width: '100%', height: '100%' },
     previewHint:  { fontSize: 12, color: t.colors.textSecondary, textAlign: 'center', marginBottom: 8 },
 
