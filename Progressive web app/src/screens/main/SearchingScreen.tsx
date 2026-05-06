@@ -35,19 +35,22 @@ const SearchingScreen: React.FC = () => {
         ).start();
 
         // Rotation Animation
-        Animated.loop(
+        const rotate = () => {
+            rotateAnim.setValue(0);
             Animated.timing(rotateAnim, {
                 toValue: 1,
                 duration: 2000,
                 easing: Easing.linear,
                 useNativeDriver: true,
-            })
-        ).start();
+            }).start(() => rotate());
+        };
+        rotate();
 
         // Ensure socket is connected and room is joined
         const initSocket = async () => {
             await socketService.connect();
             if (rideId) {
+                console.log('[Searching] Joining room:', `chat-${rideId}`);
                 socketService.joinRide(rideId);
             }
         };
@@ -56,7 +59,7 @@ const SearchingScreen: React.FC = () => {
         // Real Socket Listener for Driver Match
         socketService.onRideAccepted((data: any) => {
             console.log('[Searching] Ride accepted by driver!', data);
-            navigation.navigate('Tracking', { rideId: data.rideId });
+            navigation.navigate('Tracking', { rideId: data.rideId || rideId });
         });
 
         return () => {

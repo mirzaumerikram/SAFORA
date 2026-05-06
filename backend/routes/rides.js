@@ -244,7 +244,8 @@ router.patch('/:id/accept', auth, authorize('driver'), async (req, res) => {
         await ride.save();
 
         const io = req.app.get('io');
-        io.to(`ride-${ride._id}`).emit('ride:accepted', {
+        // Notify passenger - matching the room name used in frontend (chat-{id})
+        io.to(`chat-${ride._id}`).emit('ride:accepted', {
             rideId: ride._id,
             driverId: ride.driver
         });
