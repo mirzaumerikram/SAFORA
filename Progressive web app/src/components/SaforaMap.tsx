@@ -201,10 +201,17 @@ const SaforaMap: React.FC<SaforaMapProps> = ({
         };
 
         const center = userLocation || LAHORE;
+        const hasCustomPoints = pickupLocation || dropoffLocation || driverLocation;
 
         if (type === 'home' || type === 'driver' || centerOnUser) {
-            addMarker(center, 'You', 'yellow');
-            map.panTo({ lat: center.latitude, lng: center.longitude });
+            if (!hasCustomPoints) {
+                addMarker(center, 'You', 'yellow');
+                map.panTo({ lat: center.latitude, lng: center.longitude });
+                // If it's a fresh load and we just found user, maybe zoom in
+                if (userLocation && map.getZoom()! < 12) {
+                    map.setZoom(15);
+                }
+            }
         }
         
         if (pickupLocation) {

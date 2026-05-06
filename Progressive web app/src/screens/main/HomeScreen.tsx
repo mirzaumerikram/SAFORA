@@ -148,7 +148,7 @@ const HomeScreen: React.FC = () => {
 
             {/* ── Full-screen map ── */}
             <View style={s.mapContainer}>
-                <SaforaMap type="home" />
+                <SaforaMap type="home" centerOnUser />
             </View>
 
             {/* ── Full-screen overlay ── */}
