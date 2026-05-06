@@ -166,40 +166,46 @@ const PinkPassCnicScreen: React.FC = () => {
 
     const [verifying, setVerifying] = useState(false);
     const [scanError, setScanError] = useState('');
-    const [extractedCnic, setExtractedCnic] = useState('');
+    const [extractedCnic, setExtractedCnic] = useState<{ number: string, gender: string, name: string } | null>(null);
 
-    const proceed = () => {
-        if (!PinkPassState.cnicBase64) { 
-            Alert.alert('CNIC Required', 'Please capture your CNIC photo first.'); 
-            return; 
-        }
+    const runAiVerification = () => {
+        if (!PinkPassState.cnicBase64) return;
 
-        // Simulate AI OCR Scan
         setVerifying(true);
         setScanError('');
+        setExtractedCnic(null);
 
-        // 2-second simulation of AI analysis
+        // Simulation of deep AI analysis
         setTimeout(() => {
-            // Defense Simulation: Pre-fill a valid female CNIC or use a prompt for the demo
-            // In a real app, this would come from a Tesseract/Google Vision OCR call
-            const mockCnic = "35202-8172635-4"; // Ends in 4 (Even = Female)
-            setExtractedCnic(mockCnic);
-            
-            // Logic: Check the last digit of the 13-digit CNIC
-            const digits = mockCnic.replace(/-/g, '');
+            // Mock Data Extraction
+            const extracted = {
+                number: "35202-8172635-4", // Last digit 4 = Female
+                gender: "Female",
+                name: "Ayesha Bibi" // Mock name from card
+            };
+
+            const digits = extracted.number.replace(/-/g, '');
             const lastDigit = parseInt(digits.charAt(digits.length - 1));
 
+            // Strict Validation
             if (lastDigit % 2 !== 0) {
-                setScanError('GENDER_MISMATCH');
+                setScanError('MALE_CNIC_DETECTED');
                 setVerifying(false);
             } else {
+                setExtractedCnic(extracted);
                 setVerifying(false);
-                navigation.navigate('PinkPassCamera');
             }
-        }, 2500);
+        }, 3000);
+    };
+
+    const proceedToFaceCheck = () => {
+        if (extractedCnic && !scanError) {
+            navigation.navigate('PinkPassCamera');
+        }
     };
 
     // ── Not eligible ─────────────────────────────────────────────────────────
+
     if (step === 'not_eligible') {
         return (
             <View style={s.container}>
@@ -339,28 +345,49 @@ const PinkPassCnicScreen: React.FC = () => {
                             </TouchableOpacity>
                         ) : (
                             <>
-                                {scanError === 'GENDER_MISMATCH' && (
+                                {scanError === 'MALE_CNIC_DETECTED' && (
                                     <View style={s.errorBanner}>
-                                        <Text style={s.errorBannerTitle}>🛡️ AI REJECTION</Text>
-                                        <Text style={s.errorBannerText}>Security check failed: This CNIC belongs to a male. Pink Pass is for females only.</Text>
+                                        <Text style={s.errorBannerTitle}>🛡️ AI SECURITY ALERT</Text>
+                                        <Text style={s.errorBannerText}>Gender Mismatch: This CNIC belongs to a Male. Pink Pass is restricted to female passengers only.</Text>
                                     </View>
                                 )}
-                                <Text style={s.previewHint}>Check that all CNIC text is clearly visible</Text>
+
+                                {extractedCnic && (
+                                    <View style={s.successBanner}>
+                                        <Text style={s.successTitle}>✅ AI VERIFICATION SUCCESS</Text>
+                                        <View style={s.dataRow}><Text style={s.dataLabel}>Name:</Text><Text style={s.dataVal}>{extractedCnic.name}</Text></View>
+                                        <View style={s.dataRow}><Text style={s.dataLabel}>CNIC:</Text><Text style={s.dataVal}>{extractedCnic.number}</Text></View>
+                                        <View style={s.dataRow}><Text style={s.dataLabel}>Gender:</Text><Text style={[s.dataVal, {color: '#10B981'}]}>{extractedCnic.gender}</Text></View>
+                                    </View>
+                                )}
+
+                                <Text style={s.previewHint}>Ensure all text is sharp and readable</Text>
+                                
                                 <TouchableOpacity style={s.retakeBtn} onPress={retake} disabled={verifying}>
                                     <Text style={s.retakeBtnText}>↺ Retake Photo</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity 
-                                    style={[s.primaryBtn, verifying && s.btnDisabled, scanError === 'GENDER_MISMATCH' && { backgroundColor: '#555' }]} 
-                                    onPress={proceed}
-                                    disabled={verifying || scanError === 'GENDER_MISMATCH'}
-                                >
-                                    {verifying 
-                                        ? <ActivityIndicator color="#fff" /> 
-                                        : <Text style={s.primaryBtnText}>Proceed to Face Check →</Text>
-                                    }
-                                </TouchableOpacity>
+
+                                {!extractedCnic && scanError !== 'MALE_CNIC_DETECTED' && (
+                                    <TouchableOpacity 
+                                        style={[s.primaryBtn, verifying && s.btnDisabled]} 
+                                        onPress={runAiVerification}
+                                        disabled={verifying}
+                                    >
+                                        {verifying 
+                                            ? <ActivityIndicator color="#fff" /> 
+                                            : <Text style={s.primaryBtnText}>🔍 Run AI Verification</Text>
+                                        }
+                                    </TouchableOpacity>
+                                )}
+
+                                {extractedCnic && (
+                                    <TouchableOpacity style={[s.primaryBtn, { backgroundColor: '#10B981' }]} onPress={proceedToFaceCheck}>
+                                        <Text style={s.primaryBtnText}>Proceed to Face Check →</Text>
+                                    </TouchableOpacity>
+                                )}
                             </>
                         )}
+
 
                         {/* AI Scanning Modal/Overlay */}
                         {verifying && (
@@ -463,7 +490,14 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
     errorBannerTitle: { color: '#EF4444', fontWeight: '900', fontSize: 14, marginBottom: 4 },
     errorBannerText:  { color: t.colors.text, fontSize: 12, lineHeight: 18 },
 
+    successBanner:    { backgroundColor: 'rgba(16,185,129,0.08)', borderLeftWidth: 4, borderLeftColor: '#10B981', padding: 16, borderRadius: 8, marginBottom: 16 },
+    successTitle:     { color: '#10B981', fontWeight: '900', fontSize: 13, marginBottom: 10, letterSpacing: 1 },
+    dataRow:          { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+    dataLabel:        { color: t.colors.textSecondary, fontSize: 12, fontWeight: '600' },
+    dataVal:          { color: t.colors.text, fontSize: 12, fontWeight: '800' },
+
     bigIcon:       { fontSize: 60, marginBottom: 16 },
+
     notEligTitle:  { fontSize: 20, fontWeight: '900', color: t.colors.text, marginBottom: 10, textAlign: 'center' },
     notEligText:   { fontSize: 13, color: t.colors.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
 });
