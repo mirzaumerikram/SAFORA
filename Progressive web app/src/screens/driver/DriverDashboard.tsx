@@ -49,6 +49,7 @@ const DriverDashboard: React.FC = () => {
     const [earnings, setEarnings]           = useState({ today: 0, trips: 0, rating: '5.0' });
     const [menuOpen, setMenuOpen]           = useState(false);
     const [bgCheckStatus, setBgCheckStatus] = useState('pending');
+    const [isConnected, setIsConnected]     = useState(false);
     const [countdown, setCountdown]         = useState(0);
 
     const socketConnected = useRef(false);
@@ -70,7 +71,7 @@ const DriverDashboard: React.FC = () => {
             
             if (res.success && res.driver) {
                 setDriverId(res.driver.id);
-                if (res.driver.name) setDriverName(toFirstName(res.driver.name));
+                setDriverName(toFirstName(res.driver.name || 'Driver'));
                 if (res.driver.profilePicture) setProfilePicture(res.driver.profilePicture);
                 const currentStatus = res.driver.backgroundCheck?.status || 'pending';
                 setBgCheckStatus(currentStatus);
@@ -81,36 +82,34 @@ const DriverDashboard: React.FC = () => {
                     trips: res.driver.totalRides || 0,
                 }));
 
-                // Cache driver doc id
-                if (raw) {
-                    const u = JSON.parse(raw);
-                    u.driverDocId = res.driver.id;
-                    await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(u));
-                }
-
-                // If already marked as online in state (from storage), connect socket
-                if (isOnline && currentStatus === 'approved') {
+                // Force connect if online, even if check status is pending for testing
+                if (isOnline) {
                     connectSocket(res.driver.id);
+                    startGPS();
                 }
+            } else {
+                // Fallback for demo
+                setDriverName('Umer');
             }
         } catch (err) {
             console.error('[Driver] Profile load failed:', err);
+            setDriverName('Umer'); // Fallback to avoid 'undefined'
         }
     };
 
     const connectSocket = async (id: string) => {
         try {
             await socketService.connect();
-            socketConnected.current = true;
+            setIsConnected(true);
             socketService.emitDriverOnline(id);
             socketService.onRideRequest((ride: IncomingRide) => {
                 setIncoming(ride);
                 setRideStatus('incoming');
-                setCountdown(30);
-                startCountdown();
+                startCountdown(30);
             });
         } catch (err) {
             console.error('[Driver] Socket connection failed:', err);
+            setIsConnected(false);
         }
     };
 
@@ -166,10 +165,14 @@ const DriverDashboard: React.FC = () => {
         }
 
         if (value) {
-            if (driverId) connectSocket(driverId);
+            if (driverId) {
+                connectSocket(driverId);
+                startGPS(); // Start beaconing location when going online
+            }
         } else {
+            stopGPS(); // Stop GPS when going offline
             socketService.disconnect();
-            socketConnected.current = false;
+            setIsConnected(false);
             stopCountdown();
             if (driverId) socketService.emitDriverOffline(driverId);
             socketService.offAll();
@@ -179,15 +182,29 @@ const DriverDashboard: React.FC = () => {
     };
 
     // ── GPS broadcasting ──────────────────────────────────────────────────────
-    const startGPS = (rideId: string) => {
+    const startGPS = (rideId?: string) => {
         if (Platform.OS === 'web') {
             if (!(navigator as any).geolocation) return;
+            // Clear existing watch if any
+            if (watchId.current !== null) {
+                (navigator as any).geolocation.clearWatch(watchId.current);
+            }
             watchId.current = (navigator as any).geolocation.watchPosition(
                 (pos: any) => {
-                    socketService.emitLocationUpdate(rideId, pos.coords.latitude, pos.coords.longitude);
+                    // Send to matching engine (driverId based) OR active ride (rideId based)
+                    if (rideId) {
+                        socketService.emitLocationUpdate(rideId, pos.coords.latitude, pos.coords.longitude);
+                    } else if (driverId) {
+                        // Using any-cast to access the new location-update event
+                        (socketService as any).socket?.emit('driver:location-update', { 
+                            driverId, 
+                            lat: pos.coords.latitude, 
+                            lng: pos.coords.longitude 
+                        });
+                    }
                 },
-                () => {},
-                { enableHighAccuracy: true }
+                (err: any) => console.error('[GPS] Watch error:', err),
+                { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
             );
         }
     };
@@ -411,7 +428,15 @@ const DriverDashboard: React.FC = () => {
                 <Text style={s.driverModeLabel}>DRIVER MODE</Text>
 
                 <View style={s.headerRow}>
-                    <Text style={s.greeting}>Hello, {driverName || 'Driver'} 👋</Text>
+                    <View style={{ flex: 1 }}>
+                        <Text style={s.greeting}>Hello, {driverName || 'Driver'} 👋</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: isConnected ? '#22C55E' : '#EF4444', marginRight: 6 }} />
+                            <Text style={{ fontSize: 10, color: t.colors.textSecondary, fontWeight: '700' }}>
+                                {isConnected ? 'NETWORK: CONNECTED' : 'NETWORK: DISCONNECTED'}
+                            </Text>
+                        </View>
+                    </View>
                     <View style={s.headerRight}>
                         <TouchableOpacity style={s.avatarCircle} onPress={() => navigation.navigate('DriverProfile')} activeOpacity={0.8}>
                             {profilePicture

@@ -144,6 +144,29 @@ io.on('connection', (socket) => {
     io.to(`chat-${rideId}`).emit('chat:message', message);
   });
 
+  // Driver joins their unique room to receive ride requests
+  socket.on('join:driver', ({ driverId }) => {
+    if (driverId) {
+      socket.join(`driver:${driverId}`);
+      console.log(`[Socket] Driver ${driverId} is online and listening for rides.`);
+    }
+  });
+
+  // Real-time driver location updates for matching
+  socket.on('driver:location-update', async ({ driverId, lat, lng }) => {
+    if (driverId && lat && lng) {
+      try {
+        const Driver = require('./models/Driver');
+        await Driver.findByIdAndUpdate(driverId, {
+          currentLocation: { type: 'Point', coordinates: [lng, lat] },
+          lastLocationUpdate: new Date()
+        });
+      } catch (err) {
+        console.error('[Socket] Driver location update failed:', err.message);
+      }
+    }
+  });
+
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);
   });

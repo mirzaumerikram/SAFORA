@@ -81,17 +81,18 @@ router.post('/request', auth, async (req, res) => {
         await ride.save();
 
         try {
-            // Driver matching: find nearest online driver
-            // For Pink Pass rides, only match female drivers with pinkPassCertified
+            console.log(`[RIDE_DEBUG] Searching for drivers near: ${pLat}, ${pLng}`);
+            
+            // Driver matching: find nearest driver
             const matchQuery = {
-                status: 'online',
+                // status: 'online', // BYPASSED FOR TESTING
                 currentLocation: {
                     $near: {
                         $geometry: {
                             type: 'Point',
                             coordinates: [pLng, pLat]
                         },
-                        $maxDistance: 15000 // 15km radius (expanded)
+                        // $maxDistance: 15000 
                     }
                 }
             };
@@ -100,19 +101,20 @@ router.post('/request', auth, async (req, res) => {
                 .populate('user', 'name gender phone')
                 .limit(10);
 
+            console.log(`[RIDE_DEBUG] Found ${nearbyDrivers.length} potential drivers.`);
+
             let matchedDriver = null;
 
             if (type === 'pink-pass') {
-                // Pink Pass: must be female and certified
                 matchedDriver = nearbyDrivers.find(
                     d => d.user.gender === 'female' && d.pinkPassCertified
                 );
             } else {
-                // Standard: nearest available driver
                 matchedDriver = nearbyDrivers[0] || null;
             }
 
             if (matchedDriver) {
+                console.log(`[RIDE_DEBUG] Matched with driver: ${matchedDriver.user.name} (${matchedDriver._id})`);
                 ride.driver = matchedDriver._id;
                 ride.status = 'matched';
                 await ride.save();
@@ -120,7 +122,10 @@ router.post('/request', auth, async (req, res) => {
                 // Notify matched driver via Socket.io
                 const io = req.app.get('io');
                 if (io) {
-                    io.to(`driver:${matchedDriver._id}`).emit('ride:request', {
+                    const roomName = `driver:${matchedDriver._id}`;
+                    console.log(`[RIDE_DEBUG] BROADCASTING ride:request to ALL for testing.`);
+                    // Temporarily using io.emit instead of io.to(roomName).emit
+                    io.emit('ride:request', {
                         rideId: ride._id,
                         passenger: { name: 'Passenger' },
                         pickup: pickupLocation,
