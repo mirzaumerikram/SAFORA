@@ -16,6 +16,14 @@ const StatCard = ({ icon, value, label, color }) => (
 const statusColor = { active: '#e74c3c', handling: '#3498db', resolved: '#27ae60' };
 const statusLabel = { active: '● Active', handling: '● Handling', resolved: '✓ Resolved' };
 
+const typeLabels = {
+  eco: 'Eco Bike',
+  rickshaw: 'Auto Rickshaw',
+  standard: 'Comfort AC',
+  'pink-pass': 'Pink Pass',
+  pink: 'Pink Pass',
+};
+
 export default function Dashboard() {
   const { search }                = useOutletContext();
   const [stats, setStats]         = useState(null);
@@ -129,7 +137,7 @@ export default function Dashboard() {
         ) : (
           <table className="data-table">
             <thead>
-              <tr><th>Passenger</th><th>Driver</th><th>Pickup</th><th>Dropoff</th><th>Fare</th><th>Status</th></tr>
+              <tr><th>Passenger</th><th>Driver</th><th>Pickup</th><th>Dropoff</th><th>Type</th><th>Fare</th><th>Status</th></tr>
             </thead>
             <tbody>
               {rides.filter(r => 
@@ -142,6 +150,7 @@ export default function Dashboard() {
                   <td>{r.driver?.user?.name || <span className="td-unassigned">Not Assigned</span>}</td>
                   <td className="td-trunc">{r.pickupLocation?.address || '—'}</td>
                   <td className="td-trunc">{r.dropoffLocation?.address || '—'}</td>
+                  <td style={{ fontSize: 13 }}>{typeLabels[r.type] || r.type || 'Standard'}</td>
                   <td style={{ fontWeight: 600 }}>RS {r.estimatedPrice || '—'}</td>
                   <td><span className={`status-chip chip-${r.status}`}>{r.status}</span></td>
                 </tr>

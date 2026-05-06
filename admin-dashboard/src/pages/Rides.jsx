@@ -11,6 +11,14 @@ const chipStyle = {
   cancelled: { bg: '#fff0f0', color: '#e74c3c' },
 };
 
+const typeLabels = {
+  eco: 'Eco Bike',
+  rickshaw: 'Auto Rickshaw',
+  standard: 'Comfort AC',
+  'pink-pass': 'Pink Pass',
+  pink: 'Pink Pass',
+};
+
 export default function Rides() {
   const { search }            = useOutletContext();
   const [rides, setRides]     = useState([]);
@@ -109,7 +117,7 @@ export default function Rides() {
                       </td>
                       <td className="td-trunc">{r.pickupLocation?.address || '—'}</td>
                       <td className="td-trunc">{r.dropoffLocation?.address || '—'}</td>
-                      <td style={{ textTransform: 'capitalize', fontSize: 13 }}>{r.type || 'standard'}</td>
+                      <td style={{ textTransform: 'capitalize', fontSize: 13 }}>{typeLabels[r.type] || r.type || 'Standard'}</td>
                       <td style={{ fontWeight: 700 }}>RS {r.estimatedPrice || '—'}</td>
                       <td>
                         <span className="status-chip" style={{ background: cs.bg, color: cs.color }}>
