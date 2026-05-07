@@ -29,6 +29,14 @@ router.post('/request', auth, async (req, res) => {
 
         const passengerId = req.user.userId; // From auth middleware
 
+        if (type === 'pink-pass') {
+            const User = require('../models/User');
+            const passUser = await User.findById(passengerId);
+            if (!passUser || passUser.gender !== 'female' || !passUser.pinkPassVerified) {
+                return res.status(403).json({ success: false, message: 'Pink Pass is strictly reserved for verified female passengers.' });
+            }
+        }
+
         // Calculate real distance using Haversine formula
         const toRad = (deg) => deg * (Math.PI / 180);
         const R = 6371; // Earth radius in km

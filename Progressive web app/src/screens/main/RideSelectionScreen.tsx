@@ -88,8 +88,11 @@ const RideSelectionScreen: React.FC = () => {
         const checkPinkPass = async () => {
             try {
                 const res: any = await apiService.get('/pink-pass/status');
-                if (res && res.pinkPassVerified) {
+                // Strict check: Must be verified AND female
+                if (res && res.pinkPassVerified && res.gender === 'female') {
                     setIsPinkVerified(true);
+                } else {
+                    setIsPinkVerified(false);
                 }
             } catch (e) {
                 console.log('Failed to check pink pass status', e);
