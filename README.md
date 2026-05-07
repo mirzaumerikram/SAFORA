@@ -42,7 +42,7 @@ SAFORA is a comprehensive ride-hailing solution designed with an uncompromising 
 | **Admin Dashboard** | React, Vite, TailwindCSS |
 | **Backend** | Node.js, Express.js, MongoDB (Mongoose) |
 | **Real-Time** | Socket.io (Bi-directional GPS & Ride States) |
-| **Integrations** | Resend (Email OTPs), Google Maps/Places API, Fal.ai |
+| **Integrations** | Resend (Email OTPs), Google Maps/Places API, Custom AI Microservice |
 
 ---
 
