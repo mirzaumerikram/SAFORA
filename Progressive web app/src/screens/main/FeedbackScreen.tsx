@@ -71,7 +71,7 @@ const FeedbackScreen: React.FC = () => {
 
     const handleSubmit = async () => {
         if (!rideId) {
-            navigation.navigate('FareBreakdown');
+            navigation.navigate('FareBreakdown', { rideId });
             return;
         }
         setLoading(true);
@@ -82,7 +82,7 @@ const FeedbackScreen: React.FC = () => {
                 tags: selectedTags,
                 comment,
             });
-            navigation.navigate('FareBreakdown');
+            navigation.navigate('FareBreakdown', { rideId });
         } catch (err: any) {
             Alert.alert('Submission Failed', err.message || 'Could not submit feedback. Please try again.');
         } finally {
@@ -201,7 +201,7 @@ const FeedbackScreen: React.FC = () => {
             {/* Skip link */}
             <TouchableOpacity
                 style={s.skipBtn}
-                onPress={() => navigation.navigate('FareBreakdown')}
+                onPress={() => navigation.navigate('FareBreakdown', { rideId })}
                 activeOpacity={0.6}
             >
                 <Text style={s.skipText}>Skip for now</Text>

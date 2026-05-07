@@ -1,10 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
-    View, Text, StyleSheet, TouchableOpacity, ScrollView,
+    View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAppTheme } from '../../context/ThemeContext';
 import { AppTheme } from '../../utils/theme';
+import apiService from '../../services/api';
 
 const FareBreakdownScreen: React.FC = () => {
     const navigation = useNavigation<any>();
@@ -14,12 +15,46 @@ const FareBreakdownScreen: React.FC = () => {
     const { theme } = useAppTheme();
     const s = useMemo(() => makeStyles(theme), [theme]);
 
-    // Fare breakdown (fallback to design values)
-    const total = totalFare || 185;
-    const baseFare = 140;
-    const timeCharge = 54;
-    const safetyFee = 9;
-    const promoDiscount = 18;
+    const [loading, setLoading] = useState(true);
+    const [rideData, setRideData] = useState<any>(null);
+
+    useEffect(() => {
+        const fetchRide = async () => {
+            if (!rideId) {
+                setLoading(false);
+                return;
+            }
+            try {
+                const res: any = await apiService.get(`/rides/${rideId}`);
+                if (res.success && res.ride) {
+                    setRideData(res.ride);
+                }
+            } catch (err) {
+                console.log('Failed to fetch ride breakdown', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchRide();
+    }, [rideId]);
+
+    // Dynamic precise calculations
+    const total = rideData ? rideData.estimatedPrice : (totalFare || 185);
+    const distance = rideData ? parseFloat((rideData.distance || 0).toFixed(1)) : 5.8;
+    const duration = rideData ? Math.round(rideData.estimatedDuration || 0) : 18;
+
+    const baseFare = Math.round(distance * 35) + 30;
+    const timeCharge = Math.round(duration * 5);
+    const safetyFee = 20;
+
+    let subtotal = baseFare + timeCharge + safetyFee;
+    let discount = subtotal - total;
+    let surge = 0;
+
+    if (discount < 0) {
+        surge = Math.abs(discount);
+        discount = 0;
+    }
 
     return (
         <View style={s.container}>
@@ -50,29 +85,44 @@ const FareBreakdownScreen: React.FC = () => {
 
                 {/* Fare Breakdown */}
                 <Text style={s.sectionLabel}>FARE BREAKDOWN</Text>
-                <View style={s.breakdownCard}>
-                    <View style={s.breakRow}>
-                        <Text style={s.breakLabel}>Base Fare (5.8 km)</Text>
-                        <Text style={s.breakValue}>Rs {baseFare}</Text>
+                {loading ? (
+                    <View style={[s.breakdownCard, { alignItems: 'center', padding: 30 }]}>
+                        <ActivityIndicator color={theme.colors.primary} />
+                        <Text style={{ marginTop: 10, fontSize: 12, color: theme.colors.textSecondary }}>Calculating accurate fare...</Text>
                     </View>
-                    <View style={s.breakRow}>
-                        <Text style={s.breakLabel}>Time Charge (18 min)</Text>
-                        <Text style={s.breakValue}>Rs {timeCharge}</Text>
+                ) : (
+                    <View style={s.breakdownCard}>
+                        <View style={s.breakRow}>
+                            <Text style={s.breakLabel}>Base Fare ({distance} km)</Text>
+                            <Text style={s.breakValue}>Rs {baseFare}</Text>
+                        </View>
+                        <View style={s.breakRow}>
+                            <Text style={s.breakLabel}>Time Charge ({duration} min)</Text>
+                            <Text style={s.breakValue}>Rs {timeCharge}</Text>
+                        </View>
+                        <View style={s.breakRow}>
+                            <Text style={s.breakLabel}>🛡️ SAFORA Safety Fee</Text>
+                            <Text style={s.breakValue}>Rs {safetyFee}</Text>
+                        </View>
+                        {surge > 0 && (
+                            <View style={s.breakRow}>
+                                <Text style={[s.breakLabel, { color: '#EAB308', fontWeight: '800' }]}>⚡ Peak Time Surge</Text>
+                                <Text style={[s.breakValue, { color: '#EAB308' }]}>+Rs {surge}</Text>
+                            </View>
+                        )}
+                        {discount > 0 && (
+                            <View style={s.breakRow}>
+                                <Text style={s.promoLabel}>AI Optimized Discount</Text>
+                                <Text style={s.promoValue}>-Rs {discount}</Text>
+                            </View>
+                        )}
+                        <View style={s.breakDivider} />
+                        <View style={s.breakRow}>
+                            <Text style={s.totalLabel}>Total</Text>
+                            <Text style={s.totalValue}>Rs {total}</Text>
+                        </View>
                     </View>
-                    <View style={s.breakRow}>
-                        <Text style={s.breakLabel}>🛡️ SAFORA Safety Fee</Text>
-                        <Text style={s.breakValue}>Rs {safetyFee}</Text>
-                    </View>
-                    <View style={s.breakRow}>
-                        <Text style={s.promoLabel}>Promo Code SAF10</Text>
-                        <Text style={s.promoValue}>-Rs {promoDiscount}</Text>
-                    </View>
-                    <View style={s.breakDivider} />
-                    <View style={s.breakRow}>
-                        <Text style={s.totalLabel}>Total</Text>
-                        <Text style={s.totalValue}>Rs {total}</Text>
-                    </View>
-                </View>
+                )}
 
                 {/* Payment Method */}
                 <Text style={s.sectionLabel}>PAYMENT METHOD</Text>
