@@ -4,18 +4,25 @@ import './TablePage.css';
 
 export default function PinkPass() {
   const [passengers, setPassengers] = useState([]);
-  const [loading, setLoading]     = useState(true);
+  const [drivers, setDrivers]       = useState([]);
+  const [loading, setLoading]       = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [activeTab, setActiveTab]   = useState('passengers');
 
   useEffect(() => {
     loadPending();
-  }, []);
+  }, [activeTab]);
 
   const loadPending = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/admin/pinkpass/passengers/pending');
-      setPassengers(res.users || []);
+      if (activeTab === 'passengers') {
+        const res = await api.get('/admin/pinkpass/passengers/pending');
+        setPassengers(res.users || []);
+      } else {
+        const res = await api.get('/admin/pinkpass/pending');
+        setDrivers(res.drivers || []);
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -24,10 +31,15 @@ export default function PinkPass() {
   };
 
   const handleVerify = async (userId, action) => {
-    if (!window.confirm(`Are you sure you want to ${action} this Pink Pass application?`)) return;
+    if (!window.confirm(`Are you sure you want to ${action} this application?`)) return;
     try {
-      await api.patch(`/admin/pinkpass/passengers/${userId}/verify`, { action });
-      setPassengers(prev => prev.filter(u => u._id !== userId));
+      if (activeTab === 'passengers') {
+        await api.patch(`/admin/pinkpass/passengers/${userId}/verify`, { action });
+        setPassengers(prev => prev.filter(u => u._id !== userId));
+      } else {
+        await api.patch(`/pink-pass/admin-approve/${userId}`, { action });
+        setDrivers(prev => prev.filter(d => d._id !== userId));
+      }
       setSelectedUser(null);
       window.dispatchEvent(new Event('safora:refresh-badges'));
     } catch (e) {
@@ -35,45 +47,62 @@ export default function PinkPass() {
     }
   };
 
+  const currentList = activeTab === 'passengers' ? passengers : drivers;
+
   return (
     <div className="page">
       <div className="page-head">
         <div>
           <h2 className="page-title">Pink Pass Verifications</h2>
-          <p className="page-sub">Review female passenger identity documents</p>
+          <p className="page-sub">Review female identity documents</p>
         </div>
+      </div>
+
+      <div className="tabs" style={{ marginBottom: 20, display: 'flex', gap: 10 }}>
+        <button 
+          className={activeTab === 'passengers' ? 'tab-btn active' : 'tab-btn'}
+          onClick={() => setActiveTab('passengers')}
+        >
+          Passengers
+        </button>
+        <button 
+          className={activeTab === 'drivers' ? 'tab-btn active' : 'tab-btn'}
+          onClick={() => setActiveTab('drivers')}
+        >
+          Drivers
+        </button>
       </div>
 
       {loading ? (
         <div className="loading-box">Loading applications...</div>
-      ) : passengers.length === 0 ? (
+      ) : currentList.length === 0 ? (
         <div className="empty-state">
           <div className="es-icon">🌸</div>
           <div className="es-title">No pending reviews</div>
-          <div className="es-sub">All passenger Pink Pass applications have been processed</div>
+          <div className="es-sub">All {activeTab} Pink Pass applications have been processed</div>
         </div>
       ) : (
         <div className="table-card">
           <table className="data-table">
             <thead>
               <tr>
-                <th>Passenger</th>
+                <th>{activeTab === 'passengers' ? 'Passenger' : 'Driver'}</th>
                 <th>Phone</th>
                 <th>Applied At</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {passengers.map(u => (
+              {currentList.map(u => (
                 <tr key={u._id}>
                   <td>
                     <div className="cell-user">
                       <div className="cu-avatar" style={{ background: '#fce4ec', color: '#e91e63' }}>
-                        {(u.name || 'P').charAt(0).toUpperCase()}
+                        {(u.name || 'U').charAt(0).toUpperCase()}
                       </div>
                       <div>
                         <div style={{ fontWeight: 600 }}>{u.name || '—'}</div>
-                        <div style={{ fontSize: 11, color: '#666' }}>{u.email || '—'}</div>
+                        <div style={{ fontSize: 11, color: '#666' }}>{u.email || u.licenseNumber || '—'}</div>
                       </div>
                     </div>
                   </td>
@@ -181,6 +210,19 @@ export default function PinkPass() {
           font-size: 24px;
           cursor: pointer;
           color: #888;
+        }
+        .tab-btn {
+          padding: 8px 16px;
+          border: none;
+          background: #eee;
+          border-radius: 6px;
+          cursor: pointer;
+          font-weight: 600;
+          color: #666;
+        }
+        .tab-btn.active {
+          background: #e91e63;
+          color: white;
         }
       `}</style>
     </div>
