@@ -81,7 +81,7 @@ export default function Dashboard() {
           <div className="map-embed-wrap">
             <iframe
               title="Live Map"
-              src="https://www.openstreetmap.org/export/embed.html?bbox=74.2500,31.4200,74.5000,31.6500&layer=mapnik"
+              src="https://maps.google.com/maps?q=31.5204,74.3587&z=12&output=embed&hl=en"
               style={{ width: '100%', height: '100%', border: 'none', borderRadius: 12 }}
             />
             <div className="map-overlay-stats">

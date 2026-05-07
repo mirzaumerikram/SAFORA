@@ -26,7 +26,7 @@ export default function LiveMap() {
       <div className="map-full-card">
         <iframe
           title="Full Live Map"
-          src="https://www.openstreetmap.org/export/embed.html?bbox=74.2000,31.3800,74.5500,31.7000&layer=mapnik"
+          src="https://maps.google.com/maps?q=31.5204,74.3587&z=12&output=embed&hl=en"
           style={{ width: '100%', height: '100%', border: 'none' }}
         />
       </div>
