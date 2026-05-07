@@ -59,10 +59,15 @@ router.post('/enroll', auth, async (req, res) => {
         user.pinkPassAppliedAt   = new Date();
 
         if (verified) {
-            user.pinkPassVerified = true;
-            user.pinkPassStatus   = 'approved';
+            user.pinkPassVerified = false; // Requires Admin Approval
+            user.pinkPassStatus   = 'pending_review';
             await user.save();
-            return res.json({ success: true, message: 'Pink Pass verified and activated!', confidence });
+            return res.json({ 
+                success: true, 
+                message: 'AI Verified! Application submitted for manual admin review.', 
+                status: 'pending_review',
+                confidence 
+            });
         } else if (aiAvailable) {
             // AI specifically said NO
             const reason = aiRes?.data?.reason || 'Verification failed. Please ensure your CNIC is clear and your selfie shows your full face.';
