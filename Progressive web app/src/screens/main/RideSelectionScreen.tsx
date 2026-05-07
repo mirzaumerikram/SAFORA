@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
     View,
     Text,
@@ -79,9 +79,24 @@ const RideSelectionScreen: React.FC = () => {
     const [dropoffCoords] = useState<Coordinates>(route.params?.dropoffCoords || { latitude: 31.4504, longitude: 74.2667 });
     const [selected, setSelected] = useState<string>('eco');
     const [booking,  setBooking]  = useState<boolean>(false);
+    const [isPinkVerified, setIsPinkVerified] = useState<boolean>(false);
 
     // Dynamic pricing state
     const [routeInfo, setRouteInfo] = useState<{ distance: number; duration: number } | null>(null);
+
+    useEffect(() => {
+        const checkPinkPass = async () => {
+            try {
+                const res: any = await apiService.get('/pink-pass/status');
+                if (res && res.pinkPassVerified) {
+                    setIsPinkVerified(true);
+                }
+            } catch (e) {
+                console.log('Failed to check pink pass status', e);
+            }
+        };
+        checkPinkPass();
+    }, []);
 
     const { theme } = useAppTheme();
     const s = useMemo(() => makeStyles(theme), [theme]);
@@ -309,26 +324,36 @@ const RideSelectionScreen: React.FC = () => {
 
                 {/* Confirm button */}
                 <View style={s.footer}>
-                    <TouchableOpacity
-                        style={[
-                            s.confirmBtn,
-                            selectedRide?.pink && s.confirmBtnPink,
-                            booking && s.confirmBtnDisabled,
-                        ]}
-                        onPress={handleConfirm}
-                        disabled={booking || !routeInfo}
-                        activeOpacity={0.88}
-                    >
-                        {booking ? (
-                            <ActivityIndicator color={theme.colors.black} />
-                        ) : !routeInfo ? (
-                            <ActivityIndicator color={theme.colors.black} />
-                        ) : (
-                            <Text style={s.confirmText}>
-                                Confirm {selectedRide?.name}{'  '}Rs {selectedRide?.price}
-                            </Text>
-                        )}
-                    </TouchableOpacity>
+                    {selected === 'pink-pass' && !isPinkVerified ? (
+                        <TouchableOpacity
+                            style={[s.confirmBtn, s.confirmBtnPink]}
+                            onPress={() => navigation.navigate('PinkPass')}
+                            activeOpacity={0.88}
+                        >
+                            <Text style={[s.confirmText, { color: '#FFF' }]}>Verify Pink Pass to Unlock 🎀</Text>
+                        </TouchableOpacity>
+                    ) : (
+                        <TouchableOpacity
+                            style={[
+                                s.confirmBtn,
+                                selectedRide?.pink && s.confirmBtnPink,
+                                booking && s.confirmBtnDisabled,
+                            ]}
+                            onPress={handleConfirm}
+                            disabled={booking || !routeInfo}
+                            activeOpacity={0.88}
+                        >
+                            {booking ? (
+                                <ActivityIndicator color={theme.colors.black} />
+                            ) : !routeInfo ? (
+                                <ActivityIndicator color={theme.colors.black} />
+                            ) : (
+                                <Text style={s.confirmText}>
+                                    Confirm {selectedRide?.name}{'  '}Rs {selectedRide?.price}
+                                </Text>
+                            )}
+                        </TouchableOpacity>
+                    )}
                 </View>
             </View>
         </View>
