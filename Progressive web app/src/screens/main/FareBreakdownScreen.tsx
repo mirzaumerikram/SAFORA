@@ -42,9 +42,14 @@ const FareBreakdownScreen: React.FC = () => {
     const total = rideData ? rideData.estimatedPrice : (totalFare || 185);
     const distance = rideData ? parseFloat((rideData.distance || 0).toFixed(1)) : 5.8;
     const duration = rideData ? Math.round(rideData.estimatedDuration || 0) : 18;
+    const rideType = rideData?.type || 'standard';
 
-    const baseFare = Math.round(distance * 35) + 30;
-    const timeCharge = Math.round(duration * 5);
+    let multiplier = 0.8;
+    if (rideType === 'rickshaw') multiplier = 1.5;
+    if (rideType === 'standard' || rideType === 'pink-pass') multiplier = 2.0;
+
+    const baseFare = Math.round((distance * 35 + 30) * multiplier);
+    const timeCharge = Math.round((duration * 4) * multiplier);
     const safetyFee = 20;
 
     let subtotal = baseFare + timeCharge + safetyFee;
