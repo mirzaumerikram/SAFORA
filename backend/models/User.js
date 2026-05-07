@@ -79,6 +79,10 @@ const userSchema = new mongoose.Schema({
     pinkPassCnicPhoto: String,
     pinkPassSelfiePhoto: String,
     pinkPassAppliedAt: Date,
+    pinkPassSecurityNotes: {
+        type: String,
+        default: ''
+    },
     homeAddress: {
         type: String,
         default: ''

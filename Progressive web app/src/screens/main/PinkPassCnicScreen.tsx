@@ -189,9 +189,11 @@ const PinkPassCnicScreen: React.FC = () => {
             const text = result.data.text || '';
             console.log('[PinkPass] Raw OCR Text:', text);
 
-            // 1. Detection: Check if it's a CNIC
-            const isCnic = /IDENTITY|CARD|PAKISTAN|GOVERNMENT|NATIONAL/i.test(text);
-            if (!isCnic && text.length < 20) {
+            // 1. Detection: Strict Check for CNIC keywords
+            const isCnic = /IDENTITY|CARD|PAKISTAN|GOVERNMENT|NATIONAL|ISLAMIC|REPUBLIC/i.test(text);
+            const hasEnoughText = text.length > 30; // Real CNICs have a lot of small text
+
+            if (!isCnic || !hasEnoughText) {
                 setScanError('CNIC_NOT_DETECTED');
                 setVerifying(false);
                 return;
@@ -284,6 +286,10 @@ const PinkPassCnicScreen: React.FC = () => {
 
     return (
         <View style={s.container}>
+            {/* Background Glows */}
+            <View style={s.glow1} />
+            <View style={s.glow2} />
+
             <View style={s.header}>
                 <TouchableOpacity onPress={() => { stopCamera(); if (step === 'cnic') setStep('info'); else navigation.goBack(); }} style={s.backBtn}>
                     <Text style={s.backText}>←</Text>
@@ -485,93 +491,97 @@ const PinkPassCnicScreen: React.FC = () => {
 };
 
 const makeStyles = (t: AppTheme) => StyleSheet.create({
-    container: { flex: 1, backgroundColor: t.colors.background },
+    container: { flex: 1, backgroundColor: '#0A0A0B' }, // Deep charcoal
+    glow1: { position: 'absolute', top: -50, right: -50, width: 250, height: 250, borderRadius: 125, backgroundColor: 'rgba(236,72,153,0.12)', filter: 'blur(80px)' } as any,
+    glow2: { position: 'absolute', bottom: 100, left: -80, width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(236,72,153,0.05)', filter: 'blur(100px)' } as any,
     centered:  { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
-    header:    { paddingTop: Platform.OS === 'ios' ? 54 : 44, paddingHorizontal: 20, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    backBtn:   { width: 40, height: 40, borderRadius: 12, backgroundColor: t.colors.cardSecondary, alignItems: 'center', justifyContent: 'center' },
-    backText:  { color: t.colors.text, fontSize: 20 },
-    headerTitle: { fontSize: 13, fontWeight: '900', color: t.colors.text, letterSpacing: 3 },
-    verBadge:    { backgroundColor: 'rgba(236,72,153,0.15)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(236,72,153,0.3)' },
-    verBadgeText:{ fontSize: 10, color: '#EC4899', fontWeight: '800' },
+    header:    { paddingTop: Platform.OS === 'ios' ? 54 : 44, paddingHorizontal: 20, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', zIndex: 10 },
+    backBtn:   { width: 44, height: 44, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+    backText:  { color: '#FFF', fontSize: 22, fontWeight: '300' },
+    headerTitle: { fontSize: 14, fontWeight: '900', color: '#FFF', letterSpacing: 3 },
+    verBadge:    { backgroundColor: 'rgba(236,72,153,0.15)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(236,72,153,0.3)' },
+    verBadgeText:{ fontSize: 10, color: '#EC4899', fontWeight: '800', letterSpacing: 1 },
     scroll:    { paddingHorizontal: 20, paddingBottom: 60 },
 
-    pinkBanner:      { alignItems: 'center', paddingVertical: 24, marginBottom: 12 },
+    pinkBanner:      { alignItems: 'center', paddingVertical: 24, marginBottom: 16, backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
     pinkBannerIcon:  { fontSize: 48, marginBottom: 8 },
-    pinkBannerTitle: { fontSize: 22, fontWeight: '900', color: t.colors.text },
-    pinkBannerSub:   { fontSize: 13, color: t.colors.textSecondary, textAlign: 'center' },
+    pinkBannerTitle: { fontSize: 24, fontWeight: '900', color: '#FFF' },
+    pinkBannerSub:   { fontSize: 13, color: 'rgba(255,255,255,0.6)', textAlign: 'center' },
 
-    reqItem:  { flexDirection: 'row', gap: 14, marginBottom: 14, backgroundColor: t.colors.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: t.colors.border },
-    reqIcon:  { fontSize: 26 },
+    reqItem:  { flexDirection: 'row', gap: 14, marginBottom: 14, backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 20, padding: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+    reqIcon:  { fontSize: 28 },
     reqText:  { flex: 1 },
-    reqTitle: { fontSize: 14, fontWeight: '800', color: t.colors.text, marginBottom: 4 },
-    reqDesc:  { fontSize: 12, color: t.colors.textSecondary, lineHeight: 18 },
+    reqTitle: { fontSize: 15, fontWeight: '800', color: '#FFF', marginBottom: 4 },
+    reqDesc:  { fontSize: 13, color: 'rgba(255,255,255,0.6)', lineHeight: 18 },
 
-    stepTitle: { fontSize: 22, fontWeight: '900', color: t.colors.text, marginBottom: 8 },
-    stepSub:   { fontSize: 13, color: t.colors.textSecondary, lineHeight: 20, marginBottom: 16 },
+    stepTitle: { fontSize: 24, fontWeight: '900', color: '#FFF', marginBottom: 8, marginTop: 10 },
+    stepSub:   { fontSize: 14, color: 'rgba(255,255,255,0.6)', lineHeight: 22, marginBottom: 20 },
 
     // Camera
     cameraBox: {
-        height: 240, borderRadius: 16, overflow: 'hidden',
-        backgroundColor: '#000', marginBottom: 14, position: 'relative',
+        height: 240, borderRadius: 24, overflow: 'hidden',
+        backgroundColor: '#000', marginBottom: 16, position: 'relative',
+        borderWidth: 2, borderColor: 'rgba(236,72,153,0.4)',
     },
     cnicsFrame: {
         position: 'absolute', 
-        width: '85%', height: '54%', // matches ~0.63 aspect ratio of the 85% width
+        width: '85%', height: '54%',
         top: '23%', left: '7.5%',
         borderWidth: 2, borderColor: '#EC4899', borderRadius: 8,
         alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 8,
+        backgroundColor: 'rgba(236,72,153,0.05)',
     } as any,
     corner:    { position: 'absolute', width: 20, height: 20, borderColor: '#EC4899', borderWidth: 3 },
-    tl: { top: -1,  left: -1,  borderRightWidth: 0, borderBottomWidth: 0 },
-    tr: { top: -1,  right: -1, borderLeftWidth: 0,  borderBottomWidth: 0 },
-    bl: { bottom: -1, left: -1,  borderRightWidth: 0, borderTopWidth: 0 },
-    br: { bottom: -1, right: -1, borderLeftWidth: 0,  borderTopWidth: 0 },
-    frameHint: { color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: '600', backgroundColor: 'rgba(0,0,0,0.4)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
+    tl: { top: -2,  left: -2,  borderRightWidth: 0, borderBottomWidth: 0 },
+    tr: { top: -2,  right: -2, borderLeftWidth: 0,  borderBottomWidth: 0 },
+    bl: { bottom: -2, left: -2,  borderRightWidth: 0, borderTopWidth: 0 },
+    br: { bottom: -2, right: -2, borderLeftWidth: 0,  borderTopWidth: 0 },
+    frameHint: { color: '#FFF', fontSize: 11, fontWeight: '700', backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, overflow: 'hidden' },
 
-    torchBtn:  { position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.5)', width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' } as any,
-    torchIcon: { fontSize: 20 },
+    torchBtn:  { position: 'absolute', top: 12, right: 12, backgroundColor: 'rgba(255,255,255,0.15)', width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' } as any,
+    torchIcon: { fontSize: 22 },
 
-    camLoading:     { position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: '#000', gap: 12 } as any,
-    camLoadingText: { color: '#888', fontSize: 13 },
-    camError:       { position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0A0A0A', padding: 16, gap: 12 } as any,
-    camErrorText:   { color: '#EF4444', fontSize: 13, textAlign: 'center', lineHeight: 20 },
-    retrySmallBtn:  { backgroundColor: '#EC4899', borderRadius: 10, paddingHorizontal: 20, paddingVertical: 8 },
-    retrySmallText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+    camLoading:     { position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0A0A0B', gap: 12 } as any,
+    camLoadingText: { color: '#888', fontSize: 13, fontWeight: '600' },
+    camError:       { position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0A0A0B', padding: 20, gap: 16 } as any,
+    camErrorText:   { color: '#EF4444', fontSize: 14, textAlign: 'center', lineHeight: 22, fontWeight: '600' },
+    retrySmallBtn:  { backgroundColor: 'rgba(236,72,153,0.1)', borderWidth: 1, borderColor: '#EC4899', borderRadius: 12, paddingHorizontal: 24, paddingVertical: 10 },
+    retrySmallText: { color: '#EC4899', fontWeight: '800', fontSize: 13 },
 
-    previewBox:   { height: 200, width: '100%', borderRadius: 16, overflow: 'hidden', marginBottom: 12, borderWidth: 2, borderColor: '#EC4899', backgroundColor: '#000' },
+    previewBox:   { height: 220, width: '100%', borderRadius: 24, overflow: 'hidden', marginBottom: 16, borderWidth: 2, borderColor: '#EC4899', backgroundColor: '#000' },
     previewImage: { width: '100%', height: '100%' },
-    previewHint:  { fontSize: 12, color: t.colors.textSecondary, textAlign: 'center', marginBottom: 8 },
+    previewHint:  { fontSize: 13, color: 'rgba(255,255,255,0.5)', textAlign: 'center', marginBottom: 12, fontWeight: '500' },
 
-    tipsBox:   { backgroundColor: t.dark ? '#111' : '#F5F5F5', borderRadius: 14, padding: 14, marginBottom: 16 },
-    tipsTitle: { fontSize: 12, fontWeight: '800', color: t.colors.textSecondary, marginBottom: 8 },
-    tipItem:   { fontSize: 11, color: t.colors.textSecondary, lineHeight: 20 },
+    tipsBox:   { backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 20, padding: 20, marginBottom: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+    tipsTitle: { fontSize: 13, fontWeight: '900', color: 'rgba(255,255,255,0.6)', marginBottom: 12, letterSpacing: 1 },
+    tipItem:   { fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 22 },
 
-    primaryBtn:     { backgroundColor: '#EC4899', borderRadius: 16, paddingVertical: 16, alignItems: 'center', marginBottom: 10 },
-    primaryBtnText: { color: '#fff', fontWeight: '900', fontSize: 14 },
-    btnDisabled:    { opacity: 0.4 },
-    retakeBtn:      { alignItems: 'center', paddingVertical: 12, marginBottom: 6 },
-    retakeBtnText:  { color: t.colors.textSecondary, fontSize: 13, fontWeight: '600' },
+    primaryBtn:     { backgroundColor: '#EC4899', borderRadius: 20, paddingVertical: 18, alignItems: 'center', marginBottom: 12, shadowColor: '#EC4899', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.4, shadowRadius: 16, elevation: 8 },
+    primaryBtnText: { color: '#fff', fontWeight: '900', fontSize: 15, letterSpacing: 0.5 },
+    btnDisabled:    { opacity: 0.5 },
+    retakeBtn:      { alignItems: 'center', paddingVertical: 16, marginBottom: 8, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 20 },
+    retakeBtnText:  { color: 'rgba(255,255,255,0.8)', fontSize: 14, fontWeight: '700' },
 
-    scanningOverlay: { position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.8)', alignItems: 'center', justifyContent: 'center', zIndex: 100 } as any,
-    scanningBox:     { backgroundColor: t.colors.card, borderRadius: 24, padding: 32, alignItems: 'center', width: '80%', borderWidth: 1, borderColor: '#EC4899' },
-    scanningTitle:   { color: t.colors.text, fontSize: 16, fontWeight: '900', marginTop: 16, letterSpacing: 2 },
-    scanningSub:     { color: t.colors.textSecondary, fontSize: 12, marginTop: 8, textAlign: 'center' },
-    scanningBar:     { width: '100%', height: 2, backgroundColor: '#EC4899', marginTop: 20, borderRadius: 1 },
+    scanningOverlay: { position: 'absolute', inset: 0, backgroundColor: 'rgba(10,10,11,0.85)', alignItems: 'center', justifyContent: 'center', zIndex: 100 } as any,
+    scanningBox:     { backgroundColor: '#111', borderRadius: 28, padding: 36, alignItems: 'center', width: '85%', borderWidth: 1, borderColor: 'rgba(236,72,153,0.5)', shadowColor: '#EC4899', shadowOffset: { width: 0, height: 20 }, shadowOpacity: 0.3, shadowRadius: 30 },
+    scanningTitle:   { color: '#FFF', fontSize: 18, fontWeight: '900', marginTop: 20, letterSpacing: 2 },
+    scanningSub:     { color: 'rgba(255,255,255,0.6)', fontSize: 13, marginTop: 8, textAlign: 'center' },
+    scanningBar:     { width: '100%', height: 3, backgroundColor: '#EC4899', marginTop: 24, borderRadius: 2, shadowColor: '#EC4899', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.8, shadowRadius: 10 },
 
-    errorBanner:      { backgroundColor: 'rgba(239,68,68,0.1)', borderLeftWidth: 4, borderLeftColor: '#EF4444', padding: 16, borderRadius: 8, marginBottom: 16 },
-    errorBannerTitle: { color: '#EF4444', fontWeight: '900', fontSize: 14, marginBottom: 4 },
-    errorBannerText:  { color: t.colors.text, fontSize: 12, lineHeight: 18 },
+    errorBanner:      { backgroundColor: 'rgba(239,68,68,0.08)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)', padding: 20, borderRadius: 20, marginBottom: 20 },
+    errorBannerTitle: { color: '#EF4444', fontWeight: '900', fontSize: 14, marginBottom: 6, letterSpacing: 0.5 },
+    errorBannerText:  { color: 'rgba(255,255,255,0.8)', fontSize: 13, lineHeight: 20 },
 
-    successBanner:    { backgroundColor: 'rgba(16,185,129,0.08)', borderLeftWidth: 4, borderLeftColor: '#10B981', padding: 16, borderRadius: 8, marginBottom: 16 },
-    successTitle:     { color: '#10B981', fontWeight: '900', fontSize: 13, marginBottom: 10, letterSpacing: 1 },
-    dataRow:          { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-    dataLabel:        { color: t.colors.textSecondary, fontSize: 12, fontWeight: '600' },
-    dataVal:          { color: t.colors.text, fontSize: 12, fontWeight: '800' },
+    successBanner:    { backgroundColor: 'rgba(16,185,129,0.08)', borderWidth: 1, borderColor: 'rgba(16,185,129,0.3)', padding: 20, borderRadius: 20, marginBottom: 20 },
+    successTitle:     { color: '#10B981', fontWeight: '900', fontSize: 14, marginBottom: 16, letterSpacing: 1 },
+    dataRow:          { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
+    dataLabel:        { color: 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: '600' },
+    dataVal:          { color: '#FFF', fontSize: 14, fontWeight: '800' },
 
-    bigIcon:       { fontSize: 60, marginBottom: 16 },
+    bigIcon:       { fontSize: 70, marginBottom: 20 },
 
-    notEligTitle:  { fontSize: 20, fontWeight: '900', color: t.colors.text, marginBottom: 10, textAlign: 'center' },
-    notEligText:   { fontSize: 13, color: t.colors.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
+    notEligTitle:  { fontSize: 24, fontWeight: '900', color: '#FFF', marginBottom: 12, textAlign: 'center' },
+    notEligText:   { fontSize: 14, color: 'rgba(255,255,255,0.6)', textAlign: 'center', lineHeight: 22, marginBottom: 32 },
 });
 
 export default PinkPassCnicScreen;

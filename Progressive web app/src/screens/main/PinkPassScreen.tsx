@@ -64,9 +64,13 @@ const PinkPassScreen: React.FC = () => {
             showsVerticalScrollIndicator={false}
         >
             <StatusBar
-                barStyle={theme.dark ? 'light-content' : 'dark-content'}
+                barStyle="light-content"
                 backgroundColor={theme.colors.background}
             />
+
+            {/* Background Glows */}
+            <View style={s.glow1} />
+            <View style={s.glow2} />
 
             {/* Back */}
             <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
@@ -75,22 +79,41 @@ const PinkPassScreen: React.FC = () => {
 
             {/* Badge */}
             <View style={s.infoBadge}>
-                <Text style={s.infoBadgeText}>SAFE RIDES</Text>
+                <Text style={s.infoBadgeText}>EXCLUSIVELY FOR FEMALES</Text>
             </View>
 
             {/* Title */}
             <Text style={s.title}>PINK PASS{'\n'}VERIFICATION</Text>
             <Text style={s.subtitle}>
-                Pink Pass allows verified female passengers to book rides exclusively with our top-rated female driver partners.
+                Safeguarding our community with AI-powered identity verification. Access elite female driver partners instantly.
             </Text>
+
+            {/* Verification Flow Card (Glassmorphism) */}
+            <View style={s.glassCard}>
+                <Text style={s.requirementsTitle}>VERIFICATION STEPS</Text>
+                {PASSENGER_REQUIREMENTS.map((req, i) => (
+                    <View key={i} style={s.reqRow}>
+                        <View style={s.stepLineContainer}>
+                            <View style={s.stepDot}>
+                                <View style={s.stepDotInner} />
+                            </View>
+                            {i < PASSENGER_REQUIREMENTS.length - 1 && <View style={s.stepLine} />}
+                        </View>
+                        <View style={s.reqTextContainer}>
+                            <Text style={s.reqText}>{req}</Text>
+                        </View>
+                    </View>
+                ))}
+            </View>
 
             {/* Active state */}
             {status === 'active' && (
                 <View style={s.activeCard}>
-                    <Text style={s.activeIcon}>✓</Text>
+                    <View style={s.successGlow} />
+                    <Text style={s.activeIcon}>🛡️</Text>
                     <View style={s.activeTexts}>
-                        <Text style={s.activeName}>Verified Passenger</Text>
-                        <Text style={s.activeSub}>You can now book Pink Pass rides</Text>
+                        <Text style={s.activeName}>IDENTITY VERIFIED</Text>
+                        <Text style={s.activeSub}>Your Pink Pass is now active and secure.</Text>
                     </View>
                 </View>
             )}
@@ -98,44 +121,29 @@ const PinkPassScreen: React.FC = () => {
             {/* Pending state */}
             {status === 'pending' && (
                 <View style={s.pendingCard}>
-                    <Text style={s.pendingIcon}>⏳</Text>
+                    <ActivityIndicator size="small" color={theme.colors.secondary} style={{ marginRight: 10 }} />
                     <View>
-                        <Text style={s.pendingTitle}>Verification in Progress</Text>
-                        <Text style={s.pendingSub}>Our AI is analyzing your liveness test</Text>
+                        <Text style={s.pendingTitle}>ANALYZING BIOMETRICS</Text>
+                        <Text style={s.pendingSub}>Our AI is performing security checks...</Text>
                     </View>
-                </View>
-            )}
-
-            {/* Requirements */}
-            {(status === 'eligible' || status === 'active') && (
-                <View style={s.requirementsCard}>
-                    <Text style={s.requirementsTitle}>Verification Steps</Text>
-                    {PASSENGER_REQUIREMENTS.map((req, i) => (
-                        <View key={i} style={s.reqRow}>
-                            <View style={s.reqCheck}>
-                                <Text style={s.reqCheckText}>✓</Text>
-                            </View>
-                            <Text style={s.reqText}>{req}</Text>
-                        </View>
-                    ))}
                 </View>
             )}
 
             {/* Ineligible state */}
             {status === 'ineligible' && (
-                <View style={[s.noticeCard, { borderColor: theme.colors.danger }]}>
-                    <Text style={s.noticeIcon}>⚠️</Text>
-                    <Text style={[s.noticeText, { color: theme.colors.danger }]}>
-                        Pink Pass is currently only available for female users to ensure a safe environment.
+                <View style={[s.noticeCard, { borderColor: theme.colors.danger, backgroundColor: 'rgba(239,68,68,0.08)' }]}>
+                    <Text style={s.noticeIcon}>🚫</Text>
+                    <Text style={[s.noticeText, { color: '#ff7b7b' }]}>
+                        Pink Pass is restricted to female users to ensure the highest safety standards for our female driver partners.
                     </Text>
                 </View>
             )}
 
-            {/* Info notice */}
-            <View style={s.noticeCard}>
+            {/* Privacy notice */}
+            <View style={s.privacyNotice}>
                 <Text style={s.noticeIcon}>🔒</Text>
                 <Text style={s.noticeText}>
-                    Your biometric data is processed securely and deleted after verification. We value your privacy.
+                    Biometric data is encrypted end-to-end and purged immediately after verification.
                 </Text>
             </View>
 
@@ -146,7 +154,7 @@ const PinkPassScreen: React.FC = () => {
                     activeOpacity={0.85}
                     onPress={handleApply}
                 >
-                    <Text style={s.applyBtnText}>Start Verification Test →</Text>
+                    <Text style={s.applyBtnText}>START VERIFICATION TEST</Text>
                 </TouchableOpacity>
             )}
         </ScrollView>
@@ -156,124 +164,149 @@ const PinkPassScreen: React.FC = () => {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const makeStyles = (t: AppTheme) => StyleSheet.create({
-    root:    { flex: 1, backgroundColor: t.colors.background },
-    center:  { flex: 1, backgroundColor: t.colors.background, alignItems: 'center', justifyContent: 'center' },
+    root:    { flex: 1, backgroundColor: '#0A0A0B' }, // Deepest charcoal
     content: { paddingHorizontal: 24, paddingTop: 56, paddingBottom: 48 },
+    
+    glow1: {
+        position: 'absolute', top: -50, right: -50,
+        width: 250, height: 250, borderRadius: 125,
+        backgroundColor: 'rgba(236,72,153,0.12)',
+        filter: 'blur(80px)',
+    },
+    glow2: {
+        position: 'absolute', bottom: 100, left: -80,
+        width: 300, height: 300, borderRadius: 150,
+        backgroundColor: 'rgba(236,72,153,0.05)',
+        filter: 'blur(100px)',
+    },
 
     backBtn: {
-        width: 38, height: 38, borderRadius: 12,
-        backgroundColor: t.colors.cardSecondary,
+        width: 44, height: 44, borderRadius: 14,
+        backgroundColor: 'rgba(255,255,255,0.05)',
         alignItems: 'center', justifyContent: 'center',
-        marginBottom: 28,
-        borderWidth: 1, borderColor: t.colors.border,
+        marginBottom: 32,
+        borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
     },
-    backText: { fontSize: 20, color: t.colors.text, fontWeight: '600' },
+    backText: { fontSize: 22, color: '#FFF', fontWeight: '300' },
 
     infoBadge: {
         alignSelf: 'flex-start',
-        backgroundColor: 'rgba(236,72,153,0.12)',
-        borderColor: 'rgba(236,72,153,0.35)',
-        borderWidth: 1.5,
-        borderRadius: 20,
-        paddingHorizontal: 14,
-        paddingVertical: 5,
-        marginBottom: 18,
+        backgroundColor: 'rgba(236,72,153,0.15)',
+        borderColor: 'rgba(236,72,153,0.4)',
+        borderWidth: 1,
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 4,
+        marginBottom: 20,
     },
     infoBadgeText: {
-        fontSize: 11, fontWeight: '800',
-        color: t.colors.secondary,
-        letterSpacing: 2,
+        fontSize: 10, fontWeight: '900',
+        color: '#FF69B4',
+        letterSpacing: 1.5,
     },
 
     title: {
-        fontSize: 36, fontWeight: '900',
-        color: t.colors.text,
-        letterSpacing: 1, lineHeight: 42,
-        marginBottom: 14,
+        fontSize: 40, fontWeight: '900',
+        color: '#FFF',
+        letterSpacing: -0.5, lineHeight: 44,
+        marginBottom: 16,
     },
     subtitle: {
-        fontSize: 14, color: t.colors.textSecondary,
-        lineHeight: 22, marginBottom: 28,
+        fontSize: 15, color: 'rgba(255,255,255,0.6)',
+        lineHeight: 24, marginBottom: 36,
     },
+
+    /* Glass Card */
+    glassCard: {
+        backgroundColor: 'rgba(255,255,255,0.03)',
+        borderColor: 'rgba(255,255,255,0.08)',
+        borderWidth: 1.5, borderRadius: 24,
+        padding: 24, marginBottom: 32,
+        shadowColor: '#000', shadowOffset: { width: 0, height: 20 },
+        shadowOpacity: 0.4, shadowRadius: 30,
+    },
+    requirementsTitle: {
+        fontSize: 12, fontWeight: '900',
+        color: 'rgba(255,255,255,0.4)',
+        letterSpacing: 2, marginBottom: 24,
+    },
+    reqRow: { flexDirection: 'row', gap: 16 },
+    stepLineContainer: { alignItems: 'center', width: 24 },
+    stepDot: {
+        width: 24, height: 24, borderRadius: 12,
+        backgroundColor: 'rgba(236,72,153,0.1)',
+        borderWidth: 1, borderColor: '#EC4899',
+        alignItems: 'center', justifyContent: 'center',
+    },
+    stepDotInner: {
+        width: 8, height: 8, borderRadius: 4,
+        backgroundColor: '#EC4899',
+    },
+    stepLine: {
+        width: 2, flex: 1,
+        backgroundColor: 'rgba(236,72,153,0.2)',
+        marginVertical: 4,
+    },
+    reqTextContainer: { flex: 1, paddingBottom: 24 },
+    reqText: { fontSize: 15, color: 'rgba(255,255,255,0.85)', fontWeight: '500' },
 
     /* Active card */
     activeCard: {
         flexDirection: 'row', alignItems: 'center',
-        backgroundColor: 'rgba(34,197,94,0.1)',
-        borderColor: 'rgba(34,197,94,0.4)',
-        borderWidth: 1.5, borderRadius: 16,
-        padding: 16, marginBottom: 22, gap: 14,
+        backgroundColor: 'rgba(16,185,129,0.08)',
+        borderColor: 'rgba(16,185,129,0.3)',
+        borderWidth: 1, borderRadius: 20,
+        padding: 20, marginBottom: 22, gap: 16,
+        overflow: 'hidden',
     },
-    activeIcon: { fontSize: 26, color: t.colors.success },
+    successGlow: {
+        position: 'absolute', top: -20, left: -20,
+        width: 60, height: 60, borderRadius: 30,
+        backgroundColor: 'rgba(16,185,129,0.2)',
+        filter: 'blur(20px)',
+    },
+    activeIcon: { fontSize: 24 },
     activeTexts: { flex: 1 },
-    activeName:  { fontSize: 16, fontWeight: '800', color: t.colors.success },
-    activeSub:   { fontSize: 13, color: t.colors.textSecondary, marginTop: 3 },
+    activeName:  { fontSize: 15, fontWeight: '900', color: '#10B981', letterSpacing: 1 },
+    activeSub:   { fontSize: 13, color: 'rgba(255,255,255,0.5)', marginTop: 2 },
 
     /* Pending card */
     pendingCard: {
         flexDirection: 'row', alignItems: 'center',
-        backgroundColor: t.colors.cardSecondary,
-        borderRadius: 16, padding: 16, marginBottom: 22, gap: 14,
-        borderWidth: 1, borderColor: t.colors.border,
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        borderRadius: 20, padding: 20, marginBottom: 22,
+        borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
     },
-    pendingIcon:  { fontSize: 26 },
-    pendingTitle: { fontSize: 15, fontWeight: '700', color: t.colors.text },
-    pendingSub:   { fontSize: 13, color: t.colors.textSecondary, marginTop: 3 },
+    pendingTitle: { fontSize: 14, fontWeight: '800', color: '#FFF', letterSpacing: 0.5 },
+    pendingSub:   { fontSize: 13, color: 'rgba(255,255,255,0.5)', marginTop: 2 },
 
-    /* Requirements card */
-    requirementsCard: {
-        backgroundColor: t.dark ? 'rgba(236,72,153,0.06)' : 'rgba(236,72,153,0.05)',
-        borderColor: 'rgba(236,72,153,0.2)',
-        borderWidth: 1.5, borderRadius: 18,
-        padding: 20, marginBottom: 20,
+    /* Privacy */
+    privacyNotice: {
+        flexDirection: 'row', alignItems: 'center',
+        marginBottom: 40, gap: 12, paddingHorizontal: 4,
     },
-    requirementsTitle: {
-        fontSize: 13, fontWeight: '800',
-        color: t.colors.secondary,
-        marginBottom: 16,
-    },
-    reqRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 12 },
-    reqCheck: {
-        width: 22, height: 22, borderRadius: 11,
-        backgroundColor: t.colors.secondary,
-        alignItems: 'center', justifyContent: 'center',
-    },
-    reqCheckFail: { backgroundColor: t.colors.danger },
-    reqCheckText: { fontSize: 11, fontWeight: '900', color: '#FFF' },
-    reqText: { fontSize: 14, color: t.colors.text, flex: 1 },
-
-    /* Notice card */
-    noticeCard: {
-        flexDirection: 'row', alignItems: 'flex-start',
-        backgroundColor: t.colors.cardSecondary,
-        borderRadius: 14, padding: 16, marginBottom: 28,
-        borderWidth: 1, borderColor: t.colors.border,
-        gap: 12,
-    },
-    noticeIcon: { fontSize: 18, marginTop: 1 },
+    noticeIcon: { fontSize: 16 },
     noticeText: {
-        flex: 1, fontSize: 13,
-        color: t.colors.textSecondary, lineHeight: 20,
+        flex: 1, fontSize: 12,
+        color: 'rgba(255,255,255,0.4)', lineHeight: 18,
     },
 
-    /* Apply button */
+    /* CTA */
     applyBtn: {
-        backgroundColor: t.colors.secondary,
-        borderRadius: 16, paddingVertical: 16,
+        backgroundColor: '#EC4899',
+        borderRadius: 20, paddingVertical: 20,
         alignItems: 'center',
-        shadowColor: t.colors.secondary,
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.3, shadowRadius: 14, elevation: 6,
+        shadowColor: '#EC4899', shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.4, shadowRadius: 20, elevation: 10,
     },
-    applyBtnText: { fontSize: 15, fontWeight: '800', color: '#FFF' },
+    applyBtnText: { fontSize: 16, fontWeight: '900', color: '#FFF', letterSpacing: 1 },
 
-    /* Ineligible note */
-    ineligibleNote: {
-        backgroundColor: t.colors.cardSecondary,
-        borderRadius: 14, padding: 16,
-        borderWidth: 1, borderColor: t.colors.border,
+    center:  { flex: 1, backgroundColor: '#0A0A0B', alignItems: 'center', justifyContent: 'center' },
+    noticeCard: {
+        flexDirection: 'row', alignItems: 'center',
+        borderRadius: 20, padding: 20, marginBottom: 22,
+        borderWidth: 1, gap: 16,
     },
-    ineligibleText: { fontSize: 14, color: t.colors.textSecondary, lineHeight: 20 },
 });
 
 export default PinkPassScreen;
