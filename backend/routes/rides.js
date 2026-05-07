@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Ride = require('../models/Ride');
 const Driver = require('../models/Driver');
+const User = require('../models/User');
 const axios = require('axios');
 const { RideStateMachine } = require('../utils/RideStateMachine');
 const { auth, authorize } = require('../middleware/auth');
@@ -128,10 +129,13 @@ router.post('/request', auth, async (req, res) => {
                 if (io) {
                     const roomName = `driver:${matchedDriver._id}`;
                     console.log(`[RIDE_DEBUG] BROADCASTING ride:request to ALL for testing.`);
+                    
+                    const passUser = await User.findById(passengerId);
+                    
                     // Temporarily using io.emit instead of io.to(roomName).emit
                     io.emit('ride:request', {
                         rideId: ride._id,
-                        passenger: { name: 'Passenger' },
+                        passenger: { name: passUser ? passUser.name : 'Passenger' },
                         pickup: pickupLocation,
                         dropoff: dropoffLocation,
                         estimatedPrice,

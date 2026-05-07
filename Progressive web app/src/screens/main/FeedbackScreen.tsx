@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
     View,
     Text,
@@ -32,6 +32,31 @@ const FeedbackScreen: React.FC = () => {
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
     const [comment, setComment] = useState('');
     const [loading, setLoading] = useState(false);
+
+    const [driverName, setDriverName] = useState('Driver');
+    const [carInfo, setCarInfo] = useState('');
+    const [distance, setDistance] = useState<string>('--');
+    const [duration, setDuration] = useState<string>('--');
+    const [fare, setFare] = useState<number | null>(null);
+
+    useEffect(() => {
+        const fetchRide = async () => {
+            if (!rideId) return;
+            try {
+                const res: any = await apiService.get(`/rides/${rideId}`);
+                if (res.success && res.ride) {
+                    setDriverName(res.ride.driver?.user?.name || 'Driver');
+                    setCarInfo(`${res.ride.driver?.vehicle?.model || 'Car'} • ${res.ride.driver?.vehicle?.licensePlate || 'N/A'}`);
+                    setDistance(res.ride.distance?.toFixed(1) || '--');
+                    setDuration(res.ride.estimatedDuration ? `${Math.round(res.ride.estimatedDuration)} min` : '-- min');
+                    setFare(res.ride.estimatedPrice);
+                }
+            } catch (err) {
+                console.log('Failed to fetch ride details for feedback', err);
+            }
+        };
+        fetchRide();
+    }, [rideId]);
 
     const { theme } = useAppTheme();
     const s = useMemo(() => makeStyles(theme), [theme]);
@@ -88,20 +113,28 @@ const FeedbackScreen: React.FC = () => {
             <View style={s.driverCard}>
                 <View style={s.driverLeft}>
                     <View style={s.avatar}>
-                        <Text style={s.avatarText}>A</Text>
+                        <Text style={s.avatarText}>{driverName.charAt(0).toUpperCase()}</Text>
                     </View>
                     <View style={s.driverInfo}>
-                        <Text style={s.driverName}>Ahmed Raza</Text>
-                        <Text style={s.driverSub}>LEA-451 · Eco Bike</Text>
+                        <Text style={s.driverName}>{driverName}</Text>
+                        <Text style={s.driverSub}>{carInfo}</Text>
                     </View>
                 </View>
                 <View style={s.driverRight}>
                     <View style={s.distanceBadge}>
-                        <Text style={s.distanceBadgeText}>5.9KM</Text>
+                        <Text style={s.distanceBadgeText}>{distance}KM</Text>
                     </View>
-                    <Text style={s.durationText}>18 min</Text>
+                    <Text style={s.durationText}>{duration}</Text>
                 </View>
             </View>
+
+            {/* Display Fare */}
+            {fare !== null && (
+                <View style={{ alignItems: 'center', marginBottom: 24 }}>
+                    <Text style={{ fontSize: 11, color: theme.colors.textSecondary, fontWeight: '800', letterSpacing: 1.5, marginBottom: 4 }}>TOTAL FARE</Text>
+                    <Text style={{ fontSize: 24, fontWeight: '900', color: theme.colors.primary }}>RS {fare}</Text>
+                </View>
+            )}
 
             {/* Overall rating */}
             <Text style={s.sectionLabel}>OVERALL RATING</Text>

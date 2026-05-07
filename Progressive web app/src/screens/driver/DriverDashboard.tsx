@@ -361,6 +361,7 @@ const DriverDashboard: React.FC = () => {
                     rideId: completedRide.rideId,
                     passengerName: completedRide.passenger?.name || 'Passenger',
                     fare: completedRide.estimatedPrice,
+                    distance: completedRide.distance,
                 });
             }, 1500);
             await AsyncStorage.removeItem('last_active_ride');
