@@ -415,10 +415,16 @@ router.get('/list', async (req, res) => {
 // @access  Admin
 router.post('/add', async (req, res) => {
     try {
-        const { name, email, phone } = req.body;
+        const { name, email } = req.body;
+        let { phone } = req.body;
         if (!phone || !name || !email) {
             return res.status(400).json({ message: 'Name, email and phone are required' });
         }
+
+        // Normalise phone to +92XXXXXXXXXX (no spaces, consistent prefix)
+        phone = phone.replace(/\s/g, '');
+        if (phone.startsWith('0')) phone = '+92' + phone.slice(1);
+        else if (/^3\d{9}$/.test(phone)) phone = '+92' + phone;
 
         let user = await User.findOne({ phone });
         

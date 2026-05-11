@@ -235,10 +235,15 @@ router.get('/me', auth, async (req, res) => {
 // @access  Public
 router.post('/send-otp', otpSendLimiter, async (req, res) => {
     try {
-        const { phone } = req.body;
+        let { phone } = req.body;
         if (!phone) {
             return res.status(400).json({ message: 'Please provide a phone number' });
         }
+
+        // Normalise to +92XXXXXXXXXX so it matches however the number was stored
+        phone = phone.replace(/\s/g, '');
+        if (phone.startsWith('0')) phone = '+92' + phone.slice(1);
+        else if (/^3\d{9}$/.test(phone)) phone = '+92' + phone;
 
         // Always generate a fresh random OTP in production; fixed in dev for easy testing
         const isDev = process.env.NODE_ENV === 'development';
@@ -310,15 +315,19 @@ router.post('/send-otp', otpSendLimiter, async (req, res) => {
 // @access  Public
 router.post('/verify-otp', otpVerifyLimiter, async (req, res) => {
     try {
-        const { phone, otp } = req.body;
+        let { phone, otp } = req.body;
         if (!phone || !otp) {
             return res.status(400).json({ message: 'Please provide phone and OTP' });
         }
 
-        const user = await User.findOne({ 
-            phone, 
-            otp, 
-            otpExpires: { $gt: Date.now() } 
+        phone = phone.replace(/\s/g, '');
+        if (phone.startsWith('0')) phone = '+92' + phone.slice(1);
+        else if (/^3\d{9}$/.test(phone)) phone = '+92' + phone;
+
+        const user = await User.findOne({
+            phone,
+            otp,
+            otpExpires: { $gt: Date.now() }
         }).select('+otp +otpExpires');
 
         if (!user) {
