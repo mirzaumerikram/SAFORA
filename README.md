@@ -91,7 +91,7 @@ SAFORA/
 | Layer | Technology | Version | Purpose |
 |---|---|---|---|
 | Passenger/Driver PWA | React Native + Expo Web | 0.73 | Cross-platform browser app |
-| Admin Dashboard | React + Vite + TailwindCSS | 18 + 5 | Admin operations web interface |
+| Admin Dashboard | React + Vite | 18 + 5 | Admin operations web interface |
 | Backend API | Node.js + Express | 20 + 4 | REST API and business logic |
 | Real-time | Socket.io | 4.7 | Live GPS, ride events, in-app chat |
 | Database | MongoDB Atlas M10 | 7 | Primary data store with 2dsphere |
@@ -201,7 +201,7 @@ Available at admin.safora.me. Admins log in with a phone number where the OTP is
 7. Backend signs and returns a SAFORA JWT (HS256, 15-minute expiry)
 8. App stores JWT in AsyncStorage and includes it as `Authorization: Bearer <token>` on all subsequent API calls
 
-For admin login, the route `POST /api/auth/admin-login` is used — the OTP for admin accounts is rerouted to a configured master email address via Resend, not SMS.
+For admin login, the admin enters their phone number which triggers `POST /api/auth/send-otp` — the OTP is rerouted to a configured master email address via Resend, not SMS. The admin then submits the code via `POST /api/auth/verify-otp` to receive a JWT.
 
 ---
 
@@ -283,14 +283,15 @@ PRICE_MODEL_PATH=models/price_model.pkl
 | Method | Endpoint | Description |
 |---|---|---|
 | POST | /api/auth/verify-firebase-token | Verify Firebase OTP token, issue SAFORA JWT |
-| POST | /api/auth/admin-login | Admin login with email-rerouted OTP |
+| POST | /api/auth/send-otp | Admin login step 1 — send OTP to registered email |
+| POST | /api/auth/verify-otp | Admin login step 2 — verify OTP, issue JWT |
 | POST | /api/auth/register | Traditional registration (fallback) |
 
 ### Rides
 | Method | Endpoint | Description |
 |---|---|---|
 | POST | /api/rides/request | Create ride request, calculate fare, match driver |
-| PATCH | /api/rides/:id/accept | Driver accepts ride |
+| POST | /api/rides/:id/accept | Driver accepts ride |
 | PATCH | /api/rides/:id/reject | Driver rejects, ride returns to pool |
 | PATCH | /api/rides/:id/status | Update ride status (state machine validated) |
 | GET | /api/rides/:id | Get ride details |
