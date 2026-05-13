@@ -95,6 +95,9 @@ const TrackingScreen: React.FC = () => {
         let mounted = true;
         let pollInterval: ReturnType<typeof setInterval> | null = null;
 
+        // Phase priority — higher index = further along. Never go backwards.
+        const PHASE_ORDER = ['EN ROUTE', 'ARRIVED', 'ONBOARD', 'DROPPING', 'DROPPED'];
+
         const handleStatusUpdate = (newStatus: string) => {
             if (!mounted) return;
             const map: Record<string, string> = {
@@ -103,7 +106,14 @@ const TrackingScreen: React.FC = () => {
                 started:   'ONBOARD',
                 completed: 'DROPPED',
             };
-            if (map[newStatus]) setStatus(map[newStatus]);
+            const mapped = map[newStatus];
+            if (!mapped) return;
+            // Only update if the new status is ahead of or equal to current status
+            setStatus(prev => {
+                const currentIdx = PHASE_ORDER.indexOf(prev);
+                const newIdx     = PHASE_ORDER.indexOf(mapped);
+                return newIdx >= currentIdx ? mapped : prev;
+            });
             if (newStatus === 'completed' && mounted) {
                 if (pollInterval) clearInterval(pollInterval);
                 // Wait until chat is closed before navigating away
@@ -133,10 +143,14 @@ const TrackingScreen: React.FC = () => {
 
                 socketService.onRideStatus(({ status: newStatus }) => handleStatusUpdate(newStatus));
 
-                // Driver arrived at pickup — update passenger phase bar
+                // Driver arrived at pickup — update passenger phase bar (never downgrade)
                 socketService.onDriverArrived(() => {
                     if (!mounted) return;
-                    setStatus('ARRIVED');
+                    setStatus(prev => {
+                        const currentIdx = PHASE_ORDER.indexOf(prev);
+                        const arrivedIdx = PHASE_ORDER.indexOf('ARRIVED');
+                        return arrivedIdx >= currentIdx ? 'ARRIVED' : prev;
+                    });
                 });
 
                 // Re-join ride room on reconnect so we never miss events
