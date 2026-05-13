@@ -65,10 +65,11 @@ const TripNavScreen: React.FC = () => {
     const [hasNewMessage, setHasNewMessage] = useState(false);
     const [driverCoords, setDriverCoords] = useState<{ latitude: number; longitude: number } | null>(null);
 
-    // Live stats
-    const [distanceLeft, setDistanceLeft] = useState<number>(request?.distance || 0);
-    const [etaMinutes, setEtaMinutes]     = useState<number>(request?.estimatedDuration || 0);
-    const [fare]                          = useState<number>(request?.estimatedPrice || 0);
+    // Live stats — derive fare directly from request so it updates after async load
+    const [distanceLeft, setDistanceLeft] = useState<number>(0);
+    const [etaMinutes, setEtaMinutes]     = useState<number>(0);
+    const fare = request?.estimatedPrice || 0;
+
 
     const [turnDistance, setTurnDistance] = useState('');
 
