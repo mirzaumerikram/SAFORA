@@ -11,12 +11,13 @@ class SocketService {
         const token = await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
         this.socket = io(this.serverUrl, {
             auth: { token },
-            transports: ['websocket'],   // websocket only — avoid polling 400 on Railway
+            transports: ['websocket', 'polling'], // websocket first, polling as fallback when Railway pod sleeps
+            upgrade: true,
             reconnection: true,
-            reconnectionAttempts: 10,
-            reconnectionDelay: 1500,
-            reconnectionDelayMax: 5000,
-            timeout: 20000,
+            reconnectionAttempts: 8,
+            reconnectionDelay: 2000,
+            reconnectionDelayMax: 10000,
+            timeout: 15000,
         });
         this.socket.on('connect', () => console.log('[Socket] Connected:', this.socket?.id));
         this.socket.on('disconnect', (r) => console.log('[Socket] Disconnected:', r));
