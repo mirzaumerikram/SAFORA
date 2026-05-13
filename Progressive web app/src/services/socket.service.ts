@@ -11,14 +11,17 @@ class SocketService {
         const token = await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
         this.socket = io(this.serverUrl, {
             auth: { token },
-            transports: ['websocket', 'polling'],
+            transports: ['websocket'],   // websocket only — avoid polling 400 on Railway
             reconnection: true,
-            reconnectionAttempts: 5,
-            reconnectionDelay: 2000,
+            reconnectionAttempts: 10,
+            reconnectionDelay: 1500,
+            reconnectionDelayMax: 5000,
+            timeout: 20000,
         });
         this.socket.on('connect', () => console.log('[Socket] Connected:', this.socket?.id));
         this.socket.on('disconnect', (r) => console.log('[Socket] Disconnected:', r));
         this.socket.on('connect_error', (e) => console.log('[Socket] Error:', e.message));
+        this.socket.on('reconnect', (n) => console.log('[Socket] Reconnected after', n, 'attempts'));
     }
 
     joinRide(rideId: string): void {
@@ -73,11 +76,9 @@ class SocketService {
         this.socket?.on('chat:message', cb);
     }
 
-    emitSOS(rideId: string): void {
-        this.socket?.emit('sos:trigger', { rideId, timestamp: new Date().toISOString() });
-    }
 
     emitDriverArrived(rideId: string): void {
+
         this.socket?.emit('driver:arrived', { rideId });
     }
 
