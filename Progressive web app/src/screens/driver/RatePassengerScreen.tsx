@@ -42,13 +42,13 @@ const RatePassengerScreen: React.FC = () => {
         } catch { /* non-blocking — rating failed, still navigate */ }
         finally {
             setSubmitting(false);
-            // Go back to driver dashboard
-            navigation.reset({ index: 0, routes: [{ name: 'DriverApp' }] });
+            // Show fare summary then driver goes to dashboard from there
+            navigation.replace('FareBreakdown', { rideId });
         }
     };
 
     const handleSkip = () => {
-        navigation.reset({ index: 0, routes: [{ name: 'DriverApp' }] });
+        navigation.replace('FareBreakdown', { rideId });
     };
 
     return (

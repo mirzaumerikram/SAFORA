@@ -3,20 +3,30 @@ import {
     View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppTheme } from '../../context/ThemeContext';
 import { AppTheme } from '../../utils/theme';
 import apiService from '../../services/api';
+import { STORAGE_KEYS } from '../../utils/constants';
 
 const FareBreakdownScreen: React.FC = () => {
     const navigation = useNavigation<any>();
     const route = useRoute<any>();
     const { rideId, totalFare } = route.params || {};
 
+
     const { theme } = useAppTheme();
     const s = useMemo(() => makeStyles(theme), [theme]);
 
     const [loading, setLoading] = useState(true);
     const [rideData, setRideData] = useState<any>(null);
+    const [userRole, setUserRole] = useState<string>('passenger');
+
+    useEffect(() => {
+        AsyncStorage.getItem(STORAGE_KEYS.USER_DATA).then(raw => {
+            if (raw) setUserRole(JSON.parse(raw)?.role || 'passenger');
+        });
+    }, []);
 
     useEffect(() => {
         const fetchRide = async () => {
@@ -149,11 +159,17 @@ const FareBreakdownScreen: React.FC = () => {
                 <View style={{ height: 32 }} />
             </ScrollView>
 
-            {/* Done Button — yellow, matches design 7.2 */}
+            {/* Done Button — role-aware: driver goes to DriverApp, passenger goes to Home */}
             <View style={s.footer}>
                 <TouchableOpacity
                     style={s.doneBtn}
-                    onPress={() => navigation.navigate('Home')}
+                    onPress={() => {
+                        if (userRole === 'driver') {
+                            navigation.reset({ index: 0, routes: [{ name: 'DriverApp' }] });
+                        } else {
+                            navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+                        }
+                    }}
                 >
                     <Text style={s.doneText}>Done  →</Text>
                 </TouchableOpacity>

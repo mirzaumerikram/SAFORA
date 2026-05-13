@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
     View, Text, StyleSheet, TouchableOpacity, TextInput,
     FlatList, KeyboardAvoidingView, Platform, ActivityIndicator,
-    ScrollView,
+    ScrollView, Linking, Alert,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -54,6 +54,7 @@ const ChatScreen: React.FC = () => {
     const [text, setText]             = useState('');
     const [userName, setUserName]     = useState('');
     const [connecting, setConnecting] = useState(true);
+    const [otherPhone, setOtherPhone] = useState<string | null>(null);
 
     // ── Socket / storage setup ────────────────────────────────────────────────
 
@@ -69,9 +70,17 @@ const ChatScreen: React.FC = () => {
             try {
                 const res: any = await apiService.get(`/rides/${rideId}`);
                 if (mounted && res.success && res.ride) {
-                    setDriverData(res.ride.driver?.user || null);
-                    setPassengerData(res.ride.passenger || null);
+                    const dUser = res.ride.driver?.user || null;
+                    const pUser = res.ride.passenger || null;
+                    setDriverData(dUser);
+                    setPassengerData(pUser);
                     setActualRideType(res.ride.type || 'Standard');
+                    // Set the OTHER person's phone number
+                    if (senderRole === 'passenger') {
+                        setOtherPhone(dUser?.phone || null);
+                    } else {
+                        setOtherPhone(pUser?.phone || null);
+                    }
                     if (res.ride.chatMessages) {
                         setMessages(res.ride.chatMessages);
                         setTimeout(() => flatRef.current?.scrollToEnd({ animated: false }), 100);
@@ -204,8 +213,22 @@ const ChatScreen: React.FC = () => {
                     </View>
                 </View>
 
-                {/* Phone button */}
-                <TouchableOpacity style={s.phoneBtn}>
+                {/* Phone button — opens dialer */}
+                <TouchableOpacity
+                    style={[s.phoneBtn, !otherPhone && { opacity: 0.4 }]}
+                    onPress={() => {
+                        if (otherPhone) {
+                            const tel = `tel:${otherPhone}`;
+                            if (Platform.OS === 'web') {
+                                window.open(tel, '_self');
+                            } else {
+                                Linking.openURL(tel);
+                            }
+                        } else {
+                            Alert.alert('Call', 'Phone number not available.');
+                        }
+                    }}
+                >
                     <Text style={s.phoneIcon}>📞</Text>
                 </TouchableOpacity>
             </View>
