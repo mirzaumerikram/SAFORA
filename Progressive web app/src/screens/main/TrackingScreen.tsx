@@ -18,7 +18,17 @@ const TrackingScreen: React.FC = () => {
     const { theme: liveTheme } = useAppTheme();
     const { rideId, estimatedPrice, pickup, dropoff, pickupCoords, dropoffCoords } = route.params || {};
 
-    const [status, setStatus]               = useState('ARRIVING');
+    // Passenger-facing phase labels matching driver phases
+    // Backend status → display status
+    const STATUS_MAP: Record<string, string> = {
+        accepted:  'EN ROUTE',
+        arrived:   'ARRIVED',
+        started:   'ONBOARD',
+        completed: 'DROPPED',
+    };
+    const PASSENGER_PHASES = ['EN ROUTE', 'ARRIVED', 'ONBOARD', 'DROPPED'];
+
+    const [status, setStatus]               = useState('EN ROUTE');
     const [socketStatus, setSocketStatus]   = useState<'connecting' | 'live' | 'offline'>('connecting');
     const [driverData, setDriverData] = useState<any>(null);
     const [price, setPrice] = useState<number | null>(estimatedPrice);
@@ -86,10 +96,10 @@ const TrackingScreen: React.FC = () => {
         const handleStatusUpdate = (newStatus: string) => {
             if (!mounted) return;
             const map: Record<string, string> = {
-                accepted: 'ARRIVING',
-                arrived:  'ARRIVED',
-                started:  'ONBOARD',
-                completed:'DROPPED',
+                accepted:  'EN ROUTE',
+                arrived:   'ARRIVED',
+                started:   'ONBOARD',
+                completed: 'DROPPED',
             };
             if (map[newStatus]) setStatus(map[newStatus]);
             if (newStatus === 'completed' && mounted) {
@@ -270,12 +280,43 @@ const TrackingScreen: React.FC = () => {
                     </TouchableOpacity>
                     <View style={styles.statusBadge}>
                         <Animated.View style={[styles.statusPulse, { opacity: pulseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.5, 0] }), transform: [{ scale: pulseAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 2] }) }] }]} />
-                        <Text style={styles.statusText}>{status}</Text>
+                        <Text style={styles.statusText}>{status === 'DROPPED' ? 'COMPLETED' : status}</Text>
                         {socketStatus === 'live' && <View style={styles.liveDot} />}
                     </View>
                     <TouchableOpacity style={styles.sosBtn} onPress={handleSOS}>
                         <Text style={styles.sosText}>SOS</Text>
                     </TouchableOpacity>
+                </View>
+
+                {/* 4-phase progress bar */}
+                <View style={styles.phaseBar}>
+                    {PASSENGER_PHASES.map((p, i) => {
+                        const currentIndex = PASSENGER_PHASES.indexOf(status);
+                        const isActive = i === currentIndex;
+                        const isDone   = i < currentIndex;
+                        const isFuture = i > currentIndex;
+                        return (
+                            <View key={p} style={styles.phaseItem}>
+                                <View style={[
+                                    styles.phaseDot,
+                                    isDone   && styles.phaseDotDone,
+                                    isActive && styles.phaseDotActive,
+                                    isFuture && styles.phaseDotFuture,
+                                ]}>
+                                    {isDone && <Text style={styles.phaseDotCheck}>✓</Text>}
+                                </View>
+                                <Text style={[
+                                    styles.phaseLabel,
+                                    isActive && styles.phaseLabelActive,
+                                    isDone   && styles.phaseLabelDone,
+                                    isFuture && styles.phaseLabelFuture,
+                                ]}>{p}</Text>
+                                {i < PASSENGER_PHASES.length - 1 && (
+                                    <View style={[styles.phaseLine, isDone && styles.phaseLineDone]} />
+                                )}
+                            </View>
+                        );
+                    })}
                 </View>
 
                 {/* Driver Info Card */}
@@ -505,6 +546,52 @@ const styles = StyleSheet.create({
         fontSize: 10,
         fontWeight: '900',
     },
+    // ── 4-phase progress bar ──────────────────────────────────────────────────
+    phaseBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: theme.colors.card,
+        borderRadius: 18,
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        marginBottom: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+        elevation: 8,
+    },
+    phaseItem: {
+        flex: 1, alignItems: 'center', position: 'relative',
+    },
+    phaseDot: {
+        width: 22, height: 22, borderRadius: 11,
+        backgroundColor: theme.dark ? '#333' : '#E0E0E0',
+        alignItems: 'center', justifyContent: 'center', marginBottom: 5,
+    },
+    phaseDotActive: {
+        backgroundColor: theme.colors.primary,
+        shadowColor: theme.colors.primary,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.6, shadowRadius: 6, elevation: 6,
+    },
+    phaseDotDone:   { backgroundColor: '#22C55E' },
+    phaseDotFuture: { backgroundColor: theme.dark ? '#2A2A2A' : '#EFEFEF' },
+    phaseDotCheck:  { fontSize: 11, color: '#fff', fontWeight: '900' },
+    phaseLabel:       { fontSize: 9, fontWeight: '700', color: theme.colors.textSecondary, letterSpacing: 0.5 },
+    phaseLabelActive: { color: theme.colors.primary, fontWeight: '900' },
+    phaseLabelDone:   { color: '#22C55E' },
+    phaseLabelFuture: { color: theme.dark ? '#444' : '#CCC' },
+    phaseLine: {
+        position: 'absolute', top: 10, right: '-50%',
+        width: '100%', height: 2,
+        backgroundColor: theme.dark ? '#333' : '#E0E0E0',
+        zIndex: -1,
+    },
+    phaseLineDone: { backgroundColor: '#22C55E' },
+    // ─────────────────────────────────────────────────────────────────────────
+
     driverMarker: {
         width: 36,
         height: 36,

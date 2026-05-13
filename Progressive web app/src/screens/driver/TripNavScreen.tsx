@@ -10,16 +10,33 @@ import SaforaMap from '../../components/SaforaMap';
 import apiService from '../../services/api';
 import socketService from '../../services/socket.service';
 
-// Phase order: arrived → onboard → dropping → done
-type TripPhase = 'arrived' | 'onboard' | 'dropping' | 'done';
+// Phase order: en_route → arrived → onboard → dropping → done
+type TripPhase = 'en_route' | 'arrived' | 'onboard' | 'dropping' | 'done';
 
-const PHASES: TripPhase[] = ['arrived', 'onboard', 'dropping', 'done'];
+const PHASES: TripPhase[] = ['en_route', 'arrived', 'onboard', 'dropping'];
 
 const PHASE_LABELS: Record<TripPhase, string> = {
+    en_route: 'EN ROUTE',
     arrived:  'ARRIVED',
     onboard:  'ONBOARD',
     dropping: 'DROPPING',
     done:     'DONE',
+};
+
+const PHASE_TURN: Record<TripPhase, string> = {
+    en_route: 'Head to pickup location',
+    arrived:  'You have arrived — wait for passenger',
+    onboard:  'Head to dropoff location',
+    dropping: 'Almost there — approaching dropoff',
+    done:     'Ride complete',
+};
+
+const PHASE_ICON: Record<TripPhase, string> = {
+    en_route: '🚗',
+    arrived:  '📍',
+    onboard:  '🧭',
+    dropping: '🏁',
+    done:     '✅',
 };
 
 const TripNavScreen: React.FC = () => {
@@ -39,7 +56,7 @@ const TripNavScreen: React.FC = () => {
         type: string;
     };
 
-    const [phase, setPhase]               = useState<TripPhase>('arrived');
+    const [phase, setPhase]               = useState<TripPhase>('en_route');
     const [loading, setLoading]           = useState(false);
     const [sosOpen, setSosOpen]           = useState(false);
     const [hasNewMessage, setHasNewMessage] = useState(false);
@@ -50,9 +67,7 @@ const TripNavScreen: React.FC = () => {
     const [etaMinutes, setEtaMinutes]     = useState<number>(request?.estimatedDuration || 0);
     const [fare]                          = useState<number>(request?.estimatedPrice || 0);
 
-    // Turn instruction (from Directions API via SaforaMap callback — stored here)
-    const [turnInstruction, setTurnInstruction] = useState('Navigating to destination…');
-    const [turnDistance, setTurnDistance]        = useState('');
+    const [turnDistance, setTurnDistance] = useState('');
 
     const watchId  = useRef<any>(null);
     const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -113,14 +128,17 @@ const TripNavScreen: React.FC = () => {
 
     // ── Phase actions ──────────────────────────────────────────────────────────
 
+    // EN ROUTE → tap "I have Arrived" → local state only → ARRIVED
+    const handleArrivedAtPickup = () => {
+        setPhase('arrived');
+    };
+
     // ARRIVED → tap "Passenger Boarded" → start ride on backend → ONBOARD
     const handlePassengerBoarded = async () => {
         setLoading(true);
         try {
             await apiService.patch(`/rides/${request.rideId}/status`, { status: 'started' });
             setPhase('onboard');
-            setTurnInstruction('Head to dropoff location');
-            setTurnDistance('');
         } catch (e: any) {
             showAlert('Error', e.message || 'Could not start ride.');
         } finally {
@@ -128,11 +146,9 @@ const TripNavScreen: React.FC = () => {
         }
     };
 
-    // ONBOARD → tap "Drop Off Passenger" → DROPPING (local only)
-    const handleDropOff = () => {
+    // ONBOARD → tap "Approaching Dropoff" → local state only → DROPPING
+    const handleApproachingDropoff = () => {
         setPhase('dropping');
-        setTurnInstruction('Almost there — approaching dropoff');
-        setTurnDistance('');
     };
 
     // DROPPING → tap "Complete Ride" → complete on backend → DONE → navigate
@@ -193,7 +209,13 @@ const TripNavScreen: React.FC = () => {
     const pickupCoords  = request?.pickup?.lat  ? { latitude: request.pickup.lat,  longitude: request.pickup.lng!  } : undefined;
     const dropoffCoords = request?.dropoff?.lat ? { latitude: request.dropoff.lat, longitude: request.dropoff.lng! } : undefined;
 
-    const currentDest = phase === 'arrived' ? request?.pickup?.address : request?.dropoff?.address;
+    // Show pickup address while heading to passenger, dropoff after they board
+    const currentDest = (phase === 'en_route' || phase === 'arrived')
+        ? request?.pickup?.address
+        : request?.dropoff?.address;
+
+    const turnInstruction = PHASE_TURN[phase];
+    const turnIcon        = PHASE_ICON[phase];
 
     return (
         <View style={s.container}>
@@ -212,14 +234,13 @@ const TripNavScreen: React.FC = () => {
             {/* Turn instruction banner */}
             <View style={s.turnBanner}>
                 <View style={s.turnIconBox}>
-                    <Text style={s.turnIcon}>
-                        {phase === 'arrived' ? '📍' : phase === 'onboard' ? '🧭' : phase === 'dropping' ? '🏁' : '✅'}
-                    </Text>
+                    <Text style={s.turnIcon}>{turnIcon}</Text>
                 </View>
                 <View style={s.turnTexts}>
                     <Text style={s.turnMain} numberOfLines={1}>{turnInstruction}</Text>
-                    {turnDistance ? <Text style={s.turnSub}>{turnDistance} · {distanceLeft} km remaining</Text>
-                                  : <Text style={s.turnSub}>{distanceLeft} km remaining</Text>}
+                    {turnDistance
+                        ? <Text style={s.turnSub}>{turnDistance} · {distanceLeft} km remaining</Text>
+                        : <Text style={s.turnSub}>{distanceLeft} km remaining</Text>}
                 </View>
             </View>
 
@@ -303,17 +324,31 @@ const TripNavScreen: React.FC = () => {
 
                 {/* Destination strip */}
                 <View style={s.destStrip}>
-                    <Text style={s.destIcon}>{phase === 'arrived' ? '🟢' : '🔴'}</Text>
+                    <Text style={s.destIcon}>
+                        {(phase === 'en_route' || phase === 'arrived') ? '🟢' : '🔴'}
+                    </Text>
                     <Text style={s.destText} numberOfLines={1}>{currentDest || 'Loading…'}</Text>
-                    <TouchableOpacity onPress={handleCancel} style={s.cancelBtn}>
-                        <Text style={s.cancelText}>Cancel</Text>
-                    </TouchableOpacity>
+                    {phase !== 'done' && (
+                        <TouchableOpacity onPress={handleCancel} style={s.cancelBtn}>
+                            <Text style={s.cancelText}>Cancel</Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
 
-                {/* Main action button */}
-                {phase === 'arrived' && (
+                {/* Main action button — changes at each phase */}
+                {phase === 'en_route' && (
                     <TouchableOpacity
                         style={[s.actionBtn, loading && s.actionBtnDisabled]}
+                        onPress={handleArrivedAtPickup}
+                        disabled={loading}
+                    >
+                        <Text style={s.actionBtnText}>📍  I have Arrived at Pickup</Text>
+                    </TouchableOpacity>
+                )}
+
+                {phase === 'arrived' && (
+                    <TouchableOpacity
+                        style={[s.actionBtn, s.actionBtnArrived, loading && s.actionBtnDisabled]}
                         onPress={handlePassengerBoarded}
                         disabled={loading}
                     >
@@ -327,10 +362,10 @@ const TripNavScreen: React.FC = () => {
                 {phase === 'onboard' && (
                     <TouchableOpacity
                         style={[s.actionBtn, s.actionBtnOnboard, loading && s.actionBtnDisabled]}
-                        onPress={handleDropOff}
+                        onPress={handleApproachingDropoff}
                         disabled={loading}
                     >
-                        <Text style={[s.actionBtnText, { color: '#fff' }]}>📍  Approaching Dropoff</Text>
+                        <Text style={[s.actionBtnText, { color: '#fff' }]}>🧭  Approaching Dropoff</Text>
                     </TouchableOpacity>
                 )}
 
@@ -493,6 +528,7 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
         backgroundColor: t.colors.primary, borderRadius: 16,
         paddingVertical: 16, gap: 10,
     },
+    actionBtnArrived: { backgroundColor: '#F59E0B' },
     actionBtnOnboard: { backgroundColor: '#3B82F6' },
     actionBtnEnd:     { backgroundColor: '#22C55E' },
     actionBtnDisabled:{ opacity: 0.6 },
