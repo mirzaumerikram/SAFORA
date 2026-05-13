@@ -147,6 +147,7 @@ const TripNavScreen: React.FC = () => {
 
     const startGPS = () => {
         if (Platform.OS !== 'web' || !(navigator as any).geolocation) return;
+        const rideId = route.params?.rideId; // Use route params to avoid stale closure on `request`
         if (watchId.current !== null) {
             (navigator as any).geolocation.clearWatch(watchId.current);
         }
@@ -154,8 +155,8 @@ const TripNavScreen: React.FC = () => {
             (pos: any) => {
                 const { latitude, longitude } = pos.coords;
                 setDriverCoords({ latitude, longitude });
-                if (request?.rideId) {
-                    socketService.emitLocationUpdate(request.rideId, latitude, longitude);
+                if (rideId) {
+                    socketService.emitLocationUpdate(rideId, latitude, longitude);
                 }
             },
             () => {},
