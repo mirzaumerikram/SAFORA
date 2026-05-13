@@ -84,14 +84,16 @@ const FeedbackScreen: React.FC = () => {
                     raterRole: 'passenger',
                 });
             }
-            navigation.navigate('Home');
+            // Always show fare summary after feedback
+            navigation.replace('FareBreakdown', { rideId });
         } catch (err: any) {
-            // Non-blocking — navigate home even if rating fails
-            navigation.navigate('Home');
+            // Non-blocking — still show fare summary even if rating fails
+            navigation.replace('FareBreakdown', { rideId });
         } finally {
             setLoading(false);
         }
     };
+
 
     return (
         <ScrollView
