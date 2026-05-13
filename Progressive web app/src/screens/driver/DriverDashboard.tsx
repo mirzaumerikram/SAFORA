@@ -78,6 +78,7 @@ const DriverDashboard: React.FC = () => {
             
             if (res.success && res.driver) {
                 setDriverId(res.driver.id);
+                AsyncStorage.setItem('driver_doc_id', res.driver.id);
                 setDriverName(toFirstName(res.driver.name || 'Driver'));
                 
                 if (res.driver.profilePicture) {

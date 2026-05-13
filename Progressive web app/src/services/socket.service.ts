@@ -96,8 +96,14 @@ class SocketService {
     }
 
     async emitLocationUpdate(rideId: string, lat: number, lng: number): Promise<void> {
-        const driverId = await AsyncStorage.getItem(STORAGE_KEYS.USER_ID);
-        this.socket?.emit('driver:location-update', { rideId, driverId, lat, lng });
+        try {
+            const driverId = await AsyncStorage.getItem('driver_doc_id');
+            if (driverId) {
+                this.socket?.emit('driver:location-update', { rideId, driverId, lat, lng });
+            }
+        } catch (err) {
+            console.error('[Socket] Failed to emit location update', err);
+        }
     }
 
     offChat(): void {
