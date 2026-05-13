@@ -101,13 +101,18 @@ class SocketService {
         this.socket?.off('chat:message');
     }
 
-    offAll() {
+    // Only removes TrackingScreen-specific listeners — does NOT touch chat
+    offTracking() {
         this.socket?.off('ride:request');
         this.socket?.off('ride:accepted');
         this.socket?.off('ride-status-updated');
         this.socket?.off('driver:location');
-        this.socket?.off('chat:message');
         this.socket?.off('safety:deviation-alert');
+    }
+
+    offAll() {
+        this.offTracking();
+        this.socket?.off('chat:message');
     }
 
     disconnect() {

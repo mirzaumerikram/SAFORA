@@ -210,8 +210,9 @@ const TrackingScreen: React.FC = () => {
             mounted = false;
             if (countdownRef.current) clearInterval(countdownRef.current);
             if (pollInterval) clearInterval(pollInterval);
-            socketService.offAll();
+            socketService.offTracking(); // Only remove tracking listeners, not chat
         };
+
     }, [rideId]);
 
     // Dismiss deviation alert (passenger is safe)

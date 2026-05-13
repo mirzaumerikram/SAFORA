@@ -83,18 +83,32 @@ const ChatScreen: React.FC = () => {
         };
         fetchRideDetails();
 
-        socketService.connect().then(() => {
+        const setupChat = async () => {
             if (!mounted) return;
-            setConnecting(false);
-            socketService.joinChat(rideId);
-            socketService.onChatMessage((msg: Message) => {
-                if (!mounted) return;
-                setMessages(prev => [...prev, msg]);
-                setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 80);
-            });
-        }).catch(() => {
-            if (mounted) setConnecting(false);
-        });
+
+            try {
+                // If already connected (coming from TrackingScreen), reuse the connection
+                if (socketService.isConnected) {
+                    setConnecting(false);
+                    socketService.joinChat(rideId);
+                } else {
+                    await socketService.connect();
+                    if (!mounted) return;
+                    setConnecting(false);
+                    socketService.joinChat(rideId);
+                }
+
+                socketService.onChatMessage((msg: Message) => {
+                    if (!mounted) return;
+                    setMessages(prev => [...prev, msg]);
+                    setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 80);
+                });
+            } catch {
+                if (mounted) setConnecting(false);
+            }
+        };
+        setupChat();
+
 
         return () => {
             mounted = false;
