@@ -95,8 +95,9 @@ class SocketService {
         this.socket?.emit('driver:offline', { driverId });
     }
 
-    emitLocationUpdate(rideId: string, lat: number, lng: number): void {
-        this.socket?.emit('driver:location-update', { rideId, lat, lng });
+    async emitLocationUpdate(rideId: string, lat: number, lng: number): Promise<void> {
+        const driverId = await AsyncStorage.getItem(STORAGE_KEYS.USER_ID);
+        this.socket?.emit('driver:location-update', { rideId, driverId, lat, lng });
     }
 
     offChat(): void {
