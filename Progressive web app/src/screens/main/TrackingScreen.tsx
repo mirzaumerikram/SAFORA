@@ -81,49 +81,57 @@ const TrackingScreen: React.FC = () => {
     // Socket.io: connect and join ride room for real-time updates
     useEffect(() => {
         let mounted = true;
+        let pollInterval: ReturnType<typeof setInterval> | null = null;
+
+        const handleStatusUpdate = (newStatus: string) => {
+            if (!mounted) return;
+            const map: Record<string, string> = {
+                accepted: 'ARRIVING',
+                arrived:  'ARRIVED',
+                started:  'ONBOARD',
+                completed:'DROPPED',
+            };
+            if (map[newStatus]) setStatus(map[newStatus]);
+            if (newStatus === 'completed' && mounted) {
+                if (pollInterval) clearInterval(pollInterval);
+                setTimeout(() => navigation.replace('Feedback', { rideId }), 1500);
+            }
+        };
+
+        const joinRoom = () => {
+            if (rideId && rideId !== 'demo') {
+                socketService.joinRide(rideId);
+            }
+        };
 
         const initSocket = async () => {
             try {
                 await socketService.connect();
-                if (rideId && rideId !== 'demo') {
-                    socketService.joinRide(rideId);
-                }
+                joinRoom();
                 if (mounted) setSocketStatus('live');
 
-                socketService.onRideStatus(({ status: newStatus }) => {
-                    if (!mounted) return;
-                    const map: Record<string, string> = {
-                        accepted: 'ARRIVING',
-                        arrived: 'ARRIVED',
-                        started: 'ONBOARD',
-                        completed: 'DROPPED',
-                    };
-                    if (map[newStatus]) setStatus(map[newStatus]);
+                socketService.onRideStatus(({ status: newStatus }) => handleStatusUpdate(newStatus));
 
-                    // Auto-navigate to Feedback when ride completes
-                    if (newStatus === 'completed' && mounted) {
-                        setTimeout(() => navigation.replace('Feedback', { rideId }), 1500);
-                    }
+                // Re-join ride room on reconnect so we never miss events
+                (socketService as any).socket?.on('connect', () => {
+                    console.log('[Tracking] Socket reconnected — re-joining ride room');
+                    joinRoom();
                 });
 
-                // Listen for driver's live GPS location
                 socketService.onDriverLocation(({ lat, lng }) => {
                     if (!mounted) return;
                     setDriverLocation({ latitude: lat, longitude: lng });
                 });
 
-                // SafetySentinel — listen for route deviation alert
                 socketService.onDeviationAlert((alert) => {
                     if (!mounted) return;
                     setDeviationAlert(alert);
                     setCountdown(30);
-                    // Start 30-second countdown → auto-SOS if no response
                     if (countdownRef.current) clearInterval(countdownRef.current);
                     countdownRef.current = setInterval(() => {
                         setCountdown(c => {
                             if (c <= 1) {
                                 clearInterval(countdownRef.current!);
-                                // Auto-trigger SOS
                                 handleAutoSOS(alert.rideId);
                                 return 0;
                             }
@@ -132,13 +140,9 @@ const TrackingScreen: React.FC = () => {
                     }, 1000);
                 });
 
-                // Chat notifications
                 socketService.onChatMessage((msg) => {
                     if (!mounted) return;
-                    // Only show badge if it's from the OTHER person
-                    if (msg.sender !== 'passenger') {
-                        setHasNewMessage(true);
-                    }
+                    if (msg.sender !== 'passenger') setHasNewMessage(true);
                 });
 
             } catch {
@@ -148,9 +152,23 @@ const TrackingScreen: React.FC = () => {
 
         initSocket();
 
+        // Polling fallback: check ride status every 5s in case socket misses the event
+        if (rideId && rideId !== 'demo') {
+            pollInterval = setInterval(async () => {
+                if (!mounted) return;
+                try {
+                    const res: any = await apiService.get(`/rides/${rideId}`);
+                    if (res.success && res.ride) {
+                        handleStatusUpdate(res.ride.status);
+                    }
+                } catch { /* silent */ }
+            }, 5000);
+        }
+
         return () => {
             mounted = false;
             if (countdownRef.current) clearInterval(countdownRef.current);
+            if (pollInterval) clearInterval(pollInterval);
             socketService.offAll();
         };
     }, [rideId]);
