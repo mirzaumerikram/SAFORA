@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Image, Animated, Platform, Modal, Alert } from 'react-native';
 import SaforaMap from '../../components/SaforaMap';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useNavigationState } from '@react-navigation/native';
 import { useAppTheme } from '../../context/ThemeContext';
 import { lightTheme as theme } from '../../utils/theme';
 import socketService from '../../services/socket.service';
@@ -30,6 +30,8 @@ const TrackingScreen: React.FC = () => {
 
     const [status, setStatus]               = useState('EN ROUTE');
     const [socketStatus, setSocketStatus]   = useState<'connecting' | 'live' | 'offline'>('connecting');
+    // Track whether a child screen (e.g. Chat) is open — don't navigate away if so
+    const isChatOpenRef = useRef(false);
     const [driverData, setDriverData] = useState<any>(null);
     const [price, setPrice] = useState<number | null>(estimatedPrice);
     const [driverLocation, setDriverLocation] = useState<Coordinates | null>(null);
@@ -104,7 +106,16 @@ const TrackingScreen: React.FC = () => {
             if (map[newStatus]) setStatus(map[newStatus]);
             if (newStatus === 'completed' && mounted) {
                 if (pollInterval) clearInterval(pollInterval);
-                setTimeout(() => navigation.replace('Feedback', { rideId }), 1500);
+                // Wait until chat is closed before navigating away
+                const doNavigate = () => {
+                    if (isChatOpenRef.current) {
+                        // Retry in 1 second if chat is still open
+                        setTimeout(doNavigate, 1000);
+                        return;
+                    }
+                    navigation.replace('Feedback', { rideId });
+                };
+                setTimeout(doNavigate, 1500);
             }
         };
 
@@ -344,12 +355,18 @@ const TrackingScreen: React.FC = () => {
                             style={styles.chatBtn}
                             onPress={() => {
                                 setHasNewMessage(false);
+                                isChatOpenRef.current = true;
                                 navigation.navigate('Chat', {
                                     rideId,
                                     senderRole: 'passenger',
                                     driverName: driverData?.name || 'Driver',
                                     passengerName: 'Me',
                                     rideType: route.params?.type || 'Standard',
+                                });
+                                // Clear flag when user comes back from chat
+                                const unsubscribe = navigation.addListener('focus', () => {
+                                    isChatOpenRef.current = false;
+                                    unsubscribe();
                                 });
                             }}
                         >

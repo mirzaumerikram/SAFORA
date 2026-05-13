@@ -129,16 +129,25 @@ const DriverDashboard: React.FC = () => {
                     if (ride.status === 'matched') {
                         setIncoming(mappedRide);
                         setRideStatus('incoming');
-                        startCountdown(30); // Resume countdown
+                        startCountdown(30);
                         if (Platform.OS === 'web') localStorage.setItem('last_ride_id', mappedRide.rideId);
+                    } else if (ride.status === 'accepted' || ride.status === 'started') {
+                        // Active trip in progress — save to AsyncStorage and navigate to TripNavScreen
+                        await AsyncStorage.setItem('trip_nav_request', JSON.stringify(mappedRide));
+                        if (Platform.OS === 'web') localStorage.setItem('last_ride_id', mappedRide.rideId);
+                        connectSocket(res.driver.id);
+                        socketService.joinRide(mappedRide.rideId);
+                        startGPS(mappedRide.rideId);
+                        // Navigate to TripNav to restore the ride screen
+                        navigation.navigate('TripNav', { rideId: mappedRide.rideId });
+                        return; // stop further processing in loadDriver
                     } else {
                         setActiveRide(mappedRide);
                         setRideStatus(ride.status);
                         if (Platform.OS === 'web') localStorage.setItem('last_ride_id', mappedRide.rideId);
                         socketService.joinRide(mappedRide.rideId);
                     }
-                    
-                    // CRITICAL: Ensure driver re-joins the ride room and starts GPS if online
+
                     if (isOnline) {
                         connectSocket(res.driver.id);
                         socketService.joinRide(mappedRide.rideId);
