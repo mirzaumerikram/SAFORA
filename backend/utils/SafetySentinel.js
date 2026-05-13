@@ -55,31 +55,21 @@ class SafetySentinel {
 
         // Check for route deviation
         if (distance > this.DEVIATION_THRESHOLD) {
-            if (!deviationStartTime) {
-                // Start deviation timer
-                monitoringData.deviationStartTime = now;
-                console.log(`Ride ${rideId}: Route deviation detected (${Math.round(distance)}m)`);
-            } else {
-                // Check if deviation has persisted
-                const deviationDuration = now - deviationStartTime;
-
-                if (deviationDuration > this.DEVIATION_DURATION && !monitoringData.isDeviated) {
-                    // Trigger alert
-                    alert = {
-                        type: 'route-deviation',
-                        location: currentLocation,
-                        description: `Vehicle deviated ${Math.round(distance)}m from planned route for ${Math.round(deviationDuration / 1000)}s`,
-                        distance: Math.round(distance),
-                        duration: Math.round(deviationDuration / 1000)
-                    };
-
-                    monitoringData.isDeviated = true;
-                    console.log(`Ride ${rideId}: ALERT - Sustained route deviation`);
-                }
+            if (!monitoringData.isDeviated) {
+                // Trigger alert immediately for immediate feedback during demo
+                alert = {
+                    type: 'route-deviation',
+                    location: currentLocation,
+                    description: `Vehicle deviated ${Math.round(distance)}m from planned route!`,
+                    distance: Math.round(distance),
+                    duration: 0
+                };
+                monitoringData.isDeviated = true;
+                console.log(`Ride ${rideId}: ALERT - Immediate route deviation triggered!`);
             }
         } else {
             // Reset deviation timer if back on route
-            if (deviationStartTime) {
+            if (monitoringData.isDeviated || deviationStartTime) {
                 console.log(`Ride ${rideId}: Back on route`);
                 monitoringData.deviationStartTime = null;
                 monitoringData.isDeviated = false;
