@@ -19,6 +19,14 @@ const FirebaseRecaptchaVerifierModal: any =
         ? require('expo-firebase-recaptcha').FirebaseRecaptchaVerifierModal
         : () => null;
 
+// ─── Hide reCAPTCHA badge site-wide (Google permits this when disclosure text is shown) ──
+if (Platform.OS === 'web' && !document.getElementById('safora-recaptcha-hide')) {
+    const style = document.createElement('style');
+    style.id = 'safora-recaptcha-hide';
+    style.innerHTML = '.grecaptcha-badge { visibility: hidden !important; opacity: 0 !important; pointer-events: none !important; }';
+    document.head.appendChild(style);
+}
+
 // ─── Web reCAPTCHA helpers ─────────────────────────────────────────────────────
 // Creates a brand-new invisible RecaptchaVerifier each time.
 // Clears the container first so Firebase never sees a "already rendered" error.
