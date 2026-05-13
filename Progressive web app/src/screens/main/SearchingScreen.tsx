@@ -70,7 +70,7 @@ const SearchingScreen: React.FC = () => {
             if (navigated) { clearInterval(pollInterval); return; }
             try {
                 const res: any = await apiService.get('/rides/active-ride');
-                if (res.success && res.ride && (res.ride.status === 'accepted' || res.ride.status === 'matched')) {
+                if (res.success && res.ride && res.ride.status === 'accepted') {
                     if (navigated) return;
                     navigated = true;
                     clearInterval(pollInterval);
