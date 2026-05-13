@@ -61,6 +61,7 @@ const TripNavScreen: React.FC = () => {
     const [phase, setPhase]               = useState<TripPhase>('en_route');
     const [loading, setLoading]           = useState(false);
     const [sosOpen, setSosOpen]           = useState(false);
+    const [completeOpen, setCompleteOpen] = useState(false);
     const [hasNewMessage, setHasNewMessage] = useState(false);
     const [driverCoords, setDriverCoords] = useState<{ latitude: number; longitude: number } | null>(null);
 
@@ -84,16 +85,51 @@ const TripNavScreen: React.FC = () => {
         ).start();
     }, []);
 
-    // Load request from AsyncStorage on mount
+    // Load request from AsyncStorage on mount — also try fetching fresh data from backend
     useEffect(() => {
-        AsyncStorage.getItem('trip_nav_request').then(raw => {
+        const loadRequest = async () => {
+            // First try AsyncStorage for instant render
+            const raw = await AsyncStorage.getItem('trip_nav_request');
             if (raw) {
                 const parsed = JSON.parse(raw);
                 setRequest(parsed);
-                setDistanceLeft(parsed.distance || 0);
-                setEtaMinutes(parsed.estimatedDuration || 0);
+                setDistanceLeft(parseFloat((parsed.distance || 0).toFixed(1)));
+                setEtaMinutes(Math.round(parsed.estimatedDuration || 0));
             }
-        });
+            // Then fetch fresh data from backend to get accurate fare/distance
+            const rideId = route.params?.rideId;
+            if (rideId) {
+                try {
+                    const res: any = await apiService.get(`/rides/${rideId}`);
+                    if (res.success && res.ride) {
+                        const ride = res.ride;
+                        const freshRequest = {
+                            rideId: ride._id,
+                            passenger: ride.passenger || { name: 'Passenger' },
+                            pickup: {
+                                address: ride.pickupLocation?.address || '',
+                                lat: ride.pickupLocation?.coordinates?.[1],
+                                lng: ride.pickupLocation?.coordinates?.[0],
+                            },
+                            dropoff: {
+                                address: ride.dropoffLocation?.address || '',
+                                lat: ride.dropoffLocation?.coordinates?.[1],
+                                lng: ride.dropoffLocation?.coordinates?.[0],
+                            },
+                            estimatedPrice: ride.estimatedPrice || 0,
+                            estimatedDuration: ride.estimatedDuration || 0,
+                            distance: ride.distance || 0,
+                            type: ride.type || 'standard',
+                        };
+                        setRequest(freshRequest);
+                        setDistanceLeft(parseFloat((freshRequest.distance).toFixed(1)));
+                        setEtaMinutes(Math.round(freshRequest.estimatedDuration));
+                        await AsyncStorage.setItem('trip_nav_request', JSON.stringify(freshRequest));
+                    }
+                } catch { /* use cached data */ }
+            }
+        };
+        loadRequest();
     }, []);
 
     // GPS broadcasting
@@ -141,9 +177,12 @@ const TripNavScreen: React.FC = () => {
 
     // ── Phase actions ──────────────────────────────────────────────────────────
 
-    // EN ROUTE → tap "I have Arrived" → local state only → ARRIVED
+    // EN ROUTE → tap "I have Arrived" → update local state + notify passenger via Socket.io
     const handleArrivedAtPickup = () => {
         setPhase('arrived');
+        if (request?.rideId) {
+            socketService.emitDriverArrived(request.rideId);
+        }
     };
 
     // ARRIVED → tap "Passenger Boarded" → start ride on backend → ONBOARD
@@ -165,14 +204,16 @@ const TripNavScreen: React.FC = () => {
         setPhase('dropping');
     };
 
-    // DROPPING → tap "Complete Ride" → complete on backend → DONE → navigate
-    const handleComplete = async () => {
+    // DROPPING → tap "Complete Ride" → show styled confirmation modal
+    const handleComplete = () => {
         if (!request) return;
-        const confirmed = Platform.OS === 'web'
-            ? window.confirm(`Drop off ${request.passenger?.name || 'passenger'} and complete the trip?`)
-            : true;
-        if (!confirmed) return;
+        setCompleteOpen(true);
+    };
 
+    // Confirmed complete ride
+    const confirmComplete = async () => {
+        if (!request) return;
+        setCompleteOpen(false);
         setPhase('done');
         setLoading(true);
         try {
@@ -184,7 +225,7 @@ const TripNavScreen: React.FC = () => {
                     rideId: request.rideId,
                     passengerName: request.passenger?.name || 'Passenger',
                     fare: request.estimatedPrice,
-                    distance: request.distance,
+                    distance: distanceLeft,
                 });
             }, 1200);
         } catch (e: any) {
@@ -418,6 +459,36 @@ const TripNavScreen: React.FC = () => {
                 )}
             </View>
 
+            {/* Complete Ride Confirmation Modal */}
+            <Modal visible={completeOpen} transparent animationType="fade" onRequestClose={() => setCompleteOpen(false)}>
+                <Pressable style={s.sosOverlay} onPress={() => setCompleteOpen(false)}>
+                    <Pressable style={s.completeModal} onPress={e => e.stopPropagation()}>
+                        <Text style={s.completeEmoji}>🏁</Text>
+                        <Text style={s.completeTitle}>Complete Ride?</Text>
+                        <Text style={s.completeSub}>
+                            Drop off {request?.passenger?.name || 'passenger'} and end the trip.
+                        </Text>
+                        <View style={s.completeStats}>
+                            <View style={s.completeStat}>
+                                <Text style={s.completeStatVal}>RS {request?.estimatedPrice || 0}</Text>
+                                <Text style={s.completeStatLabel}>FARE EARNED</Text>
+                            </View>
+                            <View style={s.completeStatDivider} />
+                            <View style={s.completeStat}>
+                                <Text style={s.completeStatVal}>{distanceLeft} km</Text>
+                                <Text style={s.completeStatLabel}>DISTANCE</Text>
+                            </View>
+                        </View>
+                        <TouchableOpacity style={s.completeConfirmBtn} onPress={confirmComplete}>
+                            <Text style={s.completeConfirmText}>✓  Yes, Complete Ride</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={s.completeCancelBtn} onPress={() => setCompleteOpen(false)}>
+                            <Text style={s.completeCancelText}>Not yet</Text>
+                        </TouchableOpacity>
+                    </Pressable>
+                </Pressable>
+            </Modal>
+
             {/* SOS Modal */}
             <Modal visible={sosOpen} transparent animationType="fade" onRequestClose={() => setSosOpen(false)}>
                 <Pressable style={s.sosOverlay} onPress={() => setSosOpen(false)}>
@@ -569,6 +640,21 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
     doneText:{ fontSize: 15, color: t.colors.textSecondary, fontWeight: '600' },
 
     // SOS Modal
+    // Complete Ride Modal
+    completeModal:      { backgroundColor: t.colors.card, borderRadius: 28, padding: 28, alignItems: 'center', borderWidth: 2, borderColor: '#22C55E' },
+    completeEmoji:      { fontSize: 48, marginBottom: 12 },
+    completeTitle:      { fontSize: 22, fontWeight: '900', color: t.colors.text, marginBottom: 8 },
+    completeSub:        { fontSize: 14, color: t.colors.textSecondary, textAlign: 'center', marginBottom: 20, lineHeight: 20 },
+    completeStats:      { flexDirection: 'row', alignItems: 'center', backgroundColor: t.dark ? '#1A1A1A' : '#F5F5F5', borderRadius: 16, padding: 16, width: '100%', marginBottom: 24 },
+    completeStat:       { flex: 1, alignItems: 'center' },
+    completeStatVal:    { fontSize: 20, fontWeight: '900', color: t.colors.primary, marginBottom: 2 },
+    completeStatLabel:  { fontSize: 9, fontWeight: '800', color: t.colors.textSecondary, letterSpacing: 1 },
+    completeStatDivider:{ width: 1, height: 36, backgroundColor: t.dark ? '#333' : '#DDD' },
+    completeConfirmBtn: { width: '100%', backgroundColor: '#22C55E', borderRadius: 16, paddingVertical: 16, alignItems: 'center', marginBottom: 10 },
+    completeConfirmText:{ color: '#fff', fontWeight: '900', fontSize: 16 },
+    completeCancelBtn:  { paddingVertical: 10 },
+    completeCancelText: { color: t.colors.textSecondary, fontSize: 14 },
+
     sosOverlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', padding: 24 },
     sosModal:      { backgroundColor: t.colors.card, borderRadius: 24, padding: 28, alignItems: 'center', borderWidth: 2, borderColor: '#EF4444' },
     sosTitle:      { fontSize: 22, fontWeight: '900', color: '#EF4444', marginBottom: 10 },

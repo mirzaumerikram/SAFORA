@@ -45,8 +45,13 @@ const FeedbackScreen: React.FC = () => {
             try {
                 const res: any = await apiService.get(`/rides/${rideId}`);
                 if (res.success && res.ride) {
-                    setDriverName(res.ride.driver?.user?.name || 'Driver');
-                    setCarInfo(`${res.ride.driver?.vehicle?.model || 'Car'} • ${res.ride.driver?.vehicle?.licensePlate || 'N/A'}`);
+                    const driver = res.ride.driver;
+                    setDriverName(driver?.user?.name || 'Driver');
+                    const make  = driver?.vehicleInfo?.make  || '';
+                    const model = driver?.vehicleInfo?.model || '';
+                    const plate = driver?.vehicleInfo?.plateNumber || driver?.cnic || '';
+                    setCarInfo(`${make} ${model}`.trim() || 'Car');
+                    if (plate) setCarInfo(prev => `${prev} • ${plate}`);
                     setDistance(res.ride.distance?.toFixed(1) || '--');
                     setDuration(res.ride.estimatedDuration ? `${Math.round(res.ride.estimatedDuration)} min` : '-- min');
                     setFare(res.ride.estimatedPrice);
@@ -70,21 +75,19 @@ const FeedbackScreen: React.FC = () => {
     };
 
     const handleSubmit = async () => {
-        if (!rideId) {
-            navigation.navigate('FareBreakdown', { rideId });
-            return;
-        }
         setLoading(true);
         try {
-            await apiService.post('/rides/feedback', {
-                rideId,
-                rating,
-                tags: selectedTags,
-                comment,
-            });
-            navigation.navigate('FareBreakdown', { rideId });
+            if (rideId && rating > 0) {
+                await apiService.post(`/rides/${rideId}/rate`, {
+                    score: rating,
+                    comment: [selectedTags.join(', '), comment].filter(Boolean).join(' — ') || undefined,
+                    raterRole: 'passenger',
+                });
+            }
+            navigation.navigate('Home');
         } catch (err: any) {
-            Alert.alert('Submission Failed', err.message || 'Could not submit feedback. Please try again.');
+            // Non-blocking — navigate home even if rating fails
+            navigation.navigate('Home');
         } finally {
             setLoading(false);
         }
@@ -201,7 +204,7 @@ const FeedbackScreen: React.FC = () => {
             {/* Skip link */}
             <TouchableOpacity
                 style={s.skipBtn}
-                onPress={() => navigation.navigate('FareBreakdown', { rideId })}
+                onPress={() => navigation.navigate('Home')}
                 activeOpacity={0.6}
             >
                 <Text style={s.skipText}>Skip for now</Text>

@@ -133,6 +133,12 @@ const TrackingScreen: React.FC = () => {
 
                 socketService.onRideStatus(({ status: newStatus }) => handleStatusUpdate(newStatus));
 
+                // Driver arrived at pickup — update passenger phase bar
+                socketService.onDriverArrived(() => {
+                    if (!mounted) return;
+                    setStatus('ARRIVED');
+                });
+
                 // Re-join ride room on reconnect so we never miss events
                 (socketService as any).socket?.on('connect', () => {
                     console.log('[Tracking] Socket reconnected — re-joining ride room');

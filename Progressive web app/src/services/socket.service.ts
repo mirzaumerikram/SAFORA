@@ -77,6 +77,14 @@ class SocketService {
         this.socket?.emit('sos:trigger', { rideId, timestamp: new Date().toISOString() });
     }
 
+    emitDriverArrived(rideId: string): void {
+        this.socket?.emit('driver:arrived', { rideId });
+    }
+
+    onDriverArrived(cb: (data: { rideId: string }) => void): void {
+        this.socket?.on('driver:arrived', cb);
+    }
+
     emitDriverOnline(driverId: string): void {
         this.socket?.emit('join:driver', { driverId });
     }

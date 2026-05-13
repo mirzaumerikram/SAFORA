@@ -60,20 +60,24 @@ const SearchingScreen: React.FC = () => {
         // Real Socket Listener for Driver Match (Real-time)
         socketService.onRideAccepted((data: any) => {
             console.log('[Searching] Ride accepted by driver!', data);
+            navigated = true;
             navigation.navigate('Tracking', { rideId: data.rideId || rideId });
         });
 
         // Polling Safety Net: If socket fails, check API every 3s (Backup)
+        let navigated = false; // prevent double navigation
         const pollInterval = setInterval(async () => {
+            if (navigated) { clearInterval(pollInterval); return; }
             try {
                 const res: any = await apiService.get('/rides/active-ride');
-                if (res.success && res.ride && res.ride.status === 'accepted') {
+                if (res.success && res.ride && (res.ride.status === 'accepted' || res.ride.status === 'matched')) {
+                    if (navigated) return;
+                    navigated = true;
+                    clearInterval(pollInterval);
                     console.log('[Searching] Polling found accepted ride!', res.ride._id);
                     navigation.navigate('Tracking', { rideId: res.ride._id });
                 }
-            } catch (err) {
-                // Silently fail polling
-            }
+            } catch (err) { /* silent */ }
         }, 3000);
 
         return () => {

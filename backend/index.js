@@ -131,6 +131,14 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Driver arrived at pickup — relay to passenger
+  socket.on('driver:arrived', ({ rideId }) => {
+    if (rideId) {
+      io.to(`ride-${rideId}`).emit('driver:arrived', { rideId });
+      console.log(`[Socket] Driver arrived for ride ${rideId}`);
+    }
+  });
+
   // SOS triggered from passenger app
   socket.on('sos:trigger', ({ rideId, timestamp }) => {
     io.emit('sos:active', { rideId, timestamp });
