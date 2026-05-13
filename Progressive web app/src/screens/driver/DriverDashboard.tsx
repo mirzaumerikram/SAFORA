@@ -90,7 +90,8 @@ const DriverDashboard: React.FC = () => {
                     }
                 }
 
-                setBgCheckStatus('approved'); // Force approved for demo stability
+                // Use real approval status from backend — NEVER override this
+                setBgCheckStatus(res.driver.backgroundCheck?.status || 'pending');
 
 
                 setEarnings(prev => ({

@@ -33,6 +33,7 @@ const TrackingScreen: React.FC = () => {
     // Track whether a child screen (e.g. Chat) is open — don't navigate away if so
     const isChatOpenRef = useRef(false);
     const [driverData, setDriverData] = useState<any>(null);
+    const [driverVehicle, setDriverVehicle] = useState<string>('');
     const [price, setPrice] = useState<number | null>(estimatedPrice);
     const [driverLocation, setDriverLocation] = useState<Coordinates | null>(null);
     const [pCoords, setPCoords] = useState<Coordinates | null>(pickupCoords || null);
@@ -60,7 +61,18 @@ const TrackingScreen: React.FC = () => {
             try {
                 const res: any = await apiService.get(`/rides/${rideId}`);
                 if (res.success && res.ride) {
-                    setDriverData(res.ride.driver?.user || null);
+                    const dUser = res.ride.driver?.user || null;
+                    const dVehicle = res.ride.driver?.vehicleInfo;
+                    setDriverData(dUser);
+                    // Build real vehicle string from database
+                    if (dVehicle) {
+                        const color = dVehicle.color || '';
+                        const make  = dVehicle.make  || '';
+                        const model = dVehicle.model || '';
+                        const plate = dVehicle.plateNumber || '';
+                        const vehicleStr = [color, make, model].filter(Boolean).join(' ');
+                        setDriverVehicle(plate ? `${vehicleStr} • ${plate}` : vehicleStr);
+                    }
                     setPrice(res.ride.estimatedPrice);
                     
                     if (res.ride.driver?.currentLocation?.coordinates) {
@@ -369,7 +381,7 @@ const TrackingScreen: React.FC = () => {
                                         <Text style={styles.ratingText}>⭐ 4.9</Text>
                                     </View>
                                 </View>
-                                <Text style={styles.carInfo}>White Toyota Corolla • LEC-405</Text>
+                                <Text style={styles.carInfo}>{driverVehicle || 'Vehicle info loading...'}</Text>
                             </View>
                         </View>
                         <TouchableOpacity
