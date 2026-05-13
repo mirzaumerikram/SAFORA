@@ -10,6 +10,7 @@ import { useAppTheme } from '../../context/ThemeContext';
 import { AppTheme } from '../../utils/theme';
 import apiService from '../../services/api';
 import { STORAGE_KEYS } from '../../utils/constants';
+import { useAuth } from '../../context/AuthContext';
 
 interface DriverProfile {
     name: string;
@@ -31,6 +32,7 @@ interface DriverProfile {
 const DriverProfileScreen: React.FC = () => {
     const navigation = useNavigation<any>();
     const { theme, toggleTheme, isDark } = useAppTheme();
+    const { logout } = useAuth();
     const s = makeStyles(theme);
 
     const PINK_STATUS_CONFIG = {
@@ -187,17 +189,34 @@ const DriverProfileScreen: React.FC = () => {
     };
 
     // ── Logout ──
-    const handleLogout = () => {
-        Alert.alert('Log Out', 'Are you sure you want to log out?', [
-            { text: 'Cancel', style: 'cancel' },
-            {
-                text: 'Log Out', style: 'destructive',
-                onPress: async () => {
-                    await AsyncStorage.multiRemove([STORAGE_KEYS.AUTH_TOKEN, STORAGE_KEYS.USER_DATA]);
-                    navigation.reset({ index: 0, routes: [{ name: 'Auth' }] });
-                },
-            },
-        ]);
+    const handleLogout = async () => {
+        const doLogout = async () => {
+            await logout();
+            // Clear any leftover driver-specific keys
+            await AsyncStorage.multiRemove([
+                STORAGE_KEYS.AUTH_TOKEN,
+                STORAGE_KEYS.USER_DATA,
+                'last_active_ride',
+                'driver_online_status',
+            ]);
+            if (Platform.OS === 'web') {
+                localStorage.removeItem('driver_online_status');
+                localStorage.removeItem('last_ride_id');
+            }
+            navigation.reset({ index: 0, routes: [{ name: 'Auth' }] });
+        };
+
+        if (Platform.OS === 'web') {
+            // Alert.alert does nothing on web — use window.confirm instead
+            if (window.confirm('Are you sure you want to log out?')) {
+                await doLogout();
+            }
+        } else {
+            Alert.alert('Log Out', 'Are you sure you want to log out?', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Log Out', style: 'destructive', onPress: doLogout },
+            ]);
+        }
     };
 
     if (loading) {
