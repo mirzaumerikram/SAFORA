@@ -203,10 +203,10 @@ const FeedbackScreen: React.FC = () => {
                 )}
             </TouchableOpacity>
 
-            {/* Skip link */}
+            {/* Skip link — still shows fare summary */}
             <TouchableOpacity
                 style={s.skipBtn}
-                onPress={() => navigation.navigate('Home')}
+                onPress={() => navigation.replace('FareBreakdown', { rideId })}
                 activeOpacity={0.6}
             >
                 <Text style={s.skipText}>Skip for now</Text>
