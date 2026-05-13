@@ -346,13 +346,19 @@ const DriverDashboard: React.FC = () => {
         } catch { /* silent */ }
     };
 
-    // ── Start ride (driver arrived at pickup) ─────────────────────────────────
+    // ── Driver arrived at pickup (local state only — no backend call needed) ────
+    const handleArrived = () => {
+        setRideStatus('arrived');
+    };
+
+    // ── Start ride ────────────────────────────────────────────────────────────
     const handleStartRide = async () => {
         if (!activeRide) return;
         setActionLoading(true);
         try {
             await apiService.patch(`/rides/${activeRide.rideId}/status`, { status: 'started' });
             setRideStatus('started');
+            console.log('[SafetySentinel] Ride started — monitoring active on server');
         } catch (e: any) {
             Alert.alert('Error', e.message || 'Failed to start ride');
         } finally {
@@ -660,7 +666,11 @@ const DriverDashboard: React.FC = () => {
                             </TouchableOpacity>
                             <TouchableOpacity
                                 style={[s.rideActionBtn, { flex: 3 }, rideStatus === 'started' && s.endBtn, actionLoading && { opacity: 0.6 }]}
-                                onPress={rideStatus === 'accepted' ? handleStartRide : handleEndRide}
+                                onPress={
+                                    rideStatus === 'accepted' ? handleArrived :
+                                    rideStatus === 'arrived'  ? handleStartRide :
+                                    handleEndRide
+                                }
                                 disabled={actionLoading}
                             >
                                 {actionLoading
