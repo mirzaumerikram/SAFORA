@@ -21,7 +21,14 @@ const request = async (method, url, data) => {
 
   const res = await fetch(`${BASE_URL}${url}`, options);
   const contentType = res.headers.get('content-type');
-  
+
+  if (res.status === 401) {
+    // Token expired or invalid — clear it and force re-login
+    localStorage.removeItem('safora_admin_token');
+    localStorage.removeItem('safora_admin_user');
+    throw new Error('SESSION_EXPIRED');
+  }
+
   if (contentType && contentType.includes('application/json')) {
     const json = await res.json();
     if (!res.ok) throw new Error(json.message || 'Request failed');

@@ -12,8 +12,21 @@ export const AuthProvider = ({ children }) => {
     const user  = localStorage.getItem('safora_admin_user');
     if (token && user) {
       const parsed = JSON.parse(user);
-      if (parsed.role === 'admin') setAdmin(parsed);
-      else logout();
+      if (parsed.role === 'admin') {
+        // Verify the token is still valid against the backend
+        api.get('/auth/me')
+          .then(() => setAdmin(parsed))
+          .catch((err) => {
+            // Token expired or invalid — clear and show login
+            localStorage.removeItem('safora_admin_token');
+            localStorage.removeItem('safora_admin_user');
+            setAdmin(null);
+          })
+          .finally(() => setLoading(false));
+        return;
+      } else {
+        logout();
+      }
     }
     setLoading(false);
   }, []);

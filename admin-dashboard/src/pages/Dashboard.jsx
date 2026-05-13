@@ -38,8 +38,16 @@ export default function Dashboard() {
       api.get('/admin/alerts/active'),
       api.get('/admin/rides/active'),
     ]).then(([statsRes, alertsRes, ridesRes]) => {
-      if (statsRes.status === 'fulfilled') setStats(statsRes.value.stats);
-      else setError('Backend offline — showing demo data');
+      if (statsRes.status === 'fulfilled') {
+        setStats(statsRes.value.stats);
+      } else {
+        const msg = statsRes.reason?.message;
+        if (msg === 'SESSION_EXPIRED') {
+          setError('Session expired — please log out and log in again.');
+        } else {
+          setError('Backend offline — showing demo data');
+        }
+      }
       if (alertsRes.status === 'fulfilled') setAlerts(alertsRes.value.alerts || []);
       if (ridesRes.status === 'fulfilled') setRides(ridesRes.value.rides || []);
     }).finally(() => setLoading(false));
