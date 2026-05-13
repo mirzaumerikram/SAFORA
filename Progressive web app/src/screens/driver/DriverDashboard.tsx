@@ -239,6 +239,12 @@ const DriverDashboard: React.FC = () => {
             await AsyncStorage.setItem('driver_online_status', value ? 'true' : 'false');
         }
 
+        try {
+            await apiService.patch('/drivers/status', { status: value ? 'online' : 'offline' });
+        } catch (error) {
+            console.error('[Driver] Failed to sync status with server:', error);
+        }
+
         if (value) {
             if (driverId) {
                 connectSocket(driverId);
@@ -266,22 +272,37 @@ const DriverDashboard: React.FC = () => {
             if (watchId.current !== null) {
                 (navigator as any).geolocation.clearWatch(watchId.current);
             }
+            const onPosition = (pos: any) => {
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+                console.log('[GPS] Location:', lat, lng);
+                if (rideId) {
+                    socketService.emitLocationUpdate(rideId, lat, lng);
+                } else if (driverId) {
+                    (socketService as any).socket?.emit('driver:location-update', {
+                        driverId,
+                        lat,
+                        lng,
+                    });
+                }
+            };
+
+            const onError = (err: any) => {
+                console.warn('[GPS] Error code:', err.code, err.message);
+                // On timeout, retry with low accuracy (works on desktop/laptop without GPS chip)
+                if (err.code === 3) {
+                    watchId.current = (navigator as any).geolocation.watchPosition(
+                        onPosition,
+                        (e: any) => console.error('[GPS] Low-accuracy fallback failed:', e.message),
+                        { enableHighAccuracy: false, timeout: 30000, maximumAge: 60000 }
+                    );
+                }
+            };
+
             watchId.current = (navigator as any).geolocation.watchPosition(
-                (pos: any) => {
-                    // Send to matching engine (driverId based) OR active ride (rideId based)
-                    if (rideId) {
-                        socketService.emitLocationUpdate(rideId, pos.coords.latitude, pos.coords.longitude);
-                    } else if (driverId) {
-                        // Using any-cast to access the new location-update event
-                        (socketService as any).socket?.emit('driver:location-update', { 
-                            driverId, 
-                            lat: pos.coords.latitude, 
-                            lng: pos.coords.longitude 
-                        });
-                    }
-                },
-                (err: any) => console.error('[GPS] Watch error:', err),
-                { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                onPosition,
+                onError,
+                { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
             );
         }
     };
