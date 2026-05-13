@@ -60,6 +60,30 @@ const BookingLocationScreen: React.FC = () => {
         setDropoffLocation(temp);
     };
 
+    const handleUseCurrentLocation = () => {
+        if (!navigator.geolocation) {
+            alert('Geolocation is not supported by your device/browser');
+            return;
+        }
+        setLoading(true);
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                setPickupLocation({
+                    address: 'Current Location',
+                    lat: pos.coords.latitude,
+                    lng: pos.coords.longitude,
+                });
+                setLoading(false);
+            },
+            (err) => {
+                console.warn('[Location Error]:', err);
+                alert('Could not fetch current location. Please ensure location permissions are granted.');
+                setLoading(false);
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
+    };
+
     const handleProceed = async () => {
         if (!pickupLocation || !dropoffLocation) {
             alert('Please enter both pickup and destination locations');
@@ -147,6 +171,15 @@ const BookingLocationScreen: React.FC = () => {
                             apiKey={GOOGLE_MAPS_API_KEY}
                             icon="🟢"
                         />
+
+                        <TouchableOpacity 
+                            style={s.currentLocationBtn}
+                            onPress={handleUseCurrentLocation}
+                            activeOpacity={0.7}
+                        >
+                            <Text style={s.currentLocationIcon}>📍</Text>
+                            <Text style={s.currentLocationText}>Use my current location</Text>
+                        </TouchableOpacity>
                         {pickupLocation && (
                             <View style={s.selectedLocation}>
                                 <Text style={s.selectedText}>{pickupLocation.address}</Text>
@@ -303,6 +336,28 @@ const makeStyles = (theme: AppTheme) =>
             color: theme.colors.textSecondary,
             marginTop: 4,
             fontFamily: 'Inter-Regular',
+        },
+        currentLocationBtn: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: theme.colors.cardSecondary,
+            paddingVertical: 10,
+            paddingHorizontal: 12,
+            borderRadius: 10,
+            marginTop: 10,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            alignSelf: 'flex-start',
+        },
+        currentLocationIcon: {
+            fontSize: 16,
+            marginRight: 8,
+        },
+        currentLocationText: {
+            fontSize: 13,
+            color: theme.colors.primary,
+            fontWeight: '600',
+            fontFamily: 'Inter-SemiBold',
         },
         swapBtn: {
             alignSelf: 'center',
