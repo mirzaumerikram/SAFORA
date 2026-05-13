@@ -4,6 +4,7 @@ import {
     ActivityIndicator, Platform, Modal, Pressable, Animated,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppTheme } from '../../context/ThemeContext';
 import { AppTheme } from '../../utils/theme';
 import SaforaMap from '../../components/SaforaMap';
@@ -45,7 +46,8 @@ const TripNavScreen: React.FC = () => {
     const { theme }  = useAppTheme();
     const s          = useMemo(() => makeStyles(theme), [theme]);
 
-    const request = route.params?.request as {
+    // Request data loaded from AsyncStorage (avoids [object Object] URL serialisation)
+    const [request, setRequest] = useState<{
         rideId: string;
         passenger: { name: string; rating?: number };
         pickup:  { address: string; lat?: number; lng?: number };
@@ -54,7 +56,7 @@ const TripNavScreen: React.FC = () => {
         estimatedDuration: number;
         distance: number;
         type: string;
-    };
+    } | null>(null);
 
     const [phase, setPhase]               = useState<TripPhase>('en_route');
     const [loading, setLoading]           = useState(false);
@@ -82,10 +84,21 @@ const TripNavScreen: React.FC = () => {
         ).start();
     }, []);
 
+    // Load request from AsyncStorage on mount
+    useEffect(() => {
+        AsyncStorage.getItem('trip_nav_request').then(raw => {
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                setRequest(parsed);
+                setDistanceLeft(parsed.distance || 0);
+                setEtaMinutes(parsed.estimatedDuration || 0);
+            }
+        });
+    }, []);
+
     // GPS broadcasting
     useEffect(() => {
         startGPS();
-        // Chat message badge
         socketService.onChatMessage((msg) => {
             if (msg.sender !== 'driver') setHasNewMessage(true);
         });
@@ -135,6 +148,7 @@ const TripNavScreen: React.FC = () => {
 
     // ARRIVED → tap "Passenger Boarded" → start ride on backend → ONBOARD
     const handlePassengerBoarded = async () => {
+        if (!request) return;
         setLoading(true);
         try {
             await apiService.patch(`/rides/${request.rideId}/status`, { status: 'started' });
@@ -153,6 +167,7 @@ const TripNavScreen: React.FC = () => {
 
     // DROPPING → tap "Complete Ride" → complete on backend → DONE → navigate
     const handleComplete = async () => {
+        if (!request) return;
         const confirmed = Platform.OS === 'web'
             ? window.confirm(`Drop off ${request.passenger?.name || 'passenger'} and complete the trip?`)
             : true;
@@ -163,6 +178,7 @@ const TripNavScreen: React.FC = () => {
         try {
             await apiService.patch(`/rides/${request.rideId}/status`, { status: 'completed' });
             stopGPS();
+            await AsyncStorage.removeItem('trip_nav_request');
             setTimeout(() => {
                 navigation.replace('RatePassenger', {
                     rideId: request.rideId,
@@ -181,7 +197,7 @@ const TripNavScreen: React.FC = () => {
 
     const handleSOS = () => {
         setSosOpen(false);
-        socketService.emitSOS(request.rideId);
+        if (request?.rideId) socketService.emitSOS(request.rideId);
         showAlert('🆘 SOS Triggered', 'SAFORA safety team and your emergency contacts have been alerted.');
     };
 
@@ -190,10 +206,22 @@ const TripNavScreen: React.FC = () => {
             ? window.confirm('Cancel this ride? This may affect your rating.')
             : true;
         if (!confirmed) return;
-        apiService.post(`/rides/${request.rideId}/cancel`, { cancelledBy: 'driver' }).catch(() => {});
+        if (request?.rideId) {
+            apiService.post(`/rides/${request.rideId}/cancel`, { cancelledBy: 'driver' }).catch(() => {});
+        }
         stopGPS();
         navigation.goBack();
     };
+
+    // Show loading until request is loaded from AsyncStorage
+    if (!request) {
+        return (
+            <View style={s.loadingScreen}>
+                <ActivityIndicator size="large" color="#F5C518" />
+                <Text style={s.loadingText}>Loading ride…</Text>
+            </View>
+        );
+    }
 
     const showAlert = (title: string, msg: string) => {
         if (Platform.OS === 'web') {
@@ -413,8 +441,10 @@ const TripNavScreen: React.FC = () => {
 };
 
 const makeStyles = (t: AppTheme) => StyleSheet.create({
-    container: { flex: 1, backgroundColor: t.colors.background },
-    mapWrap:   { flex: 1 },
+    container:     { flex: 1, backgroundColor: t.colors.background },
+    mapWrap:       { flex: 1 },
+    loadingScreen: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: t.colors.background, gap: 16 },
+    loadingText:   { color: t.colors.textSecondary, fontSize: 14, fontWeight: '600' },
 
     // Turn banner
     turnBanner: {

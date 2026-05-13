@@ -288,39 +288,42 @@ const TrackingScreen: React.FC = () => {
                     </TouchableOpacity>
                 </View>
 
-                {/* 4-phase progress bar */}
-                <View style={styles.phaseBar}>
-                    {PASSENGER_PHASES.map((p, i) => {
-                        const currentIndex = PASSENGER_PHASES.indexOf(status);
-                        const isActive = i === currentIndex;
-                        const isDone   = i < currentIndex;
-                        const isFuture = i > currentIndex;
-                        return (
-                            <View key={p} style={styles.phaseItem}>
-                                <View style={[
-                                    styles.phaseDot,
-                                    isDone   && styles.phaseDotDone,
-                                    isActive && styles.phaseDotActive,
-                                    isFuture && styles.phaseDotFuture,
-                                ]}>
-                                    {isDone && <Text style={styles.phaseDotCheck}>✓</Text>}
-                                </View>
-                                <Text style={[
-                                    styles.phaseLabel,
-                                    isActive && styles.phaseLabelActive,
-                                    isDone   && styles.phaseLabelDone,
-                                    isFuture && styles.phaseLabelFuture,
-                                ]}>{p}</Text>
-                                {i < PASSENGER_PHASES.length - 1 && (
-                                    <View style={[styles.phaseLine, isDone && styles.phaseLineDone]} />
-                                )}
-                            </View>
-                        );
-                    })}
-                </View>
-
                 {/* Driver Info Card */}
                 <View style={styles.driverCard}>
+
+                    {/* 4-phase progress bar — inside card, above driver info */}
+                    <View style={styles.phaseBar}>
+                        {PASSENGER_PHASES.map((p, i) => {
+                            const currentIndex = PASSENGER_PHASES.indexOf(status);
+                            const isActive = i === currentIndex;
+                            const isDone   = i < currentIndex;
+                            const isFuture = i > currentIndex;
+                            return (
+                                <View key={p} style={styles.phaseItem}>
+                                    <View style={[
+                                        styles.phaseDot,
+                                        isDone   && styles.phaseDotDone,
+                                        isActive && styles.phaseDotActive,
+                                        isFuture && styles.phaseDotFuture,
+                                    ]}>
+                                        {isDone && <Text style={styles.phaseDotCheck}>✓</Text>}
+                                    </View>
+                                    <Text style={[
+                                        styles.phaseLabel,
+                                        isActive && styles.phaseLabelActive,
+                                        isDone   && styles.phaseLabelDone,
+                                        isFuture && styles.phaseLabelFuture,
+                                    ]}>{p}</Text>
+                                    {i < PASSENGER_PHASES.length - 1 && (
+                                        <View style={[styles.phaseLine, isDone && styles.phaseLineDone]} />
+                                    )}
+                                </View>
+                            );
+                        })}
+                    </View>
+
+                    <View style={styles.cardDivider} />
+
                     <View style={styles.driverHeader}>
                         <View style={styles.driverDetails}>
                             <Image 
@@ -546,50 +549,48 @@ const styles = StyleSheet.create({
         fontSize: 10,
         fontWeight: '900',
     },
-    // ── 4-phase progress bar ──────────────────────────────────────────────────
+    // ── 4-phase progress bar (inside driver card) ────────────────────────────
     phaseBar: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        backgroundColor: theme.colors.card,
-        borderRadius: 18,
-        paddingVertical: 14,
-        paddingHorizontal: 16,
-        marginBottom: 10,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-        elevation: 8,
+        paddingVertical: 12,
+        paddingHorizontal: 4,
+        marginBottom: 0,
     },
     phaseItem: {
         flex: 1, alignItems: 'center', position: 'relative',
     },
     phaseDot: {
-        width: 22, height: 22, borderRadius: 11,
+        width: 20, height: 20, borderRadius: 10,
         backgroundColor: theme.dark ? '#333' : '#E0E0E0',
-        alignItems: 'center', justifyContent: 'center', marginBottom: 5,
+        alignItems: 'center', justifyContent: 'center', marginBottom: 4,
     },
     phaseDotActive: {
         backgroundColor: theme.colors.primary,
         shadowColor: theme.colors.primary,
         shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.6, shadowRadius: 6, elevation: 6,
+        shadowOpacity: 0.5, shadowRadius: 4, elevation: 4,
     },
     phaseDotDone:   { backgroundColor: '#22C55E' },
     phaseDotFuture: { backgroundColor: theme.dark ? '#2A2A2A' : '#EFEFEF' },
-    phaseDotCheck:  { fontSize: 11, color: '#fff', fontWeight: '900' },
-    phaseLabel:       { fontSize: 9, fontWeight: '700', color: theme.colors.textSecondary, letterSpacing: 0.5 },
+    phaseDotCheck:  { fontSize: 10, color: '#fff', fontWeight: '900' },
+    phaseLabel:       { fontSize: 8, fontWeight: '700', color: theme.colors.textSecondary, letterSpacing: 0.5 },
     phaseLabelActive: { color: theme.colors.primary, fontWeight: '900' },
     phaseLabelDone:   { color: '#22C55E' },
     phaseLabelFuture: { color: theme.dark ? '#444' : '#CCC' },
     phaseLine: {
-        position: 'absolute', top: 10, right: '-50%',
+        position: 'absolute', top: 9, right: '-50%',
         width: '100%', height: 2,
         backgroundColor: theme.dark ? '#333' : '#E0E0E0',
         zIndex: -1,
     },
     phaseLineDone: { backgroundColor: '#22C55E' },
+    cardDivider: {
+        height: 1,
+        backgroundColor: theme.dark ? '#222' : '#EEEEEE',
+        marginBottom: 16,
+    },
     // ─────────────────────────────────────────────────────────────────────────
 
     driverMarker: {

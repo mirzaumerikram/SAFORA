@@ -323,9 +323,10 @@ const DriverDashboard: React.FC = () => {
             await apiService.post(`/rides/${incoming.rideId}/accept`, {});
             setIncoming(null);
             setRideStatus('idle');
+            // Store full ride data in AsyncStorage — pass only rideId in URL to avoid [object Object] serialisation
             await AsyncStorage.setItem('last_active_ride', JSON.stringify(incoming));
-            // Navigate to TripNavScreen for the full 4-phase ride experience
-            navigation.navigate('TripNav', { request: incoming });
+            await AsyncStorage.setItem('trip_nav_request', JSON.stringify(incoming));
+            navigation.navigate('TripNav', { rideId: incoming.rideId });
         } catch (e: any) {
             Alert.alert('Error', e.message || 'Failed to accept ride');
         } finally {
