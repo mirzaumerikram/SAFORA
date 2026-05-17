@@ -96,7 +96,7 @@ df = pd.DataFrame({
     'fare_pkr':           fare_final,
 })
 
-print(f"  ✓ Dataset generated | shape: {df.shape}")
+print(f"  [OK] Dataset generated | shape: {df.shape}")
 print(f"  Fare range: PKR {df['fare_pkr'].min():.0f} – {df['fare_pkr'].max():.0f}")
 print(f"  Mean fare:  PKR {df['fare_pkr'].mean():.0f}")
 
@@ -108,7 +108,7 @@ y = df['fare_pkr'].values
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42
 )
-print(f"  ✓ Train: {len(X_train)} samples | Test: {len(X_test)} samples")
+print(f"  [OK] Train: {len(X_train)} samples | Test: {len(X_test)} samples")
 
 # ─── Train Model ──────────────────────────────────────────────────────────────
 print("\n[3/4] Training LinearRegression model...")
@@ -119,7 +119,7 @@ y_pred = model.predict(X_test)
 mae    = mean_absolute_error(y_test, y_pred)
 r2     = r2_score(y_test, y_pred)
 
-print(f"  ✓ Model trained successfully!")
+print(f"  [OK] Model trained successfully!")
 print(f"  R² Score:              {r2:.4f}  (1.0 = perfect)")
 print(f"  Mean Absolute Error:   PKR {mae:.2f}")
 print(f"\n  Feature Coefficients:")
@@ -136,12 +136,12 @@ os.makedirs('models', exist_ok=True)
 # Save trained model
 model_path = 'models/price_model.pkl'
 joblib.dump(model, model_path)
-print(f"  ✓ Model saved → {model_path}")
+print(f"  [OK] Model saved -> {model_path}")
 
 # Save training data for documentation / SDD appendix
 csv_path = 'models/training_data.csv'
 df.to_csv(csv_path, index=False)
-print(f"  ✓ Training data saved → {csv_path}")
+print(f"  [OK] Training data saved -> {csv_path}")
 
 # ─── Quick Smoke Test ─────────────────────────────────────────────────────────
 print("\n" + "=" * 60)
@@ -162,7 +162,7 @@ for case in test_cases:
     predicted = loaded_model.predict(X_sample)[0]
     predicted = max(50, min(predicted, 3000))  # bounds
     print(f"  {case['desc']}")
-    print(f"    → Predicted fare: PKR {predicted:.0f}\n")
+    print(f"    -> Predicted fare: PKR {predicted:.0f}\n")
 
 print("=" * 60)
 print("  ✅ SAFORA pricing model trained and ready!")
