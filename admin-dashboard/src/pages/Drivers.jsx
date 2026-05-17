@@ -7,7 +7,7 @@ export default function Drivers() {
   const { search }              = useOutletContext();
   const [drivers, setDrivers]   = useState([]);
   const [loading, setLoading]   = useState(true);
-  const [activeTab, setActiveTab] = useState('pending'); // 'pending' | 'all'
+  const [activeTab, setActiveTab] = useState('online'); // 'online' | 'pending' | 'all'
   const [action, setAction]     = useState(null); // driverId_approve | driverId_reject
   const [toast, setToast]       = useState('');
   
@@ -18,7 +18,11 @@ export default function Drivers() {
 
   const load = () => {
     setLoading(true);
-    const endpoint = activeTab === 'pending' ? '/admin/drivers/pending' : '/admin/drivers/all';
+    const endpoint = activeTab === 'pending'
+      ? '/admin/drivers/pending'
+      : activeTab === 'online'
+      ? '/admin/drivers/online'
+      : '/admin/drivers/all';
     api.get(endpoint)
       .then(res => setDrivers(res.drivers || []))
       .catch(() => setDrivers([]))
@@ -138,6 +142,18 @@ export default function Drivers() {
       </div>
 
       <div className="tab-container" style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+        <button
+          onClick={() => setActiveTab('online')}
+          className={`tab-btn ${activeTab === 'online' ? 'active' : ''}`}
+          style={{
+            padding: '10px 20px', borderRadius: '8px', border: 'none',
+            background: activeTab === 'online' ? '#27ae60' : '#eee',
+            color: activeTab === 'online' ? '#fff' : '#666',
+            fontWeight: 700, cursor: 'pointer'
+          }}
+        >
+          🟢 Online Now
+        </button>
         <button 
           onClick={() => setActiveTab('pending')}
           className={`tab-btn ${activeTab === 'pending' ? 'active' : ''}`}
@@ -148,7 +164,7 @@ export default function Drivers() {
             fontWeight: 700, cursor: 'pointer'
           }}
         >
-          Pending Approvals
+          ⏳ Pending Approvals
         </button>
         <button 
           onClick={() => setActiveTab('all')}
@@ -160,7 +176,7 @@ export default function Drivers() {
             fontWeight: 700, cursor: 'pointer'
           }}
         >
-          All Drivers
+          📋 All Drivers
         </button>
       </div>
 
@@ -182,8 +198,13 @@ export default function Drivers() {
                       <div className="dc-name">{d.user?.name || 'Unknown'}</div>
                       <div className="dc-phone">{d.user?.phone || '—'}</div>
                     </div>
-                    <div className={`dc-badge status-${d.backgroundCheck?.status || 'pending'}`}>
-                      {(d.backgroundCheck?.status || 'pending').toUpperCase()}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-end' }}>
+                      <div className={`dc-badge status-${d.backgroundCheck?.status || 'pending'}`}>
+                        {(d.backgroundCheck?.status || 'pending').toUpperCase()}
+                      </div>
+                      {activeTab === 'online' && (
+                        <div style={{ background: '#e8f8f0', color: '#27ae60', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '10px' }}>● ONLINE</div>
+                      )}
                     </div>
                   </div>
                   <div className="dc-details">
@@ -191,6 +212,11 @@ export default function Drivers() {
                     <div className="dc-row"><span>Email</span><span style={{ fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.user?.email || '—'}</span></div>
                     <div className="dc-row"><span>Applied</span><span>{d.createdAt ? new Date(d.createdAt).toLocaleDateString() : '—'}</span></div>
                     <div className="dc-row"><span>Vehicle</span><span>{d.vehicleInfo?.make} {d.vehicleInfo?.model} ({d.vehicleInfo?.plateNumber})</span></div>
+                    <div className="dc-row"><span>Total Rides</span><span style={{ fontWeight: 700, color: '#3498db' }}>{d.totalRides || 0}</span></div>
+                    <div className="dc-row"><span>Rating</span><span style={{ color: '#f1c40f', fontWeight: 700 }}>★ {d.rating?.toFixed(1) || '5.0'}</span></div>
+                    {activeTab === 'online' && d.lastOnlineAt && (
+                      <div className="dc-row"><span>Online Since</span><span style={{ color: '#27ae60', fontWeight: 600 }}>{new Date(d.lastOnlineAt).toLocaleTimeString()}</span></div>
+                    )}
                   </div>
                   <div className="dc-actions">
                     <button className="btn-edit" onClick={() => openEdit(d)} style={{ background: '#eee', color: '#333', border: 'none', padding: '10px 15px', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}>

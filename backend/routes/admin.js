@@ -85,6 +85,21 @@ router.get('/drivers/pending', async (req, res) => {
     }
 });
 
+// @route   GET /api/admin/drivers/online
+// @desc    Get drivers currently toggled online (active on the map)
+// @access  Admin
+router.get('/drivers/online', async (req, res) => {
+    try {
+        const drivers = await Driver.find({ status: 'online' })
+            .populate('user', 'name phone email gender cnic')
+            .sort({ lastOnlineAt: -1 });
+
+        res.json({ success: true, count: drivers.length, drivers });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
 // @route   PATCH /api/admin/drivers/:id/approve
 // @desc    Approve a driver
 // @access  Admin
