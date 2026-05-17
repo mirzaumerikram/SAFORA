@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import 'leaflet.heat';
+// Removing hoisted import 'leaflet.heat'; to prevent crash
 import { api } from '../services/api';
 import './TablePage.css';
 
@@ -22,21 +22,37 @@ const HeatmapLayer = ({ points }) => {
   useEffect(() => {
     if (!map || !points || points.length === 0) return;
 
-    // Remove existing layer if it exists
-    if (heatLayerRef.current) {
-      map.removeLayer(heatLayerRef.current);
-    }
+    let mounted = true;
 
-    // Create new heat layer
-    // points format: [lat, lng, intensity]
-    heatLayerRef.current = L.heatLayer(points, {
-      radius: 25,
-      blur: 15,
-      maxZoom: 14,
-      gradient: { 0.4: 'blue', 0.6: 'cyan', 0.7: 'lime', 0.8: 'yellow', 1.0: 'red' }
-    }).addTo(map);
+    const initHeatLayer = async () => {
+      try {
+        // leaflet.heat requires global L
+        window.L = L;
+        await import('leaflet.heat');
+
+        if (!mounted) return;
+
+        // Remove existing layer if it exists
+        if (heatLayerRef.current) {
+          map.removeLayer(heatLayerRef.current);
+        }
+
+        // Create new heat layer
+        heatLayerRef.current = L.heatLayer(points, {
+          radius: 25,
+          blur: 15,
+          maxZoom: 14,
+          gradient: { 0.4: 'blue', 0.6: 'cyan', 0.7: 'lime', 0.8: 'yellow', 1.0: 'red' }
+        }).addTo(map);
+      } catch (err) {
+        console.error("Failed to initialize heatmap layer:", err);
+      }
+    };
+
+    initHeatLayer();
 
     return () => {
+      mounted = false;
       if (heatLayerRef.current && map) {
         map.removeLayer(heatLayerRef.current);
       }
@@ -57,7 +73,15 @@ export default function LiveMap() {
     // Fetch heatmap data
     api.get('/admin/heatmap-data').then(r => {
       if (r.success) {
-        setHeatmapPoints(r.points);
+        // FILTER INVALID COORDINATES: 
+        // Leaflet will crash instantly if we pass [NaN, NaN] or undefined.
+        const validPoints = (r.points || []).filter(p => 
+          Array.isArray(p) && 
+          p.length >= 2 && 
+          typeof p[0] === 'number' && !isNaN(p[0]) &&
+          typeof p[1] === 'number' && !isNaN(p[1])
+        );
+        setHeatmapPoints(validPoints);
       }
     }).catch(e => console.error("Failed to load heatmap data:", e));
   }, []);
