@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
+import { MapContainer, TileLayer } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 import { api } from '../services/api';
 import './Dashboard.css';
 
@@ -86,13 +88,21 @@ export default function Dashboard() {
             <div className="ch-title">🗺️ Live Map</div>
             <Link to="/live-map" className="ch-link">Open Full Map →</Link>
           </div>
-          <div className="map-embed-wrap">
-            <iframe
-              title="Live Map"
-              src="https://maps.google.com/maps?q=31.5204,74.3587&z=12&output=embed&hl=en"
-              style={{ width: '100%', height: '100%', border: 'none', borderRadius: 12 }}
-            />
-            <div className="map-overlay-stats">
+          <div className="map-embed-wrap" style={{ position: 'relative', overflow: 'hidden', borderRadius: '12px' }}>
+            <MapContainer 
+              center={[31.5204, 74.3587]} 
+              zoom={11} 
+              style={{ width: '100%', height: '100%', zIndex: 1 }}
+              zoomControl={false}
+              dragging={false}
+              scrollWheelZoom={false}
+              doubleClickZoom={false}
+            >
+              <TileLayer
+                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+              />
+            </MapContainer>
+            <div className="map-overlay-stats" style={{ zIndex: 10 }}>
               <div className="mos-item mos-drivers">🚗 {s.activeDrivers} Active Drivers</div>
               <div className="mos-item mos-rides">🔄 {s.activeRides || 0} Active Rides</div>
               {s.openAlerts > 0 && <div className="mos-item mos-sos">🚨 {s.openAlerts} SOS Active</div>}
