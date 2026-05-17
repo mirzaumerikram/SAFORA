@@ -1,11 +1,53 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
-import { MapContainer, TileLayer } from 'react-leaflet';
+import { MapContainer, TileLayer, useMap } from 'react-leaflet';
+import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { api } from '../services/api';
 import './Dashboard.css';
 
-const StatCard = ({ icon, value, label, color }) => (
+// Fix Leaflet's default icon paths
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
+
+// Heatmap Layer Component for Dashboard preview
+const HeatmapLayer = ({ points }) => {
+  const map = useMap();
+  const heatLayerRef = useRef(null);
+
+  useEffect(() => {
+    if (!map || !points || points.length === 0) return;
+    let mounted = true;
+    const initHeatLayer = async () => {
+      try {
+        window.L = L;
+        await import('leaflet.heat');
+        if (!mounted) return;
+        if (heatLayerRef.current) map.removeLayer(heatLayerRef.current);
+        
+        heatLayerRef.current = L.heatLayer(points, {
+          radius: 35,
+          blur: 25,
+          maxZoom: 14,
+          gradient: { 0.1: 'blue', 0.3: 'cyan', 0.5: 'lime', 0.7: 'yellow', 0.9: 'red' }
+        }).addTo(map);
+      } catch (err) {
+        console.error("Dashboard heatmap init error:", err);
+      }
+    };
+    initHeatLayer();
+    return () => {
+      mounted = false;
+      if (heatLayerRef.current && map) map.removeLayer(heatLayerRef.current);
+    };
+  }, [map, points]);
+
+  return null;
+};
   <div className="stat-card">
     <div className="sc-top">
       <div className="sc-icon" style={{ background: color + '18' }}>{icon}</div>
@@ -31,6 +73,7 @@ export default function Dashboard() {
   const [stats, setStats]         = useState(null);
   const [alerts, setAlerts]       = useState([]);
   const [rides, setRides]         = useState([]);
+  const [heatmapPoints, setHeatmapPoints] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState('');
 
@@ -39,7 +82,8 @@ export default function Dashboard() {
       api.get('/admin/dashboard'),
       api.get('/admin/alerts/active'),
       api.get('/admin/rides/active'),
-    ]).then(([statsRes, alertsRes, ridesRes]) => {
+      api.get('/admin/heatmap-data')
+    ]).then(([statsRes, alertsRes, ridesRes, heatmapRes]) => {
       if (statsRes.status === 'fulfilled') {
         setStats(statsRes.value.stats);
       } else {
@@ -52,6 +96,14 @@ export default function Dashboard() {
       }
       if (alertsRes.status === 'fulfilled') setAlerts(alertsRes.value.alerts || []);
       if (ridesRes.status === 'fulfilled') setRides(ridesRes.value.rides || []);
+      if (heatmapRes.status === 'fulfilled' && heatmapRes.value.success) {
+        const validPoints = (heatmapRes.value.points || []).filter(p => 
+          Array.isArray(p) && p.length >= 2 && 
+          typeof p[0] === 'number' && !isNaN(p[0]) &&
+          typeof p[1] === 'number' && !isNaN(p[1])
+        );
+        setHeatmapPoints(validPoints);
+      }
     }).finally(() => setLoading(false));
   }, []);
 
@@ -101,6 +153,7 @@ export default function Dashboard() {
               <TileLayer
                 url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
               />
+              <HeatmapLayer points={heatmapPoints} />
             </MapContainer>
             <div className="map-overlay-stats" style={{ zIndex: 10 }}>
               <div className="mos-item mos-drivers">🚗 {s.activeDrivers} Active Drivers</div>
