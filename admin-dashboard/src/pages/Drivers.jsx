@@ -214,9 +214,21 @@ export default function Drivers() {
                     <div className="dc-row"><span>Vehicle</span><span>{d.vehicleInfo?.make} {d.vehicleInfo?.model} ({d.vehicleInfo?.plateNumber})</span></div>
                     <div className="dc-row"><span>Total Rides</span><span style={{ fontWeight: 700, color: '#3498db' }}>{d.totalRides || 0}</span></div>
                     <div className="dc-row"><span>Rating</span><span style={{ color: '#f1c40f', fontWeight: 700 }}>★ {d.rating?.toFixed(1) || '5.0'}</span></div>
-                    {activeTab === 'online' && d.lastOnlineAt && (
-                      <div className="dc-row"><span>Online Since</span><span style={{ color: '#27ae60', fontWeight: 600 }}>{new Date(d.lastOnlineAt).toLocaleTimeString()}</span></div>
-                    )}
+                    {activeTab === 'online' && d.lastOnlineAt && (() => {
+                      const dt = new Date(d.lastOnlineAt);
+                      const day = dt.toLocaleDateString('en-US', { weekday: 'long' });
+                      const date = dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                      const time = dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                      return (
+                        <div className="dc-row">
+                          <span>Online Since</span>
+                          <span style={{ color: '#27ae60', fontWeight: 600, textAlign: 'right', lineHeight: '1.4' }}>
+                            {day}<br />
+                            <span style={{ fontSize: '11px', color: '#555' }}>{date} · {time}</span>
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
                   <div className="dc-actions">
                     <button className="btn-edit" onClick={() => openEdit(d)} style={{ background: '#eee', color: '#333', border: 'none', padding: '10px 15px', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}>
