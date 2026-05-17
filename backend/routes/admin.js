@@ -248,7 +248,7 @@ router.get('/alerts/all', async (req, res) => {
 router.get('/rides/active', async (req, res) => {
     try {
         const rides = await Ride.find({
-            status: { $in: ['matched', 'accepted', 'started'] }
+            status: { $in: ['requested', 'matched', 'accepted', 'started'] }
         })
         .populate('passenger', 'name phone')
         .populate({
