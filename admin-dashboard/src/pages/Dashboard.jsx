@@ -21,33 +21,31 @@ const HeatmapLayer = ({ points }) => {
 
   useEffect(() => {
     if (!map || !points || points.length === 0) return;
-    let mounted = true;
-    const initHeatLayer = async () => {
-      try {
-        window.L = L;
-        await import('leaflet.heat');
-        if (!mounted) return;
-        if (heatLayerRef.current) map.removeLayer(heatLayerRef.current);
-        
-        heatLayerRef.current = L.heatLayer(points, {
-          radius: 35,
-          blur: 25,
-          maxZoom: 14,
-          gradient: { 0.1: 'blue', 0.3: 'cyan', 0.5: 'lime', 0.7: 'yellow', 0.9: 'red' }
-        }).addTo(map);
-      } catch (err) {
-        console.error("Dashboard heatmap init error:", err);
-      }
-    };
-    initHeatLayer();
+
+    // leaflet.heat is loaded globally via CDN in index.html
+    if (typeof window.L === 'undefined' || typeof window.L.heatLayer === 'undefined') {
+      console.warn('leaflet.heat CDN not yet loaded');
+      return;
+    }
+
+    if (heatLayerRef.current) map.removeLayer(heatLayerRef.current);
+
+    heatLayerRef.current = window.L.heatLayer(points, {
+      radius: 35,
+      blur: 25,
+      maxZoom: 14,
+      gradient: { 0.1: 'blue', 0.3: 'cyan', 0.5: 'lime', 0.7: 'yellow', 0.9: 'red' }
+    }).addTo(map);
+
     return () => {
-      mounted = false;
       if (heatLayerRef.current && map) map.removeLayer(heatLayerRef.current);
     };
   }, [map, points]);
 
   return null;
 };
+
+const StatCard = ({ icon, value, label, color }) => (
   <div className="stat-card">
     <div className="sc-top">
       <div className="sc-icon" style={{ background: color + '18' }}>{icon}</div>
@@ -56,6 +54,7 @@ const HeatmapLayer = ({ points }) => {
     <div className="sc-label">{label}</div>
   </div>
 );
+
 
 const statusColor = { active: '#e74c3c', handling: '#3498db', resolved: '#27ae60' };
 const statusLabel = { active: '● Active', handling: '● Handling', resolved: '✓ Resolved' };

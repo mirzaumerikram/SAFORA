@@ -22,38 +22,26 @@ const HeatmapLayer = ({ points }) => {
   useEffect(() => {
     if (!map || !points || points.length === 0) return;
 
-    let mounted = true;
+    // leaflet.heat is loaded globally via CDN in index.html
+    // Use window.L.heatLayer directly — no dynamic import needed
+    if (typeof window.L === 'undefined' || typeof window.L.heatLayer === 'undefined') {
+      console.warn('leaflet.heat not yet loaded from CDN');
+      return;
+    }
 
-    const initHeatLayer = async () => {
-      try {
-        // leaflet.heat requires global L
-        window.L = L;
-        await import('leaflet.heat');
+    // Remove existing layer
+    if (heatLayerRef.current) {
+      map.removeLayer(heatLayerRef.current);
+    }
 
-        if (!mounted) return;
-
-        // Remove existing layer if it exists
-        if (heatLayerRef.current) {
-          map.removeLayer(heatLayerRef.current);
-        }
-
-        // Create new heat layer
-        heatLayerRef.current = L.heatLayer(points, {
-          radius: 35, // Increased for larger glowing blobs
-          blur: 25,   // Increased for smoother glowing edges
-          maxZoom: 14,
-          // Boosted gradient so even low-density rides show up as red/yellow hotspots
-          gradient: { 0.1: 'blue', 0.3: 'cyan', 0.5: 'lime', 0.7: 'yellow', 0.9: 'red' }
-        }).addTo(map);
-      } catch (err) {
-        console.error("Failed to initialize heatmap layer:", err);
-      }
-    };
-
-    initHeatLayer();
+    heatLayerRef.current = window.L.heatLayer(points, {
+      radius: 35,
+      blur: 25,
+      maxZoom: 14,
+      gradient: { 0.1: 'blue', 0.3: 'cyan', 0.5: 'lime', 0.7: 'yellow', 0.9: 'red' }
+    }).addTo(map);
 
     return () => {
-      mounted = false;
       if (heatLayerRef.current && map) {
         map.removeLayer(heatLayerRef.current);
       }
