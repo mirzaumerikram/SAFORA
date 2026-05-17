@@ -39,10 +39,11 @@ const HeatmapLayer = ({ points }) => {
 
         // Create new heat layer
         heatLayerRef.current = L.heatLayer(points, {
-          radius: 25,
-          blur: 15,
+          radius: 35, // Increased for larger glowing blobs
+          blur: 25,   // Increased for smoother glowing edges
           maxZoom: 14,
-          gradient: { 0.4: 'blue', 0.6: 'cyan', 0.7: 'lime', 0.8: 'yellow', 1.0: 'red' }
+          // Boosted gradient so even low-density rides show up as red/yellow hotspots
+          gradient: { 0.1: 'blue', 0.3: 'cyan', 0.5: 'lime', 0.7: 'yellow', 0.9: 'red' }
         }).addTo(map);
       } catch (err) {
         console.error("Failed to initialize heatmap layer:", err);
