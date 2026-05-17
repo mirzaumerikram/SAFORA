@@ -285,6 +285,73 @@ router.get('/rides/completed', async (req, res) => {
     }
 });
 
+// @route   GET /api/admin/heatmap-data
+// @desc    Get coordinate data for demand heatmap clustering
+// @access  Admin
+router.get('/heatmap-data', async (req, res) => {
+    try {
+        // Fetch pickup coordinates from recent rides (e.g., last 30 days)
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        
+        const rides = await Ride.find({ 
+            createdAt: { $gte: thirtyDaysAgo },
+            'pickupLocation.coordinates': { $exists: true, $not: { $size: 0 } }
+        }).select('pickupLocation.coordinates status type');
+        
+        // Leaflet.heat expects [lat, lng, intensity]
+        // Our DB stores [lng, lat]
+        const heatmapPoints = rides.map(ride => {
+            const [lng, lat] = ride.pickupLocation.coordinates;
+            // High intensity (1.0) for standard rides, can adjust based on demand
+            let intensity = 0.5;
+            if (ride.status === 'completed') intensity = 1.0;
+            if (ride.status === 'cancelled') intensity = 0.2;
+            
+            return [lat, lng, intensity];
+        });
+        
+        res.json({ success: true, points: heatmapPoints });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// @route   GET /api/admin/sentiment-reviews
+// @desc    Get passenger reviews tagged with AI NLP Sentiment
+// @access  Admin
+router.get('/sentiment-reviews', async (req, res) => {
+    try {
+        // Find rides where a passenger left a comment
+        const rides = await Ride.find({
+            'rating.passengerRating.comment': { $exists: true, $ne: "" }
+        })
+        .populate('passenger', 'name email profilePicture')
+        .populate({
+            path: 'driver',
+            populate: { path: 'user', select: 'name profilePicture' }
+        })
+        .sort({ 'rating.passengerRating.ratedAt': -1 })
+        .limit(100);
+        
+        const reviews = rides.map(ride => ({
+            _id: ride._id,
+            rideDate: ride.completedAt || ride.createdAt,
+            passengerName: ride.passenger ? ride.passenger.name : 'Unknown Passenger',
+            driverName: (ride.driver && ride.driver.user) ? ride.driver.user.name : 'Unknown Driver',
+            score: ride.rating.passengerRating.score,
+            comment: ride.rating.passengerRating.comment,
+            sentimentTag: ride.rating.passengerRating.aiSentimentTag || 'Neutral',
+            polarityScore: ride.rating.passengerRating.polarityScore || 0,
+            ratedAt: ride.rating.passengerRating.ratedAt
+        }));
+        
+        res.json({ success: true, count: reviews.length, reviews });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
 // @route   GET /api/admin/users
 // @desc    Get all users with pagination
 // @access  Admin

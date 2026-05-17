@@ -458,8 +458,36 @@ router.post('/:id/rate', auth, async (req, res) => {
             return res.status(400).json({ message: 'Can only rate completed rides' });
         }
 
+        let aiSentimentTag = 'Neutral';
+        let polarityScore = 0;
+
+        // NLP Sentiment Analysis Webhook Integration
+        if (comment && comment.trim() !== '') {
+            try {
+                const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:5001';
+                const sentimentResponse = await axios.post(`${aiServiceUrl}/api/analytics/sentiment`, {
+                    text: comment
+                }, { timeout: 3000 });
+                
+                if (sentimentResponse.data) {
+                    aiSentimentTag = sentimentResponse.data.tag || 'Neutral';
+                    polarityScore = sentimentResponse.data.polarity || 0;
+                    console.log(`[RIDE NLP] Rated: ${score}/5 | Sentiment: ${aiSentimentTag} | Polarity: ${polarityScore.toFixed(2)}`);
+                }
+            } catch (nlpErr) {
+                console.error('[RIDE NLP] Failed to reach AI Analytics Service:', nlpErr.message);
+                // Fail gracefully, persist rating anyway
+            }
+        }
+
         const ratingField = raterRole === 'driver' ? 'passengerRating' : 'driverRating';
-        ride.rating[ratingField] = { score, comment, ratedAt: new Date() };
+        ride.rating[ratingField] = { 
+            score, 
+            comment, 
+            aiSentimentTag,
+            polarityScore,
+            ratedAt: new Date() 
+        };
         await ride.save();
 
         res.json({ success: true, message: 'Rating submitted successfully' });

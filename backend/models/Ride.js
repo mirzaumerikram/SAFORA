@@ -73,11 +73,15 @@ const rideSchema = new mongoose.Schema({
         passengerRating: {
             score: { type: Number, min: 1, max: 5 },
             comment: String,
+            aiSentimentTag: { type: String, enum: ['Positive', 'Neutral', 'Negative'] },
+            polarityScore: Number,
             ratedAt: Date
         },
         driverRating: {
             score: { type: Number, min: 1, max: 5 },
             comment: String,
+            aiSentimentTag: { type: String, enum: ['Positive', 'Neutral', 'Negative'] },
+            polarityScore: Number,
             ratedAt: Date
         }
     },

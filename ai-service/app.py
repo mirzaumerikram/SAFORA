@@ -107,6 +107,10 @@ def rank_drivers():
 
 app.register_blueprint(matching_bp, url_prefix='/api/matching')
 
+# Analytics — NLP Sentiment and K-Means Clustering
+from routes.analytics import analytics_bp
+app.register_blueprint(analytics_bp, url_prefix='/api/analytics')
+
 
 @app.route('/', methods=['GET'])
 def home():
