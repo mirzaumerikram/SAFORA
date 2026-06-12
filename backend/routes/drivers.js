@@ -298,4 +298,35 @@ router.get('/earnings', auth, async (req, res) => {
     }
 });
 
+// @route   GET /api/drivers/heatmap-data
+// @desc    Get coordinate data for demand heatmap clustering (driver view)
+// @access  Private (Driver)
+router.get('/heatmap-data', auth, async (req, res) => {
+    try {
+        const Ride = require('../models/Ride');
+        // Fetch pickup coordinates from recent rides (e.g., last 7 days for drivers to see fresh demand)
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        
+        const rides = await Ride.find({ 
+            createdAt: { $gte: sevenDaysAgo },
+            'pickupLocation.coordinates': { $exists: true, $not: { $size: 0 } }
+        }).select('pickupLocation.coordinates status type');
+        
+        const heatmapPoints = rides.map(ride => {
+            const [lng, lat] = ride.pickupLocation.coordinates;
+            // High intensity for completed/active rides
+            let intensity = 0.5;
+            if (ride.status === 'completed' || ride.status === 'active') intensity = 1.0;
+            if (ride.status === 'cancelled') intensity = 0.2;
+            
+            return { lat, lng, weight: intensity };
+        });
+        
+        res.json({ success: true, points: heatmapPoints });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
 module.exports = router;

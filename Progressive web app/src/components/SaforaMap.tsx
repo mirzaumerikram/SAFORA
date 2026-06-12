@@ -33,6 +33,7 @@ interface SaforaMapProps {
     onLocationChange?: (location: Coordinates) => void;
     onRouteInfo?:      (info: { distance: number; duration: number }) => void;
     onStatusChange?:   (status: string) => void;
+    heatmapPoints?:    { lat: number; lng: number; weight: number }[];
 }
 
 const LAHORE: Coordinates = { latitude: 31.5204, longitude: 74.3587 };
@@ -51,7 +52,7 @@ function loadGoogleMapsScript(apiKey: string): Promise<void> {
 
         _mapsLoading = true;
         const script = document.createElement('script');
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&loading=async`;
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,visualization&loading=async`;
         script.async = true;
         script.defer = true;
         script.onload = () => {
@@ -75,12 +76,14 @@ const SaforaMap: React.FC<SaforaMapProps> = ({
     onLocationChange,
     onRouteInfo,
     onStatusChange,
+    heatmapPoints,
 }) => {
     const mapDivRef   = useRef<HTMLDivElement | null>(null);
     const mapObjRef   = useRef<google.maps.Map | null>(null);
     const markersRef  = useRef<google.maps.Marker[]>([]);
     const directionsServiceRef  = useRef<google.maps.DirectionsService | null>(null);
     const directionsRendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
+    const heatmapLayerRef = useRef<any>(null);
 
     const [userLocation, setUserLocation] = useState<Coordinates | null>(null);
     const [loading,      setLoading]      = useState(true);
@@ -306,6 +309,60 @@ const SaforaMap: React.FC<SaforaMapProps> = ({
             });
         }
     }, [mapReady, userLocation, type, pickupLocation, dropoffLocation, driverLocation]);
+
+    // ── 5. Render Heatmap Layer ───────────────────────────────────────────────
+    useEffect(() => {
+        const map = mapObjRef.current;
+        if (!mapReady || !map || !window.google) return;
+
+        // Clear existing heatmap layer
+        if (heatmapLayerRef.current) {
+            heatmapLayerRef.current.setMap(null);
+            heatmapLayerRef.current = null;
+        }
+
+        if (heatmapPoints && heatmapPoints.length > 0) {
+            try {
+                // @ts-ignore - visualization might not be fully typed in some projects
+                const heatmapData = heatmapPoints.map(p => ({
+                    location: new google.maps.LatLng(p.lat, p.lng),
+                    weight: p.weight
+                }));
+
+                // @ts-ignore
+                heatmapLayerRef.current = new google.maps.visualization.HeatmapLayer({
+                    data: heatmapData,
+                    radius: 35,
+                    opacity: 0.8,
+                    gradient: [
+                        'rgba(0, 255, 255, 0)',
+                        'rgba(0, 255, 255, 1)',
+                        'rgba(0, 191, 255, 1)',
+                        'rgba(0, 127, 255, 1)',
+                        'rgba(0, 63, 255, 1)',
+                        'rgba(0, 0, 255, 1)',
+                        'rgba(0, 0, 223, 1)',
+                        'rgba(0, 0, 191, 1)',
+                        'rgba(0, 0, 159, 1)',
+                        'rgba(0, 0, 127, 1)',
+                        'rgba(63, 0, 91, 1)',
+                        'rgba(127, 0, 63, 1)',
+                        'rgba(191, 0, 31, 1)',
+                        'rgba(255, 0, 0, 1)'
+                    ]
+                });
+                heatmapLayerRef.current.setMap(map);
+            } catch (err) {
+                console.error('[SaforaMap] Failed to render heatmap:', err);
+            }
+        }
+
+        return () => {
+            if (heatmapLayerRef.current) {
+                heatmapLayerRef.current.setMap(null);
+            }
+        };
+    }, [mapReady, heatmapPoints]);
 
     // ── Native fallback ───────────────────────────────────────────────────────
     if (Platform.OS !== 'web') {

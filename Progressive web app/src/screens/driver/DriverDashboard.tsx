@@ -52,6 +52,7 @@ const DriverDashboard: React.FC = () => {
     const [isConnected, setIsConnected]     = useState(false);
     const [countdown, setCountdown]         = useState(0);
     const [hasNewMessage, setHasNewMessage] = useState(false);
+    const [heatmapData, setHeatmapData]     = useState<any[]>([]);
 
     const socketConnected = useRef(false);
     const watchId   = useRef<any>(null);
@@ -198,9 +199,24 @@ const DriverDashboard: React.FC = () => {
         }
     };
 
+    const fetchHeatmap = async () => {
+        try {
+            const res: any = await apiService.get('/drivers/heatmap-data');
+            if (res.success && res.points) {
+                setHeatmapData(res.points);
+            }
+        } catch (e) {
+            console.log('[DriverDashboard] Heatmap fetch error:', e);
+        }
+    };
+
     useEffect(() => {
         loadDriver();
-        const unsub = navigation.addListener('focus', loadDriver);
+        fetchHeatmap();
+        const unsub = navigation.addListener('focus', () => {
+            loadDriver();
+            fetchHeatmap();
+        });
         return () => {
             unsub();
             stopCountdown();
@@ -705,7 +721,7 @@ const DriverDashboard: React.FC = () => {
                 {/* Live Map */}
                 <View style={s.mapPreviewCard}>
                     <View style={{ flex: 1 }}>
-                        <SaforaMap type="home" centerOnUser />
+                        <SaforaMap type="home" centerOnUser heatmapPoints={heatmapData} />
                     </View>
                     <View style={s.mapOverlay}>
                         <Text style={s.mapOverlayText}>📍 Your Location — Live Map</Text>
