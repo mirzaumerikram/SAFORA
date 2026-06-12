@@ -59,8 +59,8 @@ const PinkPassCameraScreen: React.FC = () => {
         // Create persistent canvas for reuse
         if (typeof document !== 'undefined') {
             canvasRef.current = document.createElement('canvas');
-            canvasRef.current.width  = 320;
-            canvasRef.current.height = 240;
+            canvasRef.current.width  = 480;  // Fix 3: Larger canvas for Haar cascade
+            canvasRef.current.height = 360;
         }
         startCamera();
         return cleanup;
@@ -133,8 +133,8 @@ const PinkPassCameraScreen: React.FC = () => {
         try {
             const ctx = canvas.getContext('2d', { alpha: false })!;
             ctx.scale(-1, 1);  // mirror
-            ctx.drawImage(video, 0, 0, -320, 240);
-            const b64 = canvas.toDataURL('image/jpeg', 0.45); // Lower quality for memory
+            ctx.drawImage(video, 0, 0, -480, 360); // Fix 3: Match boosted canvas size
+            const b64 = canvas.toDataURL('image/jpeg', 0.65); // Fix 3: Higher quality for face detection
             ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform for next call
             return b64;
         } catch { return null; }
@@ -209,8 +209,8 @@ const PinkPassCameraScreen: React.FC = () => {
             });
 
         let total = 0, count = 0;
-        // Compare only 5 strategic pairs to save CPU/Memory
-        const pairs = [[0, 2], [3, 5], [6, 8], [9, 11]];
+        // Fix 4: Use all consecutive pairs from 6 frames — previous pairs [6,8],[9,11] were always undefined
+        const pairs = [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5]];
         for (const [idxA, idxB] of pairs) {
             if (!frames[idxA] || !frames[idxB]) continue;
             const [a, b] = await Promise.all([toPixels(frames[idxA]), toPixels(frames[idxB])]);
@@ -274,12 +274,26 @@ const PinkPassCameraScreen: React.FC = () => {
             }
         } catch (err: any) {
             setStep('failed');
-            setMessage(`Connection issue: ${err.message || 'Unknown'}. Please try again.`);
+            // Fix 2: Only label genuine network/timeout errors as 'Connection issue'
+            // AI verification failures (HTTP 400) should show their actual reason, not confuse user
+            const isNetworkError = err.message === 'Request timeout'
+                || err.message === 'Failed to fetch'
+                || err.name === 'AbortError';
+            setMessage(isNetworkError
+                ? 'Connection issue — check your internet and try again.'
+                : err.message || 'Verification failed. Please try again.');
             console.error('[PinkPass] Enrollment failed:', err);
         }
     };
 
     const retry = () => {
+        // Fix 1: Stop existing RAF loop and camera tracks BEFORE restarting
+        // Without this, each retry leaks the old MediaStream causing degraded/blurry frames
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        streamRef.current?.getTracks().forEach(t => t.stop());
+        streamRef.current = null;
+        stopPulse();
+
         framesRef.current = [];
         setCamError('');
         setProgress(0);

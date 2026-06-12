@@ -29,7 +29,7 @@ PROFILE_CASCADE_PATH = cv2.data.haarcascades + 'haarcascade_profileface.xml'
 profile_cascade = cv2.CascadeClassifier(PROFILE_CASCADE_PATH)
 
 MIN_MOTION_SCORE = 3.0   # lowered from 5.0 for better reliability
-MIN_FACE_FRAMES  = 3     # face must appear in at least 3 frames
+MIN_FACE_FRAMES  = 2     # Fix 5: lowered from 3 — more forgiving for compressed mobile JPEG frames
 
 
 def decode_frame(b64: str):
@@ -69,16 +69,16 @@ def detect_faces(frame):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     gray = cv2.equalizeHist(gray)
     
-    # Try frontal first
-    faces = face_cascade.detectMultiScale(gray, 1.1, 4, minSize=(60, 60))
+    # Try frontal first — minSize reduced to 40x40 (Fix 5) so faces not fully filling oval still register
+    faces = face_cascade.detectMultiScale(gray, 1.1, 4, minSize=(40, 40))
     
     # If no frontal, try profile (for head turns)
     if len(faces) == 0:
-        faces = profile_cascade.detectMultiScale(gray, 1.1, 4, minSize=(60, 60))
+        faces = profile_cascade.detectMultiScale(gray, 1.1, 4, minSize=(40, 40))
         # Also try flipped profile (for the other side)
         if len(faces) == 0:
             flipped = cv2.flip(gray, 1)
-            faces = profile_cascade.detectMultiScale(flipped, 1.1, 4, minSize=(60, 60))
+            faces = profile_cascade.detectMultiScale(flipped, 1.1, 4, minSize=(40, 40))
             
     return faces if len(faces) > 0 else []
 
