@@ -84,6 +84,8 @@ const SaforaMap: React.FC<SaforaMapProps> = ({
     const directionsServiceRef  = useRef<google.maps.DirectionsService | null>(null);
     const directionsRendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
     const heatmapLayerRef = useRef<any>(null);
+    const hasCenteredRef  = useRef<boolean>(false);
+    const prevHeatmapStr  = useRef<string>('');
 
     const [userLocation, setUserLocation] = useState<Coordinates | null>(null);
     const [loading,      setLoading]      = useState(true);
@@ -216,10 +218,15 @@ const SaforaMap: React.FC<SaforaMapProps> = ({
         if (type === 'home' || type === 'driver' || centerOnUser) {
             if (!hasCustomPoints) {
                 addMarker(center, 'You', 'yellow');
-                map.panTo({ lat: center.latitude, lng: center.longitude });
-                // If it's a fresh load and we just found user, maybe zoom in
-                if (userLocation && map.getZoom()! < 12) {
-                    map.setZoom(15);
+                if (!hasCenteredRef.current) {
+                    map.panTo({ lat: center.latitude, lng: center.longitude });
+                    // If it's a fresh load and we just found user, maybe zoom in
+                    if (userLocation && map.getZoom()! < 12) {
+                        map.setZoom(15);
+                    }
+                    if (userLocation) {
+                        hasCenteredRef.current = true;
+                    }
                 }
             }
         }
@@ -314,6 +321,10 @@ const SaforaMap: React.FC<SaforaMapProps> = ({
     useEffect(() => {
         const map = mapObjRef.current;
         if (!mapReady || !map || !window.google) return;
+
+        const currentStr = JSON.stringify(heatmapPoints || []);
+        if (currentStr === prevHeatmapStr.current) return; // Prevent unnecessary recreation (blinking)
+        prevHeatmapStr.current = currentStr;
 
         // Clear existing heatmap layer
         if (heatmapLayerRef.current) {
