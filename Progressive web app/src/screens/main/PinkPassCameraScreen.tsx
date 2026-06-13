@@ -132,9 +132,10 @@ const PinkPassCameraScreen: React.FC = () => {
         if (!video || !video.videoWidth || !canvas) return null;
         try {
             const ctx = canvas.getContext('2d', { alpha: false })!;
+            ctx.translate(canvas.width, 0);
             ctx.scale(-1, 1);  // mirror
-            ctx.drawImage(video, 0, 0, -480, 360); // Fix 3: Match boosted canvas size
-            const b64 = canvas.toDataURL('image/jpeg', 0.65); // Fix 3: Higher quality for face detection
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height); 
+            const b64 = canvas.toDataURL('image/jpeg', 0.65); 
             ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform for next call
             return b64;
         } catch { return null; }
@@ -321,7 +322,10 @@ const PinkPassCameraScreen: React.FC = () => {
                     {/* @ts-ignore */}
                     <video
                         ref={videoRef}
-                        autoPlay muted playsInline
+                        autoPlay={true} 
+                        muted={true} 
+                        playsInline={true}
+                        webkit-playsinline="true"
                         style={{
                             width: '100%', height: '100%',
                             objectFit: 'cover', borderRadius: 20,
