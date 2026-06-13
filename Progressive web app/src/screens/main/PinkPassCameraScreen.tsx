@@ -128,16 +128,20 @@ const PinkPassCameraScreen: React.FC = () => {
     // ── Capture one frame to base64 ────────────────────────────────────────────
     const captureFrame = (): string | null => {
         const video = videoRef.current;
-        const canvas = canvasRef.current;
-        if (!video || !video.videoWidth || !canvas) return null;
+        if (!video || !video.videoWidth) return null;
         try {
+            const canvas = document.createElement('canvas');
+            // Use actual video dimensions to prevent aspect ratio distortion
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
             const ctx = canvas.getContext('2d', { alpha: false })!;
             ctx.translate(canvas.width, 0);
             ctx.scale(-1, 1);  // mirror
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height); 
-            const b64 = canvas.toDataURL('image/jpeg', 0.65); 
-            ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform for next call
-            return b64;
+            
+            // Return base64 JPEG
+            return canvas.toDataURL('image/jpeg', 0.7); 
         } catch { return null; }
     };
 
