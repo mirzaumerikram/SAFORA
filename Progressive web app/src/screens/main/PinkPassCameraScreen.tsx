@@ -70,15 +70,13 @@ const PinkPassCameraScreen: React.FC = () => {
         setCamError('');
         try {
             const stream = await (navigator as any).mediaDevices.getUserMedia({
-                video: {
-                    facingMode: 'user',
-                    width:  { ideal: 1280 }, // Bumped from 640
-                    height: { ideal: 720 },  // Bumped from 480
-                },
+                video: { facingMode: 'user' },
                 audio: false,
             });
             streamRef.current = stream;
             if (videoRef.current) {
+                videoRef.current.setAttribute('playsinline', 'true');
+                videoRef.current.setAttribute('webkit-playsinline', 'true');
                 videoRef.current.srcObject = stream;
                 await videoRef.current.play().catch(() => {});
             }
@@ -113,6 +111,9 @@ const PinkPassCameraScreen: React.FC = () => {
 
     // ── Countdown ──────────────────────────────────────────────────────────────
     const beginCountdown = () => {
+        if (videoRef.current) {
+            videoRef.current.play().catch(() => {});
+        }
         setStep('countdown');
         let c = 3;
         setCountdown(c);
@@ -317,7 +318,7 @@ const PinkPassCameraScreen: React.FC = () => {
                     <Text style={s.backText}>←</Text>
                 </TouchableOpacity>
                 <Text style={[s.headerTitle, step === 'recording' && { color: '#000' }]}>Face Liveness Check</Text>
-                <View style={s.verBadge}><Text style={s.verBadgeText}>v1.3.3</Text></View>
+                <View style={s.verBadge}><Text style={s.verBadgeText}>v1.3.4</Text></View>
             </View>
 
             {/* Camera box */}
