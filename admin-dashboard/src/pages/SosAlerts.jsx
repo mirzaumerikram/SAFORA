@@ -136,6 +136,8 @@ export default function SosAlerts() {
                   <th>Type</th>
                   <th>Severity</th>
                   <th>Description</th>
+                  <th>Location</th>
+                  <th>SMS</th>
                   <th>Time</th>
                   <th>Status</th>
                   <th>Action</th>
@@ -161,6 +163,27 @@ export default function SosAlerts() {
                       </span>
                     </td>
                     <td className="td-trunc">{a.description || '—'}</td>
+                    <td>
+                      {a.location?.coordinates ? (
+                        <a 
+                          href={`https://maps.google.com/?q=${a.location.coordinates[1]},${a.location.coordinates[0]}`} 
+                          target="_blank" 
+                          rel="noreferrer"
+                          style={{ color: '#3498db', textDecoration: 'none', fontWeight: 600, fontSize: 12 }}
+                        >
+                          📍 View Map
+                        </a>
+                      ) : '—'}
+                    </td>
+                    <td>
+                      {a.notificationsSent?.emergencyContacts?.length > 0 ? (
+                        a.notificationsSent.emergencyContacts.some(c => c.sent) 
+                          ? <span title="SMS sent to emergency contacts" style={{ fontSize: 14 }}>✅</span>
+                          : <span title="Failed or Twilio disabled" style={{ fontSize: 14 }}>❌</span>
+                      ) : (
+                        <span title="No emergency contacts" style={{ color: '#888', fontSize: 12 }}>None</span>
+                      )}
+                    </td>
                     <td className="td-time">{timeAgo(a.createdAt)}</td>
                     <td>
                       <span className="status-chip" style={{ color: statusColor[a.status] || '#888', background: (statusColor[a.status] || '#888') + '18' }}>
