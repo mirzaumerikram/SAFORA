@@ -317,7 +317,7 @@ const PinkPassCameraScreen: React.FC = () => {
                     <Text style={s.backText}>←</Text>
                 </TouchableOpacity>
                 <Text style={[s.headerTitle, step === 'recording' && { color: '#000' }]}>Face Liveness Check</Text>
-                <View style={s.verBadge}><Text style={s.verBadgeText}>v1.3.2</Text></View>
+                <View style={s.verBadge}><Text style={s.verBadgeText}>v1.3.3</Text></View>
             </View>
 
             {/* Camera box */}
