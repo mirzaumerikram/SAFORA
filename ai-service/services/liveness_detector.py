@@ -99,8 +99,12 @@ def verify_liveness(video_frames):
     face_frame_count = 0
     decoded = []
 
-    for b64 in video_frames:
-        frame = decode_frame(b64)
+    for item in video_frames:
+        if isinstance(item, str):
+            frame = decode_frame(item)
+        else:
+            frame = item  # Already decoded numpy array
+            
         if frame is None:
             continue
         decoded.append(frame)
