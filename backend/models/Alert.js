@@ -13,7 +13,7 @@ const alertSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ['route-deviation', 'suspicious-stop', 'sos', 'speed-anomaly'],
+        enum: ['route-deviation', 'suspicious-stop', 'sos'],
         required: true
     },
     severity: {

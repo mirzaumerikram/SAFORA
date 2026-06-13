@@ -92,23 +92,50 @@ io.on('connection', (socket) => {
 
       // 2. SafetySentinel — check for route deviation / suspicious stops
       try {
-        const alert = await safetySentinel.updateLocation(rideId, { lat, lng });
-        if (alert) {
+        const alertObj = await safetySentinel.updateLocation(rideId, { lat, lng });
+        if (alertObj) {
+          const Alert = require('./models/Alert');
+          const Ride = require('./models/Ride');
+          
+          const ride = await Ride.findById(rideId).populate('passenger', 'name phone');
+          
+          let severity = 'medium';
+          if (alertObj.type === 'suspicious-stop') severity = 'high';
+          else if (alertObj.type === 'route-deviation') severity = 'medium';
+
+          const newAlert = new Alert({
+              ride: rideId,
+              passenger: ride ? ride.passenger._id : undefined,
+              type: alertObj.type,
+              severity: severity,
+              location: {
+                  type: 'Point',
+                  coordinates: [lng, lat]
+              },
+              description: alertObj.description,
+              status: 'active'
+          });
+          await newAlert.save();
+
           io.to(`ride-${rideId}`).emit('safety:deviation-alert', {
             rideId,
-            type: alert.type,
-            description: alert.description,
-            location: alert.location,
-            timestamp: new Date().toISOString()
+            type: alertObj.type,
+            description: alertObj.description,
+            location: alertObj.location,
+            timestamp: newAlert.createdAt
           });
           io.emit('safety-alert', {
-            alertId: `sentinel-${rideId}-${Date.now()}`,
+            alertId: newAlert._id,
             rideId,
-            type: alert.type,
-            severity: 'critical',
-            message: alert.description,
-            location: alert.location,
-            timestamp: new Date().toISOString()
+            type: alertObj.type,
+            severity: severity,
+            message: alertObj.description,
+            location: alertObj.location,
+            passenger: ride && ride.passenger ? {
+                name: ride.passenger.name,
+                phone: ride.passenger.phone
+            } : { name: 'Unknown', phone: '' },
+            timestamp: newAlert.createdAt
           });
         }
       } catch (err) {
