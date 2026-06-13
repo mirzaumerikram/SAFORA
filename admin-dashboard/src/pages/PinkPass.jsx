@@ -8,19 +8,20 @@ export default function PinkPass() {
   const [loading, setLoading]       = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);
   const [activeTab, setActiveTab]   = useState('passengers');
+  const [filterStatus, setFilterStatus] = useState('pending_review');
 
   useEffect(() => {
     loadPending();
-  }, [activeTab]);
+  }, [activeTab, filterStatus]);
 
   const loadPending = async () => {
     setLoading(true);
     try {
       if (activeTab === 'passengers') {
-        const res = await api.get('/admin/pinkpass/passengers/pending');
+        const res = await api.get(`/admin/pinkpass/passengers/pending?status=${filterStatus}`);
         setPassengers(res.users || []);
       } else {
-        const res = await api.get('/admin/pinkpass/pending');
+        const res = await api.get(`/admin/pinkpass/pending?status=${filterStatus}`);
         setDrivers(res.drivers || []);
       }
     } catch (e) {
@@ -58,28 +59,45 @@ export default function PinkPass() {
         </div>
       </div>
 
-      <div className="tabs" style={{ marginBottom: 20, display: 'flex', gap: 10 }}>
-        <button 
-          className={activeTab === 'passengers' ? 'tab-btn active' : 'tab-btn'}
-          onClick={() => setActiveTab('passengers')}
-        >
-          Passengers
-        </button>
-        <button 
-          className={activeTab === 'drivers' ? 'tab-btn active' : 'tab-btn'}
-          onClick={() => setActiveTab('drivers')}
-        >
-          Drivers
-        </button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div className="tabs" style={{ display: 'flex', gap: 10 }}>
+          <button 
+            className={activeTab === 'passengers' ? 'tab-btn active' : 'tab-btn'}
+            onClick={() => setActiveTab('passengers')}
+          >
+            Passengers
+          </button>
+          <button 
+            className={activeTab === 'drivers' ? 'tab-btn active' : 'tab-btn'}
+            onClick={() => setActiveTab('drivers')}
+          >
+            Drivers
+          </button>
+        </div>
+        
+        <div className="filter-pills" style={{ display: 'flex', gap: 10, background: '#eee', padding: 4, borderRadius: 8 }}>
+          <button 
+            style={{ border: 'none', padding: '6px 16px', borderRadius: 6, cursor: 'pointer', background: filterStatus === 'pending_review' ? '#fff' : 'transparent', fontWeight: filterStatus === 'pending_review' ? 600 : 400, boxShadow: filterStatus === 'pending_review' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none' }}
+            onClick={() => setFilterStatus('pending_review')}
+          >
+            Pending Reviews
+          </button>
+          <button 
+            style={{ border: 'none', padding: '6px 16px', borderRadius: 6, cursor: 'pointer', background: filterStatus === 'approved' ? '#fff' : 'transparent', fontWeight: filterStatus === 'approved' ? 600 : 400, boxShadow: filterStatus === 'approved' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none' }}
+            onClick={() => setFilterStatus('approved')}
+          >
+            Approved Passes
+          </button>
+        </div>
       </div>
 
       {loading ? (
         <div className="loading-box">Loading applications...</div>
       ) : currentList.length === 0 ? (
         <div className="empty-state">
-          <div className="es-icon">🌸</div>
-          <div className="es-title">No pending reviews</div>
-          <div className="es-sub">All {activeTab} Pink Pass applications have been processed</div>
+          <div className="es-icon">{filterStatus === 'approved' ? '✅' : '🌸'}</div>
+          <div className="es-title">{filterStatus === 'approved' ? 'No approved passes' : 'No pending reviews'}</div>
+          <div className="es-sub">There are currently no {activeTab} in the {filterStatus.replace('_', ' ')} list.</div>
         </div>
       ) : (
         <div className="table-card">
@@ -163,18 +181,29 @@ export default function PinkPass() {
               </div>
             </div>
             <div className="modal-footer" style={{ padding: '20px', display: 'flex', gap: '10px', justifyContent: 'flex-end', borderTop: '1px solid #eee' }}>
-              <button 
-                onClick={() => handleVerify(selectedUser._id, 'reject')}
-                style={{ padding: '10px 20px', borderRadius: 6, border: '1px solid #e74c3c', color: '#e74c3c', background: '#fff', cursor: 'pointer' }}
-              >
-                Reject Application
-              </button>
-              <button 
-                onClick={() => handleVerify(selectedUser._id, 'approve')}
-                style={{ padding: '10px 20px', borderRadius: 6, border: 'none', color: '#fff', background: '#2ecc71', cursor: 'pointer', fontWeight: 600 }}
-              >
-                Approve & Activate
-              </button>
+              {filterStatus === 'pending_review' ? (
+                <>
+                  <button 
+                    onClick={() => handleVerify(selectedUser._id, 'reject')}
+                    style={{ padding: '10px 20px', borderRadius: 6, border: '1px solid #e74c3c', color: '#e74c3c', background: '#fff', cursor: 'pointer' }}
+                  >
+                    Reject Application
+                  </button>
+                  <button 
+                    onClick={() => handleVerify(selectedUser._id, 'approve')}
+                    style={{ padding: '10px 20px', borderRadius: 6, border: 'none', color: '#fff', background: '#2ecc71', cursor: 'pointer', fontWeight: 600 }}
+                  >
+                    Approve & Activate
+                  </button>
+                </>
+              ) : (
+                <button 
+                  onClick={() => setSelectedUser(null)}
+                  style={{ padding: '10px 20px', borderRadius: 6, border: '1px solid #ccc', background: '#fff', cursor: 'pointer' }}
+                >
+                  Close
+                </button>
+              )}
             </div>
           </div>
         </div>

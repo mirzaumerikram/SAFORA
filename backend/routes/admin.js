@@ -398,7 +398,8 @@ router.get('/users', async (req, res) => {
 // @access  Admin
 router.get('/pinkpass/pending', async (req, res) => {
     try {
-        const drivers = await Driver.find({ pinkPassStatus: 'pending_review' })
+        const status = req.query.status || 'pending_review';
+        const drivers = await Driver.find({ pinkPassStatus: status })
             .populate('user', 'name phone email gender')
             .sort({ pinkPassAppliedAt: -1 });
 
@@ -442,7 +443,8 @@ router.get('/pinkpass/stats', async (req, res) => {
 // @access  Admin
 router.get('/pinkpass/passengers/pending', async (req, res) => {
     try {
-        const users = await User.find({ pinkPassStatus: 'pending_review' })
+        const status = req.query.status || 'pending_review';
+        const users = await User.find({ pinkPassStatus: status })
             .select('name phone email gender pinkPassStatus pinkPassAppliedAt pinkPassCnicPhoto pinkPassSelfiePhoto')
             .sort({ pinkPassAppliedAt: -1 });
 
