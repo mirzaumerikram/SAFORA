@@ -253,7 +253,10 @@ const SaforaMap: React.FC<SaforaMapProps> = ({
             
             // Only fit if we have more than one point or it's a tracking type
             if (type === 'tracking') {
-                map.fitBounds(bounds, { top: 50, bottom: 250, left: 50, right: 50 });
+                if (!hasCenteredRef.current) {
+                    map.fitBounds(bounds, { top: 50, bottom: 250, left: 50, right: 50 });
+                    hasCenteredRef.current = true;
+                }
             }
         }
 

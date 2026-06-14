@@ -64,7 +64,9 @@
 
                 "ACCESS_BACKGROUND_LOCATION",
 
-                "CAMERA"
+                "CAMERA",
+
+                "POST_NOTIFICATIONS"
 
             ],
 
@@ -101,6 +103,20 @@
                 {
 
                     "locationAlwaysAndWhenInUsePermission": "Allow SAFORA to use your location for ride tracking and safety."
+
+                }
+
+            ],
+
+            [
+
+                "expo-notifications",
+
+                {
+
+                    "icon": "./assets/icon.png",
+
+                    "color": "#F5C518"
 
                 }
 

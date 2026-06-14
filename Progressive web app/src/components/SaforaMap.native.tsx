@@ -39,17 +39,22 @@ const SaforaMap: React.FC<SaforaMapProps> = ({
 
     const center = pickupLocation || SIALKOT;
 
-    // Animate map to follow driver when location updates
+    const hasCenteredRef = useRef(false);
+
+    // Animate map to follow driver only on the first location update
+    // This stops the map from jumping around and resetting user's zoom level
     useEffect(() => {
-        if (driverLocation && mapRef.current) {
+        if (driverLocation && mapRef.current && !hasCenteredRef.current) {
             mapRef.current.animateToRegion({
                 latitude: driverLocation.latitude,
                 longitude: driverLocation.longitude,
                 latitudeDelta: 0.01,
                 longitudeDelta: 0.01,
             }, 1000);
+            hasCenteredRef.current = true;
         }
     }, [driverLocation]);
+
 
     if (type === 'home') {
         return (

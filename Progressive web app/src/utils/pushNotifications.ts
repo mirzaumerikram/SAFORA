@@ -13,6 +13,9 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../config/api';
+import { requestWebPushPermission } from '../config/firebaseConfig';
+
+const VAPID_KEY = 'BHbleD9619CObtUCgP3t6i7eVTMdT2JasW_ElepKn9YIsWww9psRFFTGlbKsTyK9R_AfozPBw6n4n-i1YjwlJjk';
 
 // Configure how notifications appear when the app is in the foreground
 Notifications.setNotificationHandler({
@@ -33,35 +36,41 @@ Notifications.setNotificationHandler({
 export async function registerForPushNotifications(authToken, role = 'passenger') {
     try {
         // 1. Check & request permission
-        const { status: existingStatus } = await Notifications.getPermissionsAsync();
-        let finalStatus = existingStatus;
-
-        if (existingStatus !== 'granted') {
-            const { status } = await Notifications.requestPermissionsAsync();
-            finalStatus = status;
-        }
-
-        if (finalStatus !== 'granted') {
-            console.log('[FCM] Push notification permission denied by user');
-            return null;
-        }
-
-        // 2. Get Expo push token (works for both native + web)
         let token;
-        try {
-            const tokenData = await Notifications.getExpoPushTokenAsync({
-                projectId: 'safora-6b118',  // Your Firebase project ID
-            });
-            token = tokenData.data;
-        } catch (tokenErr) {
-            // On web, Expo push tokens might not be available — try device push token
-            console.log('[FCM] Expo push token unavailable, trying device token:', tokenErr.message);
-            try {
-                const deviceToken = await Notifications.getDevicePushTokenAsync();
-                token = deviceToken.data;
-            } catch (err) {
-                console.log('[FCM] Device push token also unavailable (web without VAPID key):', err.message);
+
+        if (Platform.OS === 'web') {
+            // Use standard Firebase JS SDK for Web Push
+            token = await requestWebPushPermission(VAPID_KEY);
+            if (!token) return null;
+        } else {
+            // Use Expo Notifications for Native (Android/iOS)
+            const { status: existingStatus } = await Notifications.getPermissionsAsync();
+            let finalStatus = existingStatus;
+
+            if (existingStatus !== 'granted') {
+                const { status } = await Notifications.requestPermissionsAsync();
+                finalStatus = status;
+            }
+
+            if (finalStatus !== 'granted') {
+                console.log('[FCM] Push notification permission denied by user');
                 return null;
+            }
+
+            try {
+                const tokenData = await Notifications.getExpoPushTokenAsync({
+                    projectId: 'safora-6b118',
+                });
+                token = tokenData.data;
+            } catch (tokenErr) {
+                console.log('[FCM] Expo push token unavailable, trying device token:', tokenErr.message);
+                try {
+                    const deviceToken = await Notifications.getDevicePushTokenAsync();
+                    token = deviceToken.data;
+                } catch (err) {
+                    console.log('[FCM] Device push token also unavailable:', err.message);
+                    return null;
+                }
             }
         }
 
