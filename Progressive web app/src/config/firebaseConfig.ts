@@ -17,7 +17,7 @@ export const requestWebPushPermission = async (vapidKey: string) => {
     try {
         const supported = await isSupported();
         if (!supported) {
-            console.log('[Firebase] Web Push not supported in this browser.');
+            alert('[Diagnostic] Firebase Web Push is NOT supported by this browser. Are you on HTTPS?');
             return null;
         }
         
@@ -42,11 +42,11 @@ export const requestWebPushPermission = async (vapidKey: string) => {
             console.log('[Firebase] Web Push Token:', currentToken);
             return currentToken;
         } else {
-            console.log('[Firebase] No registration token available.');
+            alert('[Diagnostic] Web Push Token was empty after requesting.');
             return null;
         }
-    } catch (err) {
-        console.error('[Firebase] An error occurred while retrieving token. ', err);
+    } catch (err: any) {
+        alert(`[Diagnostic] Firebase Push Error: ${err.message || err}`);
         return null;
     }
 };
