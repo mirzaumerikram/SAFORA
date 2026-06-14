@@ -48,8 +48,8 @@ export const requestWebPushPermission = async (vapidKey: string) => {
             return null;
         }
     } catch (err: any) {
+        alert(`[Firebase Push Error]: ` + (err.message || 'Unknown error'));
         console.error(`[Firebase Push Error]:`, err);
-        // We log instead of alert to prevent blocking the UI/map loading
         return null;
     }
 };
