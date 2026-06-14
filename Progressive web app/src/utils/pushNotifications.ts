@@ -15,7 +15,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_CONFIG } from './constants';
 import { requestWebPushPermission } from '../config/firebaseConfig';
 
-const VAPID_KEY = 'BHbleD9619CObtUCgP3t6i7eVTMdT2JasW_ElepKn9YIsWww9psRFFTGlbKsTyK9R_AfozPBw6n4n-i1YjwlJjk';
+const VAPID_KEY = 'BHbleD9619C0btUCgP3t6i7eVTMdT2JasW_ElepKn9YIsWww9psRFFTGlbKsTyK9R_AfozPBw6n4n-i1YjwlJjk';
 
 // Configure how notifications appear when the app is in the foreground
 Notifications.setNotificationHandler({
