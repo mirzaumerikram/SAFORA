@@ -65,8 +65,6 @@ async function sendPushNotification(fcmToken, title, body, data = {}) {
         webpush: {
             headers: { Urgency: 'high' },
             notification: {
-                icon: '/logo192.png',
-                badge: '/badge.png',
                 requireInteraction: false,
             },
         },
