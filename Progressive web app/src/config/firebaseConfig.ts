@@ -30,8 +30,9 @@ export const requestWebPushPermission = async (vapidKey: string) => {
 
         const messaging = getMessaging(app);
         
-        // Ensure service worker is registered
+        // Ensure service worker is registered and ACTIVE before getting token
         const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+        await navigator.serviceWorker.ready;
         
         const currentToken = await getToken(messaging, { 
             vapidKey,
