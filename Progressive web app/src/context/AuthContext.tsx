@@ -50,7 +50,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const authenticated = await authService.isAuthenticated();
             setIsAuthenticated(authenticated);
             if (authenticated) {
-                setUserRole(await resolveRole());
+                const role = await resolveRole();
+                setUserRole(role);
+                
+                // Also register for push on app start if already authenticated!
+                const token = await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+                if (token) {
+                    setTimeout(() => {
+                        registerForPushNotifications(token, role).catch(() => {});
+                    }, 5000);
+                }
             }
         } catch {
             setIsAuthenticated(false);
