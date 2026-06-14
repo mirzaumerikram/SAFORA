@@ -24,6 +24,7 @@ export const requestWebPushPermission = async (vapidKey: string) => {
         const permission = await Notification.requestPermission();
         if (permission !== 'granted') {
             console.log('[Firebase] Permission not granted for Notification');
+            alert('To receive push notifications, please click the padlock icon in your browser URL bar, go to Site Settings, and Allow Notifications.');
             return null;
         }
 

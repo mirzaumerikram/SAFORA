@@ -174,6 +174,7 @@ const SaforaMap: React.FC<SaforaMapProps> = ({
             directionsServiceRef.current  = new google.maps.DirectionsService();
             directionsRendererRef.current = new google.maps.DirectionsRenderer({
                 map,
+                preserveViewport: true, // IMPORTANT: Prevents the map from resetting zoom/pan when drawing route
                 suppressMarkers: true,
                 polylineOptions: {
                     strokeColor: '#F5C518',
@@ -272,8 +273,12 @@ const SaforaMap: React.FC<SaforaMapProps> = ({
         }
 
         // Draw actual road route between pickup and dropoff
-        if (pickupLocation && dropoffLocation && directionsServiceRef.current && directionsRendererRef.current) {
+        // Only fetch if we haven't already fetched for this specific pair
+        const currentRouteKey = `${pickupLocation?.latitude},${pickupLocation?.longitude}-${dropoffLocation?.latitude},${dropoffLocation?.longitude}`;
+        
+        if (pickupLocation && dropoffLocation && directionsServiceRef.current && directionsRendererRef.current && (window as any)._lastRouteKey !== currentRouteKey) {
             console.log('[SaforaMap] Requesting route...', pickupLocation, dropoffLocation);
+            (window as any)._lastRouteKey = currentRouteKey;
             
             directionsServiceRef.current.route({
                 origin:      { lat: pickupLocation.latitude,  lng: pickupLocation.longitude },
