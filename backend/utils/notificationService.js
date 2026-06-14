@@ -158,6 +158,22 @@ async function notifySOSAlert(fcmToken, rideId) {
     );
 }
 
+/**
+ * Notify recipient: new chat message received.
+ * @param {string} fcmToken  — Recipient's FCM token
+ * @param {string} senderName
+ * @param {string} messageText
+ * @param {string} rideId
+ */
+async function notifyNewMessage(fcmToken, senderName, messageText, rideId) {
+    return sendPushNotification(
+        fcmToken,
+        `💬 New message from ${senderName}`,
+        messageText,
+        { rideId, event: 'new_message' }
+    );
+}
+
 module.exports = {
     sendPushNotification,
     notifyRideAccepted,
@@ -165,4 +181,5 @@ module.exports = {
     notifyRideCompleted,
     notifyNewRideRequest,
     notifySOSAlert,
+    notifyNewMessage,
 };

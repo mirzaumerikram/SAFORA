@@ -11,6 +11,7 @@ const {
     notifyRideCompleted,
     notifyNewRideRequest,
     notifySOSAlert,
+    notifyNewMessage,
 } = require('./utils/notificationService');
 
 // Load environment variables
@@ -208,13 +209,34 @@ io.on('connection', (socket) => {
       timestamp:  new Date().toISOString(),
     };
     
-    // Save to DB
+    // Save to DB and find target token
     try {
-      await Ride.findByIdAndUpdate(rideId, {
+      const ride = await Ride.findByIdAndUpdate(rideId, {
         $push: { chatMessages: message }
-      });
+      }, { new: true }).populate('passenger driver');
+      
+      if (ride) {
+        let targetToken = null;
+        
+        // Check who the sender is to determine the recipient
+        const isPassenger = sender === ride.passenger?._id?.toString() || sender === ride.passenger?.id;
+        
+        if (isPassenger) {
+          // Notify Driver
+          const User = require('./models/User');
+          const driverUser = await User.findById(ride.driver?.user || ride.driver);
+          targetToken = driverUser?.fcmToken || ride.driver?.fcmToken;
+        } else {
+          // Notify Passenger
+          targetToken = ride.passenger?.fcmToken;
+        }
+
+        if (targetToken) {
+          await notifyNewMessage(targetToken, message.senderName, message.text, rideId);
+        }
+      }
     } catch (err) {
-      console.error('[Chat] Save failed:', err.message);
+      console.error('[Chat] Save or notify failed:', err.message);
     }
 
     // Broadcast to both sides in the chat room (including sender for confirmation)
