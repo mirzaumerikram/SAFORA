@@ -679,4 +679,47 @@ router.post('/fcm-token', auth, async (req, res) => {
     }
 });
 
+// @route   POST /api/auth/test-push
+// @desc    Test FCM token delivery to see detailed errors
+// @access  Private
+router.post('/test-push', auth, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.userId);
+        if (!user || !user.fcmToken) {
+            return res.status(400).json({ success: false, message: 'No FCM token found in database for your account.' });
+        }
+        
+        const admin = require('firebase-admin');
+        const message = {
+            token: user.fcmToken,
+            notification: {
+                title: 'Test Notification',
+                body: 'If you see this, push notifications are working perfectly!'
+            },
+            data: { test: 'true' },
+            webpush: {
+                headers: { Urgency: 'high' },
+                notification: {
+                    icon: 'https://safora.me/favicon.png',
+                    requireInteraction: false
+                }
+            }
+        };
+        
+        try {
+            const response = await admin.messaging().send(message);
+            res.json({ success: true, message: 'FCM successfully accepted the message!', responseId: response });
+        } catch (fcmErr) {
+            res.status(500).json({ 
+                success: false, 
+                message: 'FCM Error', 
+                errorCode: fcmErr.code, 
+                errorMessage: fcmErr.message 
+            });
+        }
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
 module.exports = router;
