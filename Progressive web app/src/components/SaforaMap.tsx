@@ -86,6 +86,7 @@ const SaforaMap: React.FC<SaforaMapProps> = ({
     const heatmapLayerRef = useRef<any>(null);
     const hasCenteredRef  = useRef<boolean>(false);
     const prevHeatmapStr  = useRef<string>('');
+    const lastRouteKeyRef = useRef<string | null>(null);
 
     const [userLocation, setUserLocation] = useState<Coordinates | null>(null);
     const [loading,      setLoading]      = useState(true);
@@ -276,9 +277,9 @@ const SaforaMap: React.FC<SaforaMapProps> = ({
         // Only fetch if we haven't already fetched for this specific pair
         const currentRouteKey = `${pickupLocation?.latitude},${pickupLocation?.longitude}-${dropoffLocation?.latitude},${dropoffLocation?.longitude}`;
         
-        if (pickupLocation && dropoffLocation && directionsServiceRef.current && directionsRendererRef.current && (window as any)._lastRouteKey !== currentRouteKey) {
+        if (pickupLocation && dropoffLocation && directionsServiceRef.current && directionsRendererRef.current && lastRouteKeyRef.current !== currentRouteKey) {
             console.log('[SaforaMap] Requesting route...', pickupLocation, dropoffLocation);
-            (window as any)._lastRouteKey = currentRouteKey;
+            lastRouteKeyRef.current = currentRouteKey;
             
             directionsServiceRef.current.route({
                 origin:      { lat: pickupLocation.latitude,  lng: pickupLocation.longitude },
