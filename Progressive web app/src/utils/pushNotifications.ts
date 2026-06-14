@@ -12,7 +12,7 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_BASE_URL } from '../config/api';
+import { API_CONFIG } from './constants';
 import { requestWebPushPermission } from '../config/firebaseConfig';
 
 const VAPID_KEY = 'BHbleD9619CObtUCgP3t6i7eVTMdT2JasW_ElepKn9YIsWww9psRFFTGlbKsTyK9R_AfozPBw6n4n-i1YjwlJjk';
@@ -88,17 +88,18 @@ export async function registerForPushNotifications(authToken, role = 'passenger'
             return token;
         }
 
-        // 4. Send token to SAFORA backend
-        const response = await fetch(`${API_BASE_URL}/api/auth/fcm-token`, {
+        // 3. Send token to backend
+        const response = await fetch(`${API_CONFIG.BASE_URL}/api/auth/fcm-token`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${authToken}`,
+                'Authorization': `Bearer ${authToken}`
             },
-            body: JSON.stringify({ fcmToken: token, role }),
-        });
-
-        if (response.ok) {
+            body: JSON.stringify({
+                fcmToken: token,
+                role: role
+            })
+        }); if (response.ok) {
             await AsyncStorage.setItem('@safora_fcm_token', token);
             console.log('[FCM] ✅ Push token saved to backend successfully');
         } else {
