@@ -81,13 +81,6 @@ export async function registerForPushNotifications(authToken, role = 'passenger'
 
         console.log('[FCM] Push token obtained:', token.slice(0, 30) + '...');
 
-        // 3. Check if token already saved (avoid unnecessary API calls)
-        const savedToken = await AsyncStorage.getItem('@safora_fcm_token');
-        if (savedToken === token) {
-            console.log('[FCM] Token already up-to-date, skipping save');
-            return token;
-        }
-
         // 3. Send token to backend
         const response = await fetch(`${API_CONFIG.BASE_URL}/api/auth/fcm-token`, {
             method: 'POST',
