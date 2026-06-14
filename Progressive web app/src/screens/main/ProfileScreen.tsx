@@ -594,6 +594,21 @@ const ProfileScreen: React.FC = () => {
                 {/* ── Divider ───────────────────────────────────────────── */}
                 <View style={s.divider} />
 
+                {/* ── Test Push Notification ──────────────────────────────── */}
+                <TouchableOpacity 
+                    style={[s.signOutBtn, { backgroundColor: '#3B82F6', borderColor: '#2563EB', marginBottom: 12 }]} 
+                    onPress={async () => {
+                        try {
+                            const res = await apiService.post('/auth/test-push', {});
+                            Alert.alert('Push Result', JSON.stringify(res, null, 2));
+                        } catch (e: any) {
+                            Alert.alert('Push Error', e.message || 'Failed');
+                        }
+                    }}
+                >
+                    <Text style={[s.signOutText, { color: '#FFF' }]}>Test Push Notification</Text>
+                </TouchableOpacity>
+
                 {/* ── Sign Out ──────────────────────────────────────────── */}
                 <TouchableOpacity style={s.signOutBtn} onPress={handleLogout}>
                     <Text style={s.signOutText}>{t.logoutBtn}</Text>
