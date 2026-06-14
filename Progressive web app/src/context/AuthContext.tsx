@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import authService from '../services/auth.service';
 import { STORAGE_KEYS } from '../utils/constants';
+import { registerForPushNotifications } from '../utils/pushNotifications';
 
 interface AuthContextType {
     isAuthenticated: boolean;
@@ -62,7 +63,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsAuthenticated(value);
         if (value) {
             try {
-                setUserRole(await resolveRole());
+                const role = await resolveRole();
+                setUserRole(role);
+
+                // Register device for push notifications after login
+                const token = await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+                if (token) {
+                    registerForPushNotifications(token, role).catch(() => {});
+                }
             } catch {
                 setUserRole('passenger');
             }

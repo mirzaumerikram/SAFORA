@@ -85,6 +85,10 @@ const driverSchema = new mongoose.Schema({
         type: String,
         enum: ['car', 'bike', 'rickshaw'],
         default: 'car'
+    },
+    fcmToken: {
+        type: String,
+        default: null
     }
 }, {
     timestamps: true

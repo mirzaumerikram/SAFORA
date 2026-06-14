@@ -101,6 +101,10 @@ const userSchema = new mongoose.Schema({
         relationship: String
     }],
     profilePhoto: String,
+    fcmToken: {
+        type: String,
+        default: null
+    },
     createdAt: {
         type: Date,
         default: Date.now

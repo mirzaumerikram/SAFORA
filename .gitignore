@@ -11,6 +11,8 @@ node_modules/
 # Firebase service account — private keys
 firebase-service-account.json
 *-service-account.json
+serviceAccountKey.json
+backend/config/serviceAccountKey.json
 
 # Expo
 .expo/

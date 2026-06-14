@@ -322,11 +322,24 @@ router.post('/:id/accept', auth, authorize('driver'), async (req, res) => {
         await ride.save();
 
         const io = req.app.get('io');
-        // Notify passenger
+        // Notify passenger via Socket.io
         io.to(`chat-${ride._id}`).emit('ride:accepted', {
             rideId: ride._id,
             driverId: driver._id
         });
+
+        // Push notification to passenger
+        try {
+            const { notifyRideAccepted } = require('../utils/notificationService');
+            const User = require('../models/User');
+            const passenger = await User.findById(ride.passenger).select('fcmToken name');
+            const driverUser = await User.findById(req.user.userId).select('name');
+            if (passenger?.fcmToken) {
+                await notifyRideAccepted(passenger.fcmToken, driverUser?.name || 'Your driver', String(ride._id));
+            }
+        } catch (fcmErr) {
+            console.error('[FCM] ride:accepted notification failed:', fcmErr.message);
+        }
 
         res.json({ success: true, ride });
     } catch (error) {

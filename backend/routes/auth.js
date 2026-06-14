@@ -656,4 +656,27 @@ router.post('/admin-setup', async (req, res) => {
     }
 });
 
+// @route   POST /api/auth/fcm-token
+// @desc    Save or update the device FCM push token for the logged-in user
+// @access  Private
+router.post('/fcm-token', auth, async (req, res) => {
+    try {
+        const { fcmToken, role } = req.body;
+        if (!fcmToken) return res.status(400).json({ message: 'fcmToken is required' });
+
+        // Update on User model (works for all roles)
+        await User.findByIdAndUpdate(req.user.userId, { fcmToken });
+
+        // Also update on Driver model if the caller is a driver
+        if (role === 'driver') {
+            await Driver.findOneAndUpdate({ user: req.user.userId }, { fcmToken });
+        }
+
+        console.log(`[FCM] ✅ Token saved for user ${req.user.userId} (role: ${role || 'passenger'})`);
+        res.json({ success: true, message: 'FCM token saved' });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
 module.exports = router;

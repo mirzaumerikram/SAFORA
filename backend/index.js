@@ -5,6 +5,13 @@ const http = require('http');
 const { Server } = require('socket.io');
 const connectDB = require('./config/database');
 const Ride = require('./models/Ride');
+const {
+    notifyRideAccepted,
+    notifyDriverArrived,
+    notifyRideCompleted,
+    notifyNewRideRequest,
+    notifySOSAlert,
+} = require('./utils/notificationService');
 
 // Load environment variables
 dotenv.config();
@@ -158,11 +165,25 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Driver arrived at pickup — relay to passenger
-  socket.on('driver:arrived', ({ rideId }) => {
+  // Driver arrived at pickup — relay to passenger + send push notification
+  socket.on('driver:arrived', async ({ rideId }) => {
     if (rideId) {
       io.to(`ride-${rideId}`).emit('driver:arrived', { rideId });
       console.log(`[Socket] Driver arrived for ride ${rideId}`);
+
+      // Push notification to passenger
+      try {
+        const ride = await Ride.findById(rideId).populate('passenger driver');
+        if (ride?.passenger?.fcmToken) {
+          const driverUser = await require('./models/User').findById(
+            ride.driver?.user || ride.driver
+          ).select('name');
+          const driverName = driverUser?.name || 'Your driver';
+          await notifyDriverArrived(ride.passenger.fcmToken, driverName, rideId);
+        }
+      } catch (err) {
+        console.error('[FCM] driver:arrived notification failed:', err.message);
+      }
     }
   });
 
