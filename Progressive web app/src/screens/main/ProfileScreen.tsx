@@ -75,6 +75,7 @@ const ProfileScreen: React.FC = () => {
     const [newContactPhone, setNewContactPhone] = useState('');
     const [newContactRelation, setNewContactRelation] = useState('');
     const [isSavingContact, setIsSavingContact] = useState(false);
+    const [testPushResult, setTestPushResult] = useState<string | null>(null);
 
     // ─── Load user data ───────────────────────────────────────────────────────
 
@@ -598,16 +599,23 @@ const ProfileScreen: React.FC = () => {
                 <TouchableOpacity 
                     style={[s.signOutBtn, { backgroundColor: '#3B82F6', borderColor: '#2563EB', marginBottom: 12 }]} 
                     onPress={async () => {
+                        setTestPushResult('Loading...');
                         try {
                             const res = await apiService.post('/auth/test-push', {});
-                            Alert.alert('Push Result', JSON.stringify(res, null, 2));
+                            setTestPushResult('Result: ' + JSON.stringify(res, null, 2));
                         } catch (e: any) {
-                            Alert.alert('Push Error', e.message || 'Failed');
+                            setTestPushResult('Error: ' + (e.message || 'Failed'));
                         }
                     }}
                 >
                     <Text style={[s.signOutText, { color: '#FFF' }]}>Test Push Notification</Text>
                 </TouchableOpacity>
+
+                {testPushResult && (
+                    <Text style={{ fontSize: 11, color: theme.colors.text, padding: 10, backgroundColor: theme.colors.cardSecondary, borderRadius: 8, marginBottom: 16 }}>
+                        {testPushResult}
+                    </Text>
+                )}
 
                 {/* ── Sign Out ──────────────────────────────────────────── */}
                 <TouchableOpacity style={s.signOutBtn} onPress={handleLogout}>
