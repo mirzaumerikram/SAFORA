@@ -179,21 +179,19 @@ router.post('/request', auth, async (req, res) => {
 router.get('/active-ride', auth, async (req, res) => {
     try {
         const userId = req.user.userId;
-        let query = {};
+        const driver = await Driver.findOne({ user: userId });
         
-        if (req.user.role === 'driver') {
-            const driver = await Driver.findOne({ user: userId });
-            // Search by EITHER driver doc ID or the user ID itself to be bulletproof
-            query = { 
-                $or: [
-                    { driver: driver ? driver._id : userId },
-                    { driver: userId },
-                    { driverId: userId } // Legacy/Backup ID check
-                ],
-                status: { $in: ['matched', 'accepted', 'arrived', 'started'] } 
-            };
-        } else {
-            query = { passenger: userId, status: { $in: ['requested', 'matched', 'accepted', 'arrived', 'started'] } };
+        query = { 
+            $or: [
+                { passenger: userId },
+                { driver: userId },
+                { driverId: userId } // Legacy/Backup ID check
+            ],
+            status: { $in: ['requested', 'matched', 'accepted', 'arrived', 'started'] } 
+        };
+        
+        if (driver) {
+            query.$or.push({ driver: driver._id });
         }
 
         const ride = await Ride.findOne(query)
