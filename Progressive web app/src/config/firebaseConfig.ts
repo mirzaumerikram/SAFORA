@@ -46,7 +46,8 @@ export const requestWebPushPermission = async (vapidKey: string) => {
             return null;
         }
     } catch (err: any) {
-        alert(`[Diagnostic] Firebase Push Error: ${err.message || err}`);
+        console.error(`[Firebase Push Error]:`, err);
+        // We log instead of alert to prevent blocking the UI/map loading
         return null;
     }
 };
