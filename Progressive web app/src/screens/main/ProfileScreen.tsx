@@ -21,6 +21,7 @@ import { STORAGE_KEYS } from '../../utils/constants';
 import { useLanguage } from '../../context/LanguageContext';
 import apiService from '../../services/api';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
+import { registerForPushNotifications } from '../../utils/pushNotifications';
 
 // Get Google Maps API key from environment
 const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '';
@@ -599,12 +600,23 @@ const ProfileScreen: React.FC = () => {
                 <TouchableOpacity 
                     style={[s.signOutBtn, { backgroundColor: '#3B82F6', borderColor: '#2563EB', marginBottom: 12 }]} 
                     onPress={async () => {
-                        setTestPushResult('Loading...');
+                        setTestPushResult('Loading (Generating token)...');
                         try {
+                            const authToken = await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+                            if (!authToken) {
+                                setTestPushResult('Error: Not logged in (No auth token)');
+                                return;
+                            }
+                            const token = await registerForPushNotifications(authToken, user.role || 'passenger');
+                            if (!token) {
+                                setTestPushResult('Error: Failed to generate FCM token on your device.');
+                                return;
+                            }
+                            setTestPushResult(`Token generated: ...${token.slice(-8)}\nSending to backend...`);
                             const res = await apiService.post('/auth/test-push', {});
-                            setTestPushResult('Result: ' + JSON.stringify(res, null, 2));
+                            setTestPushResult(`Result: ${JSON.stringify(res, null, 2)}`);
                         } catch (e: any) {
-                            setTestPushResult('Error: ' + (e.message || 'Failed'));
+                            setTestPushResult(`Error: ${e.message || 'Failed'}`);
                         }
                     }}
                 >
