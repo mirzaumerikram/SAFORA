@@ -92,12 +92,16 @@ export async function registerForPushNotifications(authToken, role = 'passenger'
                 fcmToken: token,
                 role: role
             })
-        }); if (response.ok) {
-            await AsyncStorage.setItem('@safora_fcm_token', token);
-            console.log('[FCM] ✅ Push token saved to backend successfully');
-        } else {
-            console.error('[FCM] ❌ Failed to save token to backend:', response.status);
+        });
+
+        if (!response.ok) {
+            const errBody = await response.text();
+            console.error('[FCM] ❌ Failed to save token to backend:', response.status, errBody);
+            throw new Error(`Backend rejected token: ${response.status} ${errBody}`);
         }
+
+        await AsyncStorage.setItem('@safora_fcm_token', token);
+        console.log('[FCM] ✅ Push token saved to backend successfully');
 
         // 5. Android-specific: create notification channel
         if (Platform.OS === 'android') {
