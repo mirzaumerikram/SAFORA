@@ -686,7 +686,11 @@ router.post('/test-push', auth, async (req, res) => {
     try {
         const user = await User.findById(req.user.userId);
         if (!user || !user.fcmToken) {
-            return res.status(400).json({ success: false, message: 'No FCM token found in database for your account.' });
+            return res.status(400).json({ 
+                success: false, 
+                message: 'No FCM token found in database for your account.',
+                debugUser: user ? { id: user._id, fcmToken: user.fcmToken, name: user.name } : 'User not found'
+            });
         }
         
         const admin = require('firebase-admin');

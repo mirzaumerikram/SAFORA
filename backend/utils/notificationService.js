@@ -65,6 +65,7 @@ async function sendPushNotification(fcmToken, title, body, data = {}) {
         webpush: {
             headers: { Urgency: 'high' },
             notification: {
+                icon: 'https://safora.me/favicon.png',
                 requireInteraction: false,
             },
         },
