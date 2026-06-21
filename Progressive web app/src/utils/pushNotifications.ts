@@ -115,10 +115,10 @@ export async function registerForPushNotifications(authToken, role = 'passenger'
         }
 
         return token;
-    } catch (error) {
+    } catch (error: any) {
         // Never crash the app if notifications fail
         console.error('[FCM] registerForPushNotifications error:', error.message);
-        return null;
+        throw error;
     }
 }
 
