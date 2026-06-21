@@ -16,11 +16,11 @@ const otpSendLimiter = rateLimit({
     legacyHeaders: false,
 });
 
-// Max 10 verify attempts per 15 min per IP
+// Max 3 OTP verify attempts per 5 min per IP (matches documented 3-attempt lockout)
 const otpVerifyLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 10,
-    message: { message: 'Too many verification attempts. Please wait 15 minutes.' },
+    windowMs: 5 * 60 * 1000,
+    max: 3,
+    message: { message: 'Too many verification attempts. Account locked for 5 minutes.' },
     standardHeaders: true,
     legacyHeaders: false,
 });
@@ -250,7 +250,7 @@ router.post('/send-otp', otpSendLimiter, async (req, res) => {
         const otp = isDev
             ? '12345'
             : Math.floor(10000 + Math.random() * 90000).toString();
-        const otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+        const otpExpires = Date.now() + 5 * 60 * 1000; // 5 minutes
 
         // Find user — create placeholder only for non-admin phones
         let user = await User.findOne({ phone });

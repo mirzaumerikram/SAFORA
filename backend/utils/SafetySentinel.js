@@ -55,21 +55,26 @@ class SafetySentinel {
 
         // Check for route deviation
         if (distance > this.DEVIATION_THRESHOLD) {
-            if (!monitoringData.isDeviated) {
-                // Trigger alert immediately for immediate feedback during demo
+            if (!monitoringData.deviationStartTime) {
+                // Start the 30-second grace window
+                monitoringData.deviationStartTime = now;
+                console.log(`Ride ${rideId}: Deviation detected (${Math.round(distance)}m off route). 30s grace window started.`);
+            } else if (!monitoringData.isDeviated && (now - monitoringData.deviationStartTime >= this.DEVIATION_DURATION)) {
+                // 30 seconds of continuous deviation — trigger alert
+                const deviationSecs = Math.round((now - monitoringData.deviationStartTime) / 1000);
                 alert = {
                     type: 'route-deviation',
                     location: currentLocation,
-                    description: `Vehicle deviated ${Math.round(distance)}m from planned route!`,
+                    description: `Vehicle deviated ${Math.round(distance)}m from planned route for ${deviationSecs}s!`,
                     distance: Math.round(distance),
-                    duration: 0
+                    duration: deviationSecs
                 };
                 monitoringData.isDeviated = true;
-                console.log(`Ride ${rideId}: ALERT - Immediate route deviation triggered!`);
+                console.log(`Ride ${rideId}: ALERT - Route deviation confirmed after ${deviationSecs}s grace window.`);
             }
         } else {
             // Reset deviation timer if back on route
-            if (monitoringData.isDeviated || deviationStartTime) {
+            if (monitoringData.isDeviated || monitoringData.deviationStartTime) {
                 console.log(`Ride ${rideId}: Back on route`);
                 monitoringData.deviationStartTime = null;
                 monitoringData.isDeviated = false;

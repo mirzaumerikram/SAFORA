@@ -135,13 +135,13 @@ router.post('/request', auth, async (req, res) => {
                 // Notify matched driver via Socket.io
                 const io = req.app.get('io');
                 if (io) {
-                    const roomName = `driver:${matchedDriver._id}`;
-                    console.log(`[RIDE_DEBUG] BROADCASTING ride:request to ALL for testing.`);
+                    const roomName = `driver-${matchedDriver._id}`;
+                    console.log(`[RIDE_DEBUG] Emitting ride:request to room: ${roomName}`);
                     
                     const passUser = await User.findById(passengerId);
                     
-                    // Temporarily using io.emit instead of io.to(roomName).emit
-                    io.emit('ride:request', {
+                    // Target the specific matched driver's room (matches socket.join in index.js)
+                    io.to(roomName).emit('ride:request', {
                         rideId: ride._id,
                         passenger: { name: passUser ? passUser.name : 'Passenger' },
                         pickup: pickupLocation,

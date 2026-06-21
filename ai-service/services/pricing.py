@@ -72,8 +72,13 @@ class PricingService:
             
             predicted_price = subtotal * surge * traffic_multiplier
         
-        # Ensure minimum and maximum bounds
-        predicted_price = max(self.BASE_FARE, min(predicted_price, 2000))
+        # Enforce proportional fare cap: predicted price can never exceed 2x the
+        # base fare for this trip (BASE_FARE + distance cost + time cost).
+        # This prevents extreme surge pricing on short trips.
+        base_calculation = self.BASE_FARE + (distance * self.RATE_PER_KM) + (duration * self.RATE_PER_MIN)
+        fare_cap = 2.0 * base_calculation
+        cap_applied = predicted_price > fare_cap
+        predicted_price = max(self.BASE_FARE, min(predicted_price, fare_cap))
         
         # Calculate breakdown
         breakdown = self._calculate_breakdown(distance, duration, demand_level, traffic_multiplier)
@@ -81,7 +86,9 @@ class PricingService:
         return {
             'estimated_price': round(predicted_price, 2),
             'breakdown': breakdown,
-            'currency': 'PKR'
+            'currency': 'PKR',
+            'cap_applied': cap_applied,
+            'fare_cap': round(fare_cap, 2)
         }
     
     def _encode_demand(self, demand_level):
