@@ -13,42 +13,94 @@ const firebaseConfig = {
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-export const requestWebPushPermission = async (vapidKey: string) => {
-    try {
-        const supported = await isSupported();
-        if (!supported) {
-            alert('[Diagnostic] Firebase Web Push is NOT supported by this browser. Are you on HTTPS?');
-            return null;
-        }
-        
-        const permission = await Notification.requestPermission();
-        if (permission !== 'granted') {
-            console.log('[Firebase] Permission not granted for Notification');
-            alert('To receive push notifications, please click the padlock icon in your browser URL bar, go to Site Settings, and Allow Notifications.');
-            return null;
-        }
+/**
+ * Wait for a specific SW registration's active worker — NOT navigator.serviceWorker.ready,
+ * which resolves to whatever SW controls the page (possibly Expo's, not Firebase's).
+ */
+function waitForActive(reg: ServiceWorkerRegistration, timeoutMs = 6000): Promise<void> {
+    return new Promise((resolve, reject) => {
+        if (reg.active) { resolve(); return; }
+        const timer = setTimeout(() => reject(new Error('Service worker activation timed out')), timeoutMs);
+        const sw = reg.installing ?? reg.waiting;
+        if (!sw) { clearTimeout(timer); resolve(); return; }
+        const handler = () => {
+            if (sw.state === 'activated') {
+                clearTimeout(timer);
+                sw.removeEventListener('statechange', handler);
+                resolve();
+            } else if (sw.state === 'redundant') {
+                clearTimeout(timer);
+                sw.removeEventListener('statechange', handler);
+                reject(new Error('Service worker became redundant'));
+            }
+        };
+        sw.addEventListener('statechange', handler);
+    });
+}
 
-        const messaging = getMessaging(app);
-        
-        const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js?v=5');
-        registration.update();
-        await navigator.serviceWorker.ready;
-        
-        const currentToken = await getToken(messaging, { 
-            vapidKey,
-            serviceWorkerRegistration: registration 
-        });
-
-        if (currentToken) {
-            console.log('[Firebase] Web Push Token:', currentToken);
-            return currentToken;
-        } else {
-            alert('[Diagnostic] Web Push Token was empty after requesting.');
-            return null;
-        }
-    } catch (err: any) {
-        alert(`[Firebase Push Error]: ` + (err.message || 'Unknown error'));
-        console.error(`[Firebase Push Error]:`, err);
+/**
+ * Request Web Push permission and return an FCM token.
+ * Returns null if the user denied permission (not an error).
+ * Throws on unexpected errors so callers can surface them.
+ */
+export const requestWebPushPermission = async (vapidKey: string): Promise<string | null> => {
+    const supported = await isSupported();
+    if (!supported) {
+        console.warn('[FCM] Web Push not supported in this browser (requires HTTPS + compatible browser)');
         return null;
+    }
+
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+        console.log('[FCM] Notification permission not granted by user');
+        return null;
+    }
+
+    const messaging = getMessaging(app);
+
+    // Register the firebase SW with a stable URL (no version suffix) so we always
+    // get the same registration object and FCM can match it to the stored token.
+    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+
+    // Wait for THIS registration's worker to activate — not navigator.serviceWorker.ready,
+    // which could resolve to Expo's SW and cause getToken to use the wrong registration.
+    await waitForActive(registration);
+
+    const currentToken = await getToken(messaging, {
+        vapidKey,
+        serviceWorkerRegistration: registration,
+    });
+
+    if (!currentToken) {
+        console.warn('[FCM] getToken returned empty — verify VAPID key and SW scope');
+        return null;
+    }
+
+    console.log('[FCM] Web push token:', currentToken.slice(0, 20) + '...');
+    return currentToken;
+};
+
+/**
+ * Start listening for FCM messages while the app is in the foreground.
+ * The service worker handles background messages; this handles foreground ones.
+ * Call once after the user is authenticated. Returns a cleanup / unsubscribe fn.
+ */
+export const setupForegroundNotifications = (): (() => void) => {
+    try {
+        const messaging = getMessaging(app);
+        const unsubscribe = onMessage(messaging, (payload) => {
+            console.log('[FCM] Foreground message received:', payload);
+            if (Notification.permission !== 'granted') return;
+
+            const title = payload.notification?.title ?? 'SAFORA';
+            const body  = payload.notification?.body  ?? '';
+            const icon  = payload.notification?.icon  ?? '/favicon.png';
+
+            // Show a system notification even while the app tab is active
+            new Notification(title, { body, icon });
+        });
+        return unsubscribe;
+    } catch {
+        return () => {};
     }
 };

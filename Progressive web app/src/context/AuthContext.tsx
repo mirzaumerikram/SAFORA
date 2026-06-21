@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import authService from '../services/auth.service';
 import { STORAGE_KEYS } from '../utils/constants';
@@ -40,6 +41,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [userRole, setUserRole] = useState('passenger');
+    // Holds the FCM foreground-message unsubscribe function (web only)
+    const foregroundUnsubRef = useRef<(() => void) | null>(null);
 
     useEffect(() => {
         checkAuth();
@@ -53,11 +56,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 const role = await resolveRole();
                 setUserRole(role);
                 
-                // Also register for push on app start if already authenticated!
+                // Also register for push on app start if already authenticated
                 const token = await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
                 if (token) {
-                    setTimeout(() => {
-                        registerForPushNotifications(token, role).catch(() => {});
+                    setTimeout(async () => {
+                        try {
+                            await registerForPushNotifications(token, role);
+                            if (Platform.OS === 'web' && !foregroundUnsubRef.current) {
+                                const { setupForegroundNotifications } = await import('../config/firebaseConfig');
+                                foregroundUnsubRef.current = setupForegroundNotifications();
+                            }
+                        } catch { /* never crash on push registration failure */ }
                     }, 5000);
                 }
             }
@@ -75,12 +84,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 const role = await resolveRole();
                 setUserRole(role);
 
-                // Register device for push notifications after a delay
-                // This prevents it from conflicting with the Location permission prompt!
+                // Register device for push notifications after a delay so it doesn't
+                // compete with the location permission prompt
                 const token = await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
                 if (token) {
-                    setTimeout(() => {
-                        registerForPushNotifications(token, role).catch(() => {});
+                    setTimeout(async () => {
+                        try {
+                            await registerForPushNotifications(token, role);
+                            if (Platform.OS === 'web' && !foregroundUnsubRef.current) {
+                                const { setupForegroundNotifications } = await import('../config/firebaseConfig');
+                                foregroundUnsubRef.current = setupForegroundNotifications();
+                            }
+                        } catch { /* never crash on push registration failure */ }
                     }, 5000);
                 }
             } catch {
@@ -91,6 +106,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const logout = async () => {
         await authService.logout();
+        foregroundUnsubRef.current?.();
+        foregroundUnsubRef.current = null;
         setIsAuthenticated(false);
         setUserRole('passenger');
     };

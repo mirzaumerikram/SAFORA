@@ -152,6 +152,17 @@ router.post('/request', auth, async (req, res) => {
                         type: ride.type
                     });
                 }
+
+                // Push notification to matched driver (catches backgrounded/closed app)
+                try {
+                    const { notifyNewRideRequest } = require('../utils/notificationService');
+                    if (matchedDriver.fcmToken) {
+                        const pickupAddr = pickupLocation?.address || 'your area';
+                        await notifyNewRideRequest(matchedDriver.fcmToken, pickupAddr, String(ride._id));
+                    }
+                } catch (fcmErr) {
+                    console.error('[FCM] new ride request push failed:', fcmErr.message);
+                }
             }
         } catch (matchErr) {
             console.error('[RIDE] Matching failed but ride saved:', matchErr.message);
@@ -276,6 +287,27 @@ router.patch('/:id/status', auth, authorize('driver'), async (req, res) => {
         // Emit Socket.io event for real-time update
         const io = req.app.get('io');
         io.to(`ride-${ride._id}`).emit('ride-status-updated', { rideId: ride._id, status });
+
+        // Push notifications for key status transitions
+        if (status === 'started' || status === 'completed') {
+            try {
+                const { sendPushNotification, notifyRideCompleted } = require('../utils/notificationService');
+                const passenger = await User.findById(ride.passenger).select('fcmToken');
+                if (status === 'started' && passenger?.fcmToken) {
+                    await sendPushNotification(
+                        passenger.fcmToken,
+                        '🚗 Your ride has started!',
+                        'You are on your way. Sit back and relax.',
+                        { rideId: String(ride._id), event: 'ride_started' }
+                    );
+                } else if (status === 'completed' && passenger?.fcmToken) {
+                    const fare = ride.actualPrice || ride.estimatedPrice || 0;
+                    await notifyRideCompleted(passenger.fcmToken, fare, String(ride._id));
+                }
+            } catch (fcmErr) {
+                console.error('[FCM] status push failed:', fcmErr.message);
+            }
+        }
 
         // SafetySentinel lifecycle
         const safetySentinel = req.app.get('safetySentinel');
