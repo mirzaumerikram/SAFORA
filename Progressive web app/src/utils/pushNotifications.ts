@@ -82,7 +82,7 @@ export async function registerForPushNotifications(authToken, role = 'passenger'
         console.log('[FCM] Push token obtained:', token.slice(0, 30) + '...');
 
         // 3. Send token to backend
-        const response = await fetch(`${API_CONFIG.BASE_URL}/api/auth/fcm-token`, {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/auth/fcm-token`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
