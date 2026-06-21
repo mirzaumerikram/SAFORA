@@ -9,22 +9,17 @@ const BASE_URL =
     ? LOCAL_URL
     : RAILWAY_URL;
 
-const getToken = () => localStorage.getItem('safora_admin_token');
-
 const request = async (method, url, data) => {
   const headers = { 'Content-Type': 'application/json' };
-  const token = getToken();
-  if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const options = { method, headers };
+  const options = { method, headers, credentials: 'include' };
   if (data) options.body = JSON.stringify(data);
 
   const res = await fetch(`${BASE_URL}${url}`, options);
   const contentType = res.headers.get('content-type');
 
   if (res.status === 401) {
-    // Token expired or invalid — clear it and force re-login
-    localStorage.removeItem('safora_admin_token');
+    // Token expired or invalid — clear user and force re-login
     localStorage.removeItem('safora_admin_user');
     throw new Error('SESSION_EXPIRED');
   }

@@ -12,21 +12,27 @@ const { width, height } = Dimensions.get('window');
 
 interface Coordinates { latitude: number; longitude: number; }
 
+// Passenger-facing phase labels matching driver phases
+// Backend status → display status
+const STATUS_MAP: Record<string, string> = {
+    accepted:  'EN ROUTE',
+    arrived:   'ARRIVED',
+    started:   'ONBOARD',
+    completed: 'DROPPED',
+};
+const PASSENGER_PHASES = ['EN ROUTE', 'ARRIVED', 'ONBOARD', 'DROPPED'];
+const initialRegion = {
+    latitude: 32.4945,
+    longitude: 74.5229,
+    latitudeDelta: 0.01,
+    longitudeDelta: 0.01,
+};
+
 const TrackingScreen: React.FC = () => {
     const navigation = useNavigation<any>();
     const route = useRoute<any>();
     const { theme: liveTheme } = useAppTheme();
     const { rideId, estimatedPrice, pickup, dropoff, pickupCoords, dropoffCoords } = route.params || {};
-
-    // Passenger-facing phase labels matching driver phases
-    // Backend status → display status
-    const STATUS_MAP: Record<string, string> = {
-        accepted:  'EN ROUTE',
-        arrived:   'ARRIVED',
-        started:   'ONBOARD',
-        completed: 'DROPPED',
-    };
-    const PASSENGER_PHASES = ['EN ROUTE', 'ARRIVED', 'ONBOARD', 'DROPPED'];
 
     const [status, setStatus]               = useState('EN ROUTE');
     const [socketStatus, setSocketStatus]   = useState<'connecting' | 'live' | 'offline'>('connecting');
@@ -277,13 +283,6 @@ const TrackingScreen: React.FC = () => {
         } catch { /* silent fail */ }
     };
 
-
-    const initialRegion = {
-        latitude: 32.4945,
-        longitude: 74.5229,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-    };
 
     return (
         <View style={styles.container}>

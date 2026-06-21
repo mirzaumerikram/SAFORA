@@ -20,6 +20,8 @@ dotenv.config();
 // Initialize Express app
 const app = express();
 const server = http.createServer(app);
+const cookieParser = require('cookie-parser');
+app.use(cookieParser());
 const ALLOWED_ORIGINS = [
   // Production — passenger PWA
   'https://safora.me',

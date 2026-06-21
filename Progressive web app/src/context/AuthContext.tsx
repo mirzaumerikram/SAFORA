@@ -22,6 +22,20 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
+const resolveRole = async (): Promise<string> => {
+    // @safora_selected_role = what user picked on LanguageRoleScreen (driver/passenger)
+    // USER_DATA.role = what backend assigned (may not exist for OTP users)
+    // Selected role takes priority so demo switching works correctly
+    const selected = await AsyncStorage.getItem('@safora_selected_role');
+    if (selected === 'driver' || selected === 'passenger') return selected;
+    const raw = await AsyncStorage.getItem(STORAGE_KEYS.USER_DATA);
+    if (raw) {
+        const user = JSON.parse(raw);
+        if (user?.role) return user.role;
+    }
+    return 'passenger';
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -30,20 +44,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     useEffect(() => {
         checkAuth();
     }, []);
-
-    const resolveRole = async (): Promise<string> => {
-        // @safora_selected_role = what user picked on LanguageRoleScreen (driver/passenger)
-        // USER_DATA.role = what backend assigned (may not exist for OTP users)
-        // Selected role takes priority so demo switching works correctly
-        const selected = await AsyncStorage.getItem('@safora_selected_role');
-        if (selected === 'driver' || selected === 'passenger') return selected;
-        const raw = await AsyncStorage.getItem(STORAGE_KEYS.USER_DATA);
-        if (raw) {
-            const user = JSON.parse(raw);
-            if (user?.role) return user.role;
-        }
-        return 'passenger';
-    };
 
     const checkAuth = async () => {
         try {

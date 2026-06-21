@@ -57,14 +57,14 @@ async function seed() {
             // Index may already be correct or not exist — that's fine
         }
 
-        for (const data of USERS) {
+        await Promise.all(USERS.map(async (data) => {
             // Remove any existing user with this phone or email to start clean
             await User.deleteOne({ $or: [{ phone: data.phone }, { email: data.email }] });
 
             const user = new User(data);
             await user.save();
             console.log(`✅ Created [${data.role.toUpperCase()}]  ${data.name}`);
-        }
+        }));
 
         console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         console.log('  SAFORA TEST CREDENTIALS');

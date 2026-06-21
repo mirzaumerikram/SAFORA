@@ -120,7 +120,7 @@ export default function PinkPass() {
                       </div>
                       <div>
                         <div style={{ fontWeight: 600 }}>{u.name || '—'}</div>
-                        <div style={{ fontSize: 11, color: '#666' }}>{u.email || u.licenseNumber || '—'}</div>
+                        <div style={{ fontSize: 12, color: '#666' }}>{u.email || u.licenseNumber || '—'}</div>
                       </div>
                     </div>
                   </td>

@@ -12,6 +12,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { getConfirmationResult, clearConfirmationResult } from '../../services/otpStore';
 
+const fmt = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const NUMPAD = [
@@ -39,8 +41,6 @@ const OTPScreen: React.FC = () => {
         const id = setInterval(() => setTimer(p => p > 0 ? p - 1 : 0), 1000);
         return () => clearInterval(id);
     }, []);
-
-    const fmt = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
 
     const press = (key: string) => {
         if (key === '⌫') { setOtp(p => p.slice(0, -1)); return; }

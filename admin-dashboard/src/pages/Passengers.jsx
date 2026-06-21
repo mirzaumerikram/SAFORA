@@ -126,7 +126,7 @@ export default function Passengers() {
                           onClick={() => openEdit(u)}
                           style={{ 
                             background: '#f0f4ff', color: '#4a90e2', border: '1px solid #d1e3ff',
-                            padding: '4px 10px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer'
+                            padding: '4px 10px', borderRadius: '4px', fontSize: '12px', cursor: 'pointer'
                           }}
                         >
                           Edit
@@ -135,7 +135,7 @@ export default function Passengers() {
                           onClick={() => deleteUser(u._id)}
                           style={{ 
                             background: '#fff0f0', color: '#e74c3c', border: '1px solid #ffcccc',
-                            padding: '4px 8px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer'
+                            padding: '4px 8px', borderRadius: '4px', fontSize: '12px', cursor: 'pointer'
                           }}
                         >
                           Delete
@@ -159,23 +159,23 @@ export default function Passengers() {
               <div className="form-group" style={{ background: '#f9f9f9', padding: '10px', borderRadius: '8px', border: '1px solid #eee' }}>
                 <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '5px', fontWeight: 'bold' }}>Email Address</label>
                 <input style={{ width: '100%', padding: '10px', borderRadius: '6px', border: formErrors.email ? '1px solid red' : '1px solid #ddd' }} value={editForm.email} onChange={e => setEditForm({...editForm, email: e.target.value})} placeholder="example@safora.me" />
-                {formErrors.email && <span style={{ color: 'red', fontSize: '10px' }}>{formErrors.email}</span>}
+                {formErrors.email && <span style={{ color: 'red', fontSize: '12px' }}>{formErrors.email}</span>}
               </div>
               <div className="form-group">
                 <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '5px' }}>Full Name</label>
                 <input style={{ width: '100%', padding: '10px', borderRadius: '6px', border: formErrors.name ? '1px solid red' : '1px solid #ddd' }} value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} />
-                {formErrors.name && <span style={{ color: 'red', fontSize: '10px' }}>{formErrors.name}</span>}
+                {formErrors.name && <span style={{ color: 'red', fontSize: '12px' }}>{formErrors.name}</span>}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div className="form-group">
                   <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '5px' }}>Phone Number</label>
                   <input style={{ width: '100%', padding: '10px', borderRadius: '6px', border: formErrors.phone ? '1px solid red' : '1px solid #ddd' }} value={editForm.phone} onChange={e => setEditForm({...editForm, phone: e.target.value})} maxLength={11} />
-                  {formErrors.phone && <span style={{ color: 'red', fontSize: '10px' }}>{formErrors.phone}</span>}
+                  {formErrors.phone && <span style={{ color: 'red', fontSize: '12px' }}>{formErrors.phone}</span>}
                 </div>
                 <div className="form-group">
                   <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '5px' }}>CNIC</label>
                   <input style={{ width: '100%', padding: '10px', borderRadius: '6px', border: formErrors.cnic ? '1px solid red' : '1px solid #ddd' }} value={editForm.cnic} onChange={e => setEditForm({...editForm, cnic: e.target.value})} maxLength={13} />
-                  {formErrors.cnic && <span style={{ color: 'red', fontSize: '10px' }}>{formErrors.cnic}</span>}
+                  {formErrors.cnic && <span style={{ color: 'red', fontSize: '12px' }}>{formErrors.cnic}</span>}
                 </div>
               </div>
               <div className="form-group">

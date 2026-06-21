@@ -22,6 +22,44 @@ const RECORD_MS      = 8000;   // 8 seconds
 const TARGET_FRAMES  = 6;      // halved from 12 to speed up analysis
 const MIN_MOTION     = 2.5;    // more forgiving threshold
 
+const computeMotion = async (frames: string[]): Promise<number> => {
+    if (frames.length < 2) return 0;
+
+    const toPixels = (b64: string): Promise<Uint8ClampedArray> =>
+        new Promise(res => {
+            const img = new window.Image();
+            img.onload = () => {
+                const c = document.createElement('canvas');
+                c.width = 30; c.height = 30;
+                c.getContext('2d')!.drawImage(img, 0, 0, 30, 30);
+                const data = c.getContext('2d')!.getImageData(0, 0, 30, 30).data;
+                res(data);
+            };
+            img.onerror = () => res(new Uint8ClampedArray(0));
+            img.src = b64;
+        });
+
+    const pairs: [number, number][] = [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5]];
+    const validPairs = pairs.filter(([idxA, idxB]) => frames[idxA] && frames[idxB]);
+    const results = await Promise.all(
+        validPairs.map(async ([idxA, idxB]) => {
+            const [a, b] = await Promise.all([toPixels(frames[idxA]), toPixels(frames[idxB])]);
+            if (a.length === 0 || b.length === 0) return null;
+            let diff = 0;
+            for (let j = 0; j < a.length; j += 8) {
+                const ga = 0.299 * a[j] + 0.587 * a[j+1] + 0.114 * a[j+2];
+                const gb = 0.299 * b[j] + 0.587 * b[j+1] + 0.114 * b[j+2];
+                diff += Math.abs(ga - gb);
+            }
+            return diff / (a.length / 4);
+        })
+    );
+    const validResults = results.filter((r): r is number => r !== null);
+    const total = validResults.reduce((sum, v) => sum + v, 0);
+    const count = validResults.length;
+    return count > 0 ? total / count : 0;
+};
+
 const PinkPassCameraScreen: React.FC = () => {
     const navigation  = useNavigation<any>();
     const cnicsBase64 = PinkPassState.cnicBase64;
@@ -194,44 +232,6 @@ const PinkPassCameraScreen: React.FC = () => {
         };
 
         rafRef.current = requestAnimationFrame(loop);
-    };
-
-    // ── Optimized Motion analysis (lightweight pixel sampling) ──────────────────
-    const computeMotion = async (frames: string[]): Promise<number> => {
-        if (frames.length < 2) return 0;
-
-        const toPixels = (b64: string): Promise<Uint8ClampedArray> =>
-            new Promise(res => {
-                const img = new window.Image();
-                img.onload = () => {
-                    const c = document.createElement('canvas');
-                    c.width = 30; c.height = 30; // Smaller sample
-                    c.getContext('2d')!.drawImage(img, 0, 0, 30, 30);
-                    const data = c.getContext('2d')!.getImageData(0, 0, 30, 30).data;
-                    res(data);
-                };
-                img.onerror = () => res(new Uint8ClampedArray(0));
-                img.src = b64;
-            });
-
-        let total = 0, count = 0;
-        // Fix 4: Use all consecutive pairs from 6 frames — previous pairs [6,8],[9,11] were always undefined
-        const pairs = [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5]];
-        for (const [idxA, idxB] of pairs) {
-            if (!frames[idxA] || !frames[idxB]) continue;
-            const [a, b] = await Promise.all([toPixels(frames[idxA]), toPixels(frames[idxB])]);
-            if (a.length === 0 || b.length === 0) continue;
-            
-            let diff = 0;
-            for (let j = 0; j < a.length; j += 8) { // Skip pixels for speed
-                const ga = 0.299 * a[j] + 0.587 * a[j+1] + 0.114 * a[j+2];
-                const gb = 0.299 * b[j] + 0.587 * b[j+1] + 0.114 * b[j+2];
-                diff += Math.abs(ga - gb);
-            }
-            total += diff / (a.length / 4);
-            count++;
-        }
-        return count > 0 ? total / count : 0;
     };
 
     const analyzeAndSubmit = async () => {

@@ -112,7 +112,7 @@ export default function Rides() {
                           <div className="cu-avatar">{(r.passenger?.name || 'P').charAt(0)}</div>
                           <div>
                             <div>{r.passenger?.name || '—'}</div>
-                            <div style={{ fontSize: 11, color: '#aaa' }}>{r.passenger?.phone || ''}</div>
+                            <div style={{ fontSize: 12, color: '#aaa' }}>{r.passenger?.phone || ''}</div>
                           </div>
                         </div>
                       </td>
@@ -124,7 +124,7 @@ export default function Rides() {
                             </div>
                             <div>
                               <div>{r.driver.user.name}</div>
-                              <div style={{ fontSize: 11, color: '#aaa' }}>{r.driver.user.phone}</div>
+                              <div style={{ fontSize: 12, color: '#aaa' }}>{r.driver.user.phone}</div>
                             </div>
                           </div>
                         ) : (

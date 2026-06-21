@@ -219,9 +219,9 @@ const HomeScreen: React.FC = () => {
 
                     {/* Quick shortcuts */}
                     <View style={s.shortcuts}>
-                        {shortcuts.map((sc, i) => (
+                        {shortcuts.map((sc) => (
                             <TouchableOpacity
-                                key={i}
+                                key={sc.label}
                                 style={s.shortcutItem}
                                 onPress={() => sc.route && navigation.navigate(sc.route)}
                                 activeOpacity={0.75}
@@ -291,9 +291,9 @@ const HomeScreen: React.FC = () => {
 
                         {/* Menu items */}
                         <View style={s.menuItems}>
-                            {menuItems.map((item, i) => (
+                            {menuItems.map((item) => (
                                 <TouchableOpacity
-                                    key={i}
+                                    key={item.label}
                                     style={[s.menuItem, item.danger && s.menuItemDanger]}
                                     onPress={() => {
                                         setMenuOpen(false);

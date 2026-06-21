@@ -8,6 +8,8 @@ import { useAppTheme } from '../../context/ThemeContext';
 import { AppTheme } from '../../utils/theme';
 import apiService from '../../services/api';
 
+const QUICK_TAGS = ['Polite', 'On time', 'Easy pickup', 'Good tipper', 'Respectful'];
+
 const RatePassengerScreen: React.FC = () => {
     const navigation = useNavigation<any>();
     const route      = useRoute<any>();
@@ -24,8 +26,6 @@ const RatePassengerScreen: React.FC = () => {
     const [rating, setRating]   = useState(0);
     const [comment, setComment] = useState('');
     const [submitting, setSubmitting] = useState(false);
-
-    const QUICK_TAGS = ['Polite', 'On time', 'Easy pickup', 'Good tipper', 'Respectful'];
 
     const handleSubmit = async () => {
         if (rating === 0) {

@@ -102,7 +102,7 @@ export default function Header({ search, setSearch }) {
             <div className="notif-dropdown">
               <div className="nd-header">
                 <h4>Notifications</h4>
-                {notifs.length > 0 && <span style={{fontSize:11, color:'#aaa'}}>{notifs.length} new</span>}
+                {notifs.length > 0 && <span style={{fontSize:12, color:'#aaa'}}>{notifs.length} new</span>}
               </div>
               <div className="nd-list">
                 {notifs.length === 0 ? (

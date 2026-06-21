@@ -126,7 +126,7 @@ export async function registerForPushNotifications(authToken, role = 'passenger'
  * Add a listener that fires when a notification is received while the app is open.
  * Returns an unsubscribe function — call it on component unmount.
  */
-export function addNotificationReceivedListener(handler) {
+function addNotificationReceivedListener(handler) {
     const subscription = Notifications.addNotificationReceivedListener(handler);
     return () => subscription.remove();
 }
@@ -135,7 +135,7 @@ export function addNotificationReceivedListener(handler) {
  * Add a listener that fires when the user taps a notification.
  * Returns an unsubscribe function — call it on component unmount.
  */
-export function addNotificationResponseListener(handler) {
+function addNotificationResponseListener(handler) {
     const subscription = Notifications.addNotificationResponseReceivedListener(handler);
     return () => subscription.remove();
 }

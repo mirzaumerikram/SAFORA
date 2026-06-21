@@ -62,6 +62,12 @@ const mapRide = (r: any): Ride => ({
 const parsePriceNum = (price: string): number =>
     parseInt(price.replace(/[^0-9]/g, '') || '0', 10);
 
+const filterTabs: { key: 'all' | 'completed' | 'cancelled'; label: string }[] = [
+    { key: 'all', label: 'All Rides' },
+    { key: 'completed', label: '✓ Done' },
+    { key: 'cancelled', label: '✗ Cancelled' },
+];
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const RideHistoryScreen: React.FC = () => {
@@ -125,12 +131,6 @@ const RideHistoryScreen: React.FC = () => {
     );
 
     // ── Render ─────────────────────────────────────────────────────────────────
-
-    const filterTabs: { key: 'all' | 'completed' | 'cancelled'; label: string }[] = [
-        { key: 'all', label: 'All Rides' },
-        { key: 'completed', label: '✓ Done' },
-        { key: 'cancelled', label: '✗ Cancelled' },
-    ];
 
     return (
         <View style={s.container}>

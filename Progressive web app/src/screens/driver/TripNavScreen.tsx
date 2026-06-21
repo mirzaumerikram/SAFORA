@@ -40,6 +40,15 @@ const PHASE_ICON: Record<TripPhase, string> = {
     done:     '✅',
 };
 
+const showAlert = (title: string, msg: string) => {
+    if (Platform.OS === 'web') {
+        window.alert(`${title}\n${msg}`);
+    } else {
+        const { Alert } = require('react-native');
+        Alert.alert(title, msg);
+    }
+};
+
 const TripNavScreen: React.FC = () => {
     const navigation = useNavigation<any>();
     const route      = useRoute<any>();
@@ -265,15 +274,6 @@ const TripNavScreen: React.FC = () => {
             </View>
         );
     }
-
-    const showAlert = (title: string, msg: string) => {
-        if (Platform.OS === 'web') {
-            window.alert(`${title}\n${msg}`);
-        } else {
-            const { Alert } = require('react-native');
-            Alert.alert(title, msg);
-        }
-    };
 
     const phaseIndex = PHASES.indexOf(phase);
 

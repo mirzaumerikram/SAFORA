@@ -624,7 +624,7 @@ const ProfileScreen: React.FC = () => {
                 </TouchableOpacity>
 
                 {testPushResult && (
-                    <Text style={{ fontSize: 11, color: theme.colors.text, padding: 10, backgroundColor: theme.colors.cardSecondary, borderRadius: 8, marginBottom: 16 }}>
+                    <Text style={{ fontSize: 12, color: theme.colors.text, padding: 10, backgroundColor: theme.colors.cardSecondary, borderRadius: 8, marginBottom: 16 }}>
                         {testPushResult}
                     </Text>
                 )}

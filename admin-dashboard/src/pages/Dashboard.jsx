@@ -67,6 +67,13 @@ const typeLabels = {
   pink: 'Pink Pass',
 };
 
+const timeAgo = (iso) => {
+  const diff = Math.floor((Date.now() - new Date(iso)) / 60000);
+  if (diff < 1) return 'just now';
+  if (diff < 60) return `${diff} min ago`;
+  return `${Math.floor(diff / 60)} hr ago`;
+};
+
 export default function Dashboard() {
   const { search }                = useOutletContext();
   const [stats, setStats]         = useState(null);
@@ -109,13 +116,6 @@ export default function Dashboard() {
   // Zero state when backend has no data yet
   const s = stats || { totalRides: 0, activeDrivers: 0, openAlerts: 0, totalUsers: 0, activeRides: 0, pendingDriverApprovals: 0 };
   const displayAlerts = alerts.slice(0, 5);
-
-  const timeAgo = (iso) => {
-    const diff = Math.floor((Date.now() - new Date(iso)) / 60000);
-    if (diff < 1) return 'just now';
-    if (diff < 60) return `${diff} min ago`;
-    return `${Math.floor(diff / 60)} hr ago`;
-  };
 
   if (loading) return <div className="dash-loading">Loading dashboard...</div>;
 

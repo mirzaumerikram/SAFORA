@@ -25,6 +25,20 @@ interface EarningsStats {
     averageRating: string;
 }
 
+const formatTime = (iso: string) => {
+    const d = new Date(iso);
+    return d.toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' });
+};
+
+const formatDate = (iso: string) => {
+    const d = new Date(iso);
+    const today = new Date();
+    const diff = Math.floor((today.getTime() - d.getTime()) / 86400000);
+    if (diff === 0) return 'Today';
+    if (diff === 1) return 'Yesterday';
+    return d.toLocaleDateString('en-PK', { day: 'numeric', month: 'short' });
+};
+
 const DriverEarningsScreen: React.FC = () => {
     const navigation = useNavigation<any>();
     const { theme } = useAppTheme();
@@ -57,20 +71,6 @@ const DriverEarningsScreen: React.FC = () => {
     useEffect(() => { loadEarnings(); }, []);
 
     const onRefresh = () => { setRefreshing(true); loadEarnings(); };
-
-    const formatTime = (iso: string) => {
-        const d = new Date(iso);
-        return d.toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' });
-    };
-
-    const formatDate = (iso: string) => {
-        const d = new Date(iso);
-        const today = new Date();
-        const diff = Math.floor((today.getTime() - d.getTime()) / 86400000);
-        if (diff === 0) return 'Today';
-        if (diff === 1) return 'Yesterday';
-        return d.toLocaleDateString('en-PK', { day: 'numeric', month: 'short' });
-    };
 
     const avgPerTrip = stats.totalTrips > 0
         ? Math.round(stats.weeklyEarnings / stats.totalTrips)

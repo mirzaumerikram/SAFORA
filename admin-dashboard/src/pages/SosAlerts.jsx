@@ -6,6 +6,13 @@ import './TablePage.css';
 const sevColor = { critical: '#e74c3c', high: '#e67e22', medium: '#f39c12', low: '#3498db' };
 const statusColor = { active: '#e74c3c', handling: '#3498db', resolved: '#27ae60' };
 
+const timeAgo = (iso) => {
+  const diff = Math.floor((Date.now() - new Date(iso)) / 60000);
+  if (diff < 1) return 'just now';
+  if (diff < 60) return `${diff}m ago`;
+  return `${Math.floor(diff / 60)}h ago`;
+};
+
 export default function SosAlerts() {
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -68,13 +75,6 @@ export default function SosAlerts() {
     }
   };
 
-  const timeAgo = (iso) => {
-    const diff = Math.floor((Date.now() - new Date(iso)) / 60000);
-    if (diff < 1) return 'just now';
-    if (diff < 60) return `${diff}m ago`;
-    return `${Math.floor(diff / 60)}h ago`;
-  };
-
   const deleteAlert = async (id) => {
     if (!window.confirm('Are you sure you want to delete this alert?')) return;
     try {
@@ -112,7 +112,7 @@ export default function SosAlerts() {
           <button key={f} className={`filter-tab ${filter === f ? 'active' : ''}`} onClick={() => setFilter(f)}>
             {f.charAt(0).toUpperCase() + f.slice(1)}
             {f === 'active' && alerts.filter(a => a.status === 'active').length > 0 && (
-              <span style={{ marginLeft: 5, background: '#e74c3c', color: '#fff', borderRadius: 10, padding: '0 6px', fontSize: 10, fontWeight: 700 }}>
+              <span style={{ marginLeft: 5, background: '#e74c3c', color: '#fff', borderRadius: 10, padding: '0 6px', fontSize: 12, fontWeight: 700 }}>
                 {alerts.filter(a => a.status === 'active').length}
               </span>
             )}
@@ -151,7 +151,7 @@ export default function SosAlerts() {
                         <div className="cu-avatar">{String(a.passenger?.name || 'P').charAt(0)}</div>
                         <div>
                           <div>{a.passenger?.name || 'Unknown'}</div>
-                          {a.passenger?.phone && <div style={{ fontSize: 11, color: '#888' }}>{a.passenger.phone}</div>}
+                          {a.passenger?.phone && <div style={{ fontSize: 12, color: '#888' }}>{a.passenger.phone}</div>}
                         </div>
                       </div>
                     </td>

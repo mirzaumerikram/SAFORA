@@ -13,4 +13,3 @@ export const firebaseConfig = {
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 // Use standard getAuth — we handle our own session via JWT + AsyncStorage
 export const firebaseAuth = getAuth(app);
-export default app;

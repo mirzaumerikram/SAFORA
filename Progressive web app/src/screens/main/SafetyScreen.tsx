@@ -41,6 +41,40 @@ const getContactColor = (index: number) => CONTACT_COLORS[index % CONTACT_COLORS
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+const handleShareTrip = async () => {
+    if (Platform.OS === 'web') {
+        try {
+            await navigator.share({
+                title: 'My SAFORA Trip',
+                text: 'Hey, I am sharing my live SAFORA trip location with you.',
+                url: 'https://safora.me/track/demo-trip'
+            });
+        } catch (e) {
+            Alert.alert('Share', 'Link copied to clipboard: https://safora.me/track/demo-trip');
+        }
+    } else {
+        Alert.alert('Share', 'Sharing live trip location…');
+    }
+};
+
+const saveContactsToBackend = async (updated: EmergencyContact[]) => {
+    try {
+        await apiService.patch('/auth/emergency-contacts', {
+            contacts: updated.map(c => ({
+                name: c.name,
+                phone: c.phone,
+                relationship: c.relation,
+            })),
+        });
+    } catch (e) {
+        console.log('[Contacts] Save error:', e);
+    }
+};
+
+const handleCallContact = (phone: string) => {
+    Alert.alert('Call', `Calling ${phone}…`);
+};
+
 const SafetyScreen: React.FC = () => {
     const navigation = useNavigation<any>();
     const { t } = useLanguage();
@@ -68,22 +102,6 @@ const SafetyScreen: React.FC = () => {
     const [showInsuranceModal, setShowInsuranceModal] = useState(false);
 
     // ── Safety Features handlers ────────────────────────────────────────────────
-    
-    const handleShareTrip = async () => {
-        if (Platform.OS === 'web') {
-            try {
-                await navigator.share({
-                    title: 'My SAFORA Trip',
-                    text: 'Hey, I am sharing my live SAFORA trip location with you.',
-                    url: 'https://safora.me/track/demo-trip'
-                });
-            } catch (e) {
-                Alert.alert('Share', 'Link copied to clipboard: https://safora.me/track/demo-trip');
-            }
-        } else {
-            Alert.alert('Share', 'Sharing live trip location…');
-        }
-    };
 
     const handleSendReport = async () => {
         if (!reportText.trim()) return;
@@ -175,20 +193,6 @@ const SafetyScreen: React.FC = () => {
 
     // ── Contacts handlers ──────────────────────────────────────────────────────
 
-    const saveContactsToBackend = async (updated: EmergencyContact[]) => {
-        try {
-            await apiService.patch('/auth/emergency-contacts', {
-                contacts: updated.map(c => ({
-                    name: c.name,
-                    phone: c.phone,
-                    relationship: c.relation,
-                })),
-            });
-        } catch (e) {
-            console.log('[Contacts] Save error:', e);
-        }
-    };
-
     const handleAddContact = () => {
         if (!newName.trim() || !newPhone.trim()) {
             Alert.alert('Error', 'Please enter name and phone number');
@@ -226,10 +230,6 @@ const SafetyScreen: React.FC = () => {
                 },
             ]
         );
-    };
-
-    const handleCallContact = (phone: string) => {
-        Alert.alert('Call', `Calling ${phone}…`);
     };
 
     // ── Render ─────────────────────────────────────────────────────────────────
@@ -388,9 +388,9 @@ const SafetyScreen: React.FC = () => {
                         desc: 'Coverage per ride, every time',
                         onPress: () => setShowInsuranceModal(true)
                     },
-                ].map((feature, i) => (
-                    <TouchableOpacity 
-                        key={i} 
+                ].map((feature) => (
+                    <TouchableOpacity
+                        key={feature.title}
                         style={s.featureCard} 
                         onPress={feature.onPress}
                         activeOpacity={0.7}

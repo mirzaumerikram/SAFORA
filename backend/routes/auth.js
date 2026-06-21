@@ -365,9 +365,19 @@ router.post('/verify-otp', otpVerifyLimiter, async (req, res) => {
             await driver.save();
         }
 
+        // Set HttpOnly cookie for admins
+        if (user.role === 'admin') {
+            res.cookie('safora_admin_token', token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+                maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+            });
+        }
+
         res.json({
             success: true,
-            token,
+            token: user.role === 'admin' ? undefined : token, // Don't expose token in body for admins
             isNewUser: profileIncomplete,
             user: {
                 id: user._id,
@@ -381,6 +391,18 @@ router.post('/verify-otp', otpVerifyLimiter, async (req, res) => {
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
+});
+
+// @route   POST /api/auth/logout
+// @desc    Logout user by clearing the HttpOnly cookie
+// @access  Public
+router.post('/logout', (req, res) => {
+    res.clearCookie('safora_admin_token', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+    });
+    res.json({ success: true, message: 'Logged out successfully' });
 });
 
 // @route   PATCH /api/auth/profile
@@ -410,6 +432,31 @@ router.patch('/profile', auth, async (req, res) => {
             phone: user.phone, role: user.role, gender: user.gender,
             pinkPassVerified: user.pinkPassVerified
         }});
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// @route   GET /api/auth/me
+// @desc    Get current logged in user (used to verify HttpOnly cookie session on reload)
+// @access  Private
+router.get('/me', auth, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.userId).select('-password -otp -otpExpires -emailVerificationToken');
+        if (!user) return res.status(404).json({ message: 'User not found' });
+        
+        res.json({
+            success: true,
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                phone: user.phone,
+                role: user.role,
+                gender: user.gender,
+                pinkPassVerified: user.pinkPassVerified
+            }
+        });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }

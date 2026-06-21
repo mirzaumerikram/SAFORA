@@ -203,13 +203,13 @@ export default function Drivers() {
                         {(d.backgroundCheck?.status || 'pending').toUpperCase()}
                       </div>
                       {activeTab === 'online' && (
-                        <div style={{ background: '#e8f8f0', color: '#27ae60', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '10px' }}>● ONLINE</div>
+                        <div style={{ background: '#e8f8f0', color: '#27ae60', fontSize: '12px', fontWeight: 700, padding: '2px 8px', borderRadius: '10px' }}>● ONLINE</div>
                       )}
                     </div>
                   </div>
                   <div className="dc-details">
                     <div className="dc-row"><span>CNIC</span><span>{d.user?.cnic || d.cnic || '—'}</span></div>
-                    <div className="dc-row"><span>Email</span><span style={{ fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.user?.email || '—'}</span></div>
+                    <div className="dc-row"><span>Email</span><span style={{ fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.user?.email || '—'}</span></div>
                     <div className="dc-row"><span>Applied</span><span>{d.createdAt ? new Date(d.createdAt).toLocaleDateString() : '—'}</span></div>
                     <div className="dc-row"><span>Vehicle</span><span>{d.vehicleInfo?.make} {d.vehicleInfo?.model} ({d.vehicleInfo?.plateNumber})</span></div>
                     <div className="dc-row"><span>Total Rides</span><span style={{ fontWeight: 700, color: '#3498db' }}>{d.totalRides || 0}</span></div>
@@ -224,7 +224,7 @@ export default function Drivers() {
                           <span>Online Since</span>
                           <span style={{ color: '#27ae60', fontWeight: 600, textAlign: 'right', lineHeight: '1.4' }}>
                             {day}<br />
-                            <span style={{ fontSize: '11px', color: '#555' }}>{date} · {time}</span>
+                            <span style={{ fontSize: '12px', color: '#555' }}>{date} · {time}</span>
                           </span>
                         </div>
                       );
@@ -271,41 +271,41 @@ export default function Drivers() {
               <div className="form-group" style={{ background: '#f9f9f9', padding: '10px', borderRadius: '8px', border: '1px solid #eee' }}>
                 <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '5px', fontWeight: 'bold' }}>Email Address (Required)</label>
                 <input style={{ width: '100%', padding: '10px', borderRadius: '6px', border: formErrors.email ? '1px solid red' : '1px solid #ddd' }} value={editForm.email} onChange={e => setEditForm({...editForm, email: e.target.value})} placeholder="example@safora.me" />
-                {formErrors.email && <span style={{ color: 'red', fontSize: '10px' }}>{formErrors.email}</span>}
+                {formErrors.email && <span style={{ color: 'red', fontSize: '12px' }}>{formErrors.email}</span>}
               </div>
               <div className="form-group">
                 <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '5px' }}>Full Name</label>
                 <input style={{ width: '100%', padding: '10px', borderRadius: '6px', border: formErrors.name ? '1px solid red' : '1px solid #ddd' }} value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} />
-                {formErrors.name && <span style={{ color: 'red', fontSize: '10px' }}>{formErrors.name}</span>}
+                {formErrors.name && <span style={{ color: 'red', fontSize: '12px' }}>{formErrors.name}</span>}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div className="form-group">
                   <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '5px' }}>Phone</label>
                   <input style={{ width: '100%', padding: '10px', borderRadius: '6px', border: formErrors.phone ? '1px solid red' : '1px solid #ddd' }} value={editForm.phone} onChange={e => setEditForm({...editForm, phone: e.target.value})} maxLength={11} />
-                  {formErrors.phone && <span style={{ color: 'red', fontSize: '10px' }}>{formErrors.phone}</span>}
+                  {formErrors.phone && <span style={{ color: 'red', fontSize: '12px' }}>{formErrors.phone}</span>}
                 </div>
                 <div className="form-group">
                   <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '5px' }}>CNIC</label>
                   <input style={{ width: '100%', padding: '10px', borderRadius: '6px', border: formErrors.cnic ? '1px solid red' : '1px solid #ddd' }} value={editForm.cnic} onChange={e => setEditForm({...editForm, cnic: e.target.value})} maxLength={13} />
-                  {formErrors.cnic && <span style={{ color: 'red', fontSize: '10px' }}>{formErrors.cnic}</span>}
+                  {formErrors.cnic && <span style={{ color: 'red', fontSize: '12px' }}>{formErrors.cnic}</span>}
                 </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div className="form-group">
                   <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '5px' }}>Vehicle Make</label>
                   <input style={{ width: '100%', padding: '10px', borderRadius: '6px', border: formErrors.make ? '1px solid red' : '1px solid #ddd' }} value={editForm.make} onChange={e => setEditForm({...editForm, make: e.target.value})} />
-                  {formErrors.make && <span style={{ color: 'red', fontSize: '10px' }}>{formErrors.make}</span>}
+                  {formErrors.make && <span style={{ color: 'red', fontSize: '12px' }}>{formErrors.make}</span>}
                 </div>
                 <div className="form-group">
                   <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '5px' }}>Model</label>
                   <input style={{ width: '100%', padding: '10px', borderRadius: '6px', border: formErrors.model ? '1px solid red' : '1px solid #ddd' }} value={editForm.model} onChange={e => setEditForm({...editForm, model: e.target.value})} />
-                  {formErrors.model && <span style={{ color: 'red', fontSize: '10px' }}>{formErrors.model}</span>}
+                  {formErrors.model && <span style={{ color: 'red', fontSize: '12px' }}>{formErrors.model}</span>}
                 </div>
               </div>
               <div className="form-group">
                 <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '5px' }}>Plate Number</label>
                 <input style={{ width: '100%', padding: '10px', borderRadius: '6px', border: formErrors.plateNumber ? '1px solid red' : '1px solid #ddd' }} value={editForm.plateNumber} onChange={e => setEditForm({...editForm, plateNumber: e.target.value})} />
-                {formErrors.plateNumber && <span style={{ color: 'red', fontSize: '10px' }}>{formErrors.plateNumber}</span>}
+                {formErrors.plateNumber && <span style={{ color: 'red', fontSize: '12px' }}>{formErrors.plateNumber}</span>}
               </div>
               <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
                 <button type="button" onClick={() => setEditDriver(null)} style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid #ddd', background: '#fff', cursor: 'pointer' }}>Cancel</button>

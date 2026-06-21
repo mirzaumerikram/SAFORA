@@ -53,6 +53,12 @@ interface User {
     createdAt?: string;
 }
 
+const formatDate = (iso?: string) => {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return `${d.getDate()}/${d.getMonth() + 1} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
+
 const AdminDashboard: React.FC = () => {
     const { logout } = useAuth();
 
@@ -178,12 +184,6 @@ const AdminDashboard: React.FC = () => {
         { label: 'Open Alerts', value: stats.openAlerts, color: theme.colors.danger, icon: '🚨' },
         { label: 'Pending Approvals', value: stats.pendingDriverApprovals, color: '#F39C12', icon: '⏳' },
     ] : [];
-
-    const formatDate = (iso?: string) => {
-        if (!iso) return '—';
-        const d = new Date(iso);
-        return `${d.getDate()}/${d.getMonth() + 1} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
-    };
 
     if (loading) {
         return (

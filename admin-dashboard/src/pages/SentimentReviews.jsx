@@ -2,6 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import './TablePage.css';
 
+const getSentimentBadge = (tag) => {
+  switch (tag) {
+    case 'Positive':
+      return <span className="status-badge" style={{ background: '#e8f8f5', color: '#27ae60' }}>{tag}</span>;
+    case 'Negative':
+      return <span className="status-badge" style={{ background: '#fdedec', color: '#e74c3c' }}>{tag}</span>;
+    case 'Neutral':
+    default:
+      return <span className="status-badge" style={{ background: '#fef9e7', color: '#f39c12' }}>{tag}</span>;
+  }
+};
+
 export default function SentimentReviews() {
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,18 +32,6 @@ export default function SentimentReviews() {
       console.error("Failed to load sentiment reviews:", error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const getSentimentBadge = (tag) => {
-    switch (tag) {
-      case 'Positive':
-        return <span className="status-badge" style={{ background: '#e8f8f5', color: '#27ae60' }}>{tag}</span>;
-      case 'Negative':
-        return <span className="status-badge" style={{ background: '#fdedec', color: '#e74c3c' }}>{tag}</span>;
-      case 'Neutral':
-      default:
-        return <span className="status-badge" style={{ background: '#fef9e7', color: '#f39c12' }}>{tag}</span>;
     }
   };
 
@@ -82,7 +82,7 @@ export default function SentimentReviews() {
                   <td>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                       {getSentimentBadge(r.sentimentTag)}
-                      <span style={{ fontSize: '11px', color: '#888' }}>
+                      <span style={{ fontSize: '12px', color: '#888' }}>
                         Pol: {r.polarityScore.toFixed(2)}
                       </span>
                     </div>

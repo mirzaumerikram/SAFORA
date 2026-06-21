@@ -136,7 +136,7 @@ const FeedbackScreen: React.FC = () => {
             {/* Display Fare */}
             {fare !== null && (
                 <View style={{ alignItems: 'center', marginBottom: 24 }}>
-                    <Text style={{ fontSize: 11, color: theme.colors.textSecondary, fontWeight: '800', letterSpacing: 1.5, marginBottom: 4 }}>TOTAL FARE</Text>
+                    <Text style={{ fontSize: 12, color: theme.colors.textSecondary, fontWeight: '800', letterSpacing: 1.5, marginBottom: 4 }}>TOTAL FARE</Text>
                     <Text style={{ fontSize: 24, fontWeight: '900', color: theme.colors.primary }}>RS {fare}</Text>
                 </View>
             )}

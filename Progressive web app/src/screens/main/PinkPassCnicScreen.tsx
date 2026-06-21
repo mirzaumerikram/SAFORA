@@ -213,8 +213,10 @@ const PinkPassCnicScreen: React.FC = () => {
                     
                     // PERMANENT REJECTION IN BACKEND
                     try {
-                        const token = await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
-                        const { API_CONFIG, PINK_PASS_ENDPOINTS } = await import('../../utils/constants');
+                        const [token, { API_CONFIG, PINK_PASS_ENDPOINTS }] = await Promise.all([
+                            AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN),
+                            import('../../utils/constants'),
+                        ]);
                         
                         await fetch(`${API_CONFIG.BASE_URL}${PINK_PASS_ENDPOINTS.REJECT}`, {
                             method: 'POST',
@@ -481,7 +483,7 @@ const PinkPassCnicScreen: React.FC = () => {
                     </>
                 )}
                 <View style={{ marginTop: 20, marginBottom: 10, padding: 16, backgroundColor: 'rgba(236,72,153,0.05)', borderRadius: 12 }}>
-                    <Text style={{ fontSize: 11, color: '#888', textAlign: 'center', lineHeight: 18 }}>
+                    <Text style={{ fontSize: 12, color: '#888', textAlign: 'center', lineHeight: 18 }}>
                         🛡️ <Text style={{ fontWeight: '700' }}>Privacy Commitment:</Text> Your documents are encrypted and only accessible by our vetted female safety team. Images are automatically deleted after verification is complete.
                     </Text>
                 </View>

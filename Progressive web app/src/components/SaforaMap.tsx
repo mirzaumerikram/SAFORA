@@ -13,9 +13,10 @@ import {
 const { width, height } = Dimensions.get('window');
 
 // Maps API key — also in app.json for native builds (already public in the bundle)
-const MAPS_KEY: string =
-    process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ||
-    'AIzaSyBbF5mP1xMstQI68UcyTS2JX9hibnafHRU';
+const MAPS_KEY: string = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY as string;
+if (!MAPS_KEY) {
+    console.warn('EXPO_PUBLIC_GOOGLE_MAPS_API_KEY is not set in the environment.');
+}
 
 // ── Types ────────────────────────────────────────────────────────────────────
 

@@ -17,6 +17,13 @@ import SaforaAlert from '../../utils/alert';
 
 type Gender = 'male' | 'female' | 'other';
 
+const formatCnic = (raw: string) => {
+    const digits = raw.replace(/\D/g, '').slice(0, 13);
+    if (digits.length <= 5)  return digits;
+    if (digits.length <= 12) return `${digits.slice(0,5)}-${digits.slice(5)}`;
+    return `${digits.slice(0,5)}-${digits.slice(5,12)}-${digits.slice(12)}`;
+};
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const RegisterScreen: React.FC = () => {
@@ -55,13 +62,6 @@ const RegisterScreen: React.FC = () => {
     // ── CNIC helpers ──────────────────────────────────────────────────────────
     // Pakistani CNIC format: XXXXX-XXXXXXX-X (13 digits, 15 chars with dashes)
     const CNIC_REGEX = /^\d{5}-\d{7}-\d{1}$/;
-
-    const formatCnic = (raw: string) => {
-        const digits = raw.replace(/\D/g, '').slice(0, 13);
-        if (digits.length <= 5)  return digits;
-        if (digits.length <= 12) return `${digits.slice(0,5)}-${digits.slice(5)}`;
-        return `${digits.slice(0,5)}-${digits.slice(5,12)}-${digits.slice(12)}`;
-    };
 
     const handleCnicChange = (text: string) => {
         const formatted = formatCnic(text);

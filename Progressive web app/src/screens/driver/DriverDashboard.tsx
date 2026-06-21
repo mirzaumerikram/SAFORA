@@ -27,6 +27,12 @@ interface IncomingRide {
     passenger?: { name: string; rating?: number };
 }
 
+const toFirstName = (full: string) => {
+    if (!full) return '';
+    const first = full.trim().split(' ')[0];
+    return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
+};
+
 const DriverDashboard: React.FC = () => {
     const navigation = useNavigation<any>();
     const { theme }  = useAppTheme();
@@ -57,12 +63,6 @@ const DriverDashboard: React.FC = () => {
     const socketConnected = useRef(false);
     const watchId   = useRef<any>(null);
     const countdownRef = useRef<any>(null);
-
-    const toFirstName = (full: string) => {
-        if (!full) return '';
-        const first = full.trim().split(' ')[0];
-        return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
-    };
 
     // ── Load driver profile + Driver doc _id ──────────────────────────────────
     const loadDriver = async () => {
@@ -453,9 +453,9 @@ const DriverDashboard: React.FC = () => {
                         </View>
                         <Text style={s.menuGreeting}>Hello, {driverName || 'Driver'} 👋</Text>
                         <View style={s.menuItems}>
-                            {menuItems.map((item, i) => (
+                            {menuItems.map((item) => (
                                 <TouchableOpacity
-                                    key={i}
+                                    key={item.label}
                                     style={[s.menuItem, item.danger && s.menuItemDanger]}
                                     onPress={() => { setMenuOpen(false); item.onPress(); }}
                                     activeOpacity={0.75}
@@ -566,7 +566,7 @@ const DriverDashboard: React.FC = () => {
                         <Text style={s.greeting}>Hello, {driverName || 'Driver'} 👋</Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
                             <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: isConnected ? '#22C55E' : '#EF4444', marginRight: 6 }} />
-                            <Text style={{ fontSize: 10, color: theme.colors.textSecondary, fontWeight: '700' }}>
+                            <Text style={{ fontSize: 12, color: theme.colors.textSecondary, fontWeight: '700' }}>
                                 {isConnected ? 'NETWORK: CONNECTED' : 'NETWORK: DISCONNECTED'}
                             </Text>
                         </View>
