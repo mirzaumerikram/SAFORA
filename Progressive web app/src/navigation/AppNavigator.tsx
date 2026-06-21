@@ -1,21 +1,25 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 
+// Auth screens are needed immediately — keep eager
 import AuthNavigator from './AuthNavigator';
-import MainNavigator from './MainNavigator';
-import DriverNavigator from './DriverNavigator';
-import AdminDashboard from '../screens/admin/AdminDashboard';
-import DriverOnboardingScreen from '../screens/driver/DriverOnboardingScreen';
-import PinkPassDriverScreen from '../screens/driver/PinkPassDriverScreen';
-import PinkPassLivenessScreen from '../screens/driver/PinkPassLivenessScreen';
-import RideRequestScreen from '../screens/driver/RideRequestScreen';
-import TripNavScreen from '../screens/driver/TripNavScreen';
-import RatePassengerScreen from '../screens/driver/RatePassengerScreen';
-import ChatScreen from '../screens/main/ChatScreen';
-import FareBreakdownScreen from '../screens/main/FareBreakdownScreen';
+
+// Every other navigator / screen is role-specific — lazy-load so each user role
+// only downloads the code it actually needs.
+const MainNavigator          = React.lazy(() => import('./MainNavigator'));
+const DriverNavigator        = React.lazy(() => import('./DriverNavigator'));
+const AdminDashboard         = React.lazy(() => import('../screens/admin/AdminDashboard'));
+const DriverOnboardingScreen = React.lazy(() => import('../screens/driver/DriverOnboardingScreen'));
+const PinkPassDriverScreen   = React.lazy(() => import('../screens/driver/PinkPassDriverScreen'));
+const PinkPassLivenessScreen = React.lazy(() => import('../screens/driver/PinkPassLivenessScreen'));
+const RideRequestScreen      = React.lazy(() => import('../screens/driver/RideRequestScreen'));
+const TripNavScreen          = React.lazy(() => import('../screens/driver/TripNavScreen'));
+const RatePassengerScreen    = React.lazy(() => import('../screens/driver/RatePassengerScreen'));
+const ChatScreen             = React.lazy(() => import('../screens/main/ChatScreen'));
+const FareBreakdownScreen    = React.lazy(() => import('../screens/main/FareBreakdownScreen'));
 
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { LanguageProvider } from '../context/LanguageContext';
@@ -57,9 +61,11 @@ const RootNavigator: React.FC = () => {
 
     if (userRole === 'admin') {
         return (
-            <RootStack.Navigator screenOptions={{ headerShown: false }}>
-                <RootStack.Screen name="AdminHome" component={AdminDashboard} />
-            </RootStack.Navigator>
+            <Suspense fallback={<View style={styles.loadingContainer}><ActivityIndicator size="large" color="#F5C518" /></View>}>
+                <RootStack.Navigator screenOptions={{ headerShown: false }}>
+                    <RootStack.Screen name="AdminHome" component={AdminDashboard} />
+                </RootStack.Navigator>
+            </Suspense>
         );
     }
 
@@ -67,23 +73,31 @@ const RootNavigator: React.FC = () => {
         // Driver has not completed vehicle registration yet
         if (driverRegistered === false) {
             return (
-                <RootStack.Navigator screenOptions={{ headerShown: false }}>
-                    <RootStack.Screen name="DriverOnboarding" component={DriverOnboardingScreen} />
-                    {/* Allow navigation back to driver app after onboarding */}
-                    <RootStack.Screen name="DriverApp" component={DriverAppNavigator} />
-                </RootStack.Navigator>
+                <Suspense fallback={<View style={styles.loadingContainer}><ActivityIndicator size="large" color="#F5C518" /></View>}>
+                    <RootStack.Navigator screenOptions={{ headerShown: false }}>
+                        <RootStack.Screen name="DriverOnboarding" component={DriverOnboardingScreen} />
+                        {/* Allow navigation back to driver app after onboarding */}
+                        <RootStack.Screen name="DriverApp" component={DriverAppNavigator} />
+                    </RootStack.Navigator>
+                </Suspense>
             );
         }
 
         return (
-            <RootStack.Navigator screenOptions={{ headerShown: false }}>
-                <RootStack.Screen name="DriverApp" component={DriverAppNavigator} />
-            </RootStack.Navigator>
+            <Suspense fallback={<View style={styles.loadingContainer}><ActivityIndicator size="large" color="#F5C518" /></View>}>
+                <RootStack.Navigator screenOptions={{ headerShown: false }}>
+                    <RootStack.Screen name="DriverApp" component={DriverAppNavigator} />
+                </RootStack.Navigator>
+            </Suspense>
         );
     }
 
     // Default: passenger
-    return <MainNavigator />;
+    return (
+        <Suspense fallback={<View style={styles.loadingContainer}><ActivityIndicator size="large" color="#F5C518" /></View>}>
+            <MainNavigator />
+        </Suspense>
+    );
 };
 
 // Full driver stack: tabs + Pink Pass screens
