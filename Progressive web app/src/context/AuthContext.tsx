@@ -46,6 +46,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     useEffect(() => {
         checkAuth();
+        return () => {
+            if (foregroundUnsubRef.current) {
+                foregroundUnsubRef.current();
+                foregroundUnsubRef.current = null;
+            }
+        };
     }, []);
 
     const checkAuth = async () => {

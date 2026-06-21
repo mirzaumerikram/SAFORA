@@ -26,11 +26,6 @@ self.addEventListener('activate', (event) => {
 
 messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Received background message ', payload);
-  const notificationTitle = payload.notification.title;
-  const notificationOptions = {
-    body: payload.notification.body,
-    icon: '/favicon.png'
-  };
-
-  return self.registration.showNotification(notificationTitle, notificationOptions);
+  // Firebase automatically shows a notification if payload.notification exists.
+  // Do NOT call self.registration.showNotification manually here, or you'll get duplicates.
 });
