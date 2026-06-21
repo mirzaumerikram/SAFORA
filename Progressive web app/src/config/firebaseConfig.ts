@@ -40,40 +40,56 @@ function waitForActive(reg: ServiceWorkerRegistration, timeoutMs = 6000): Promis
 
 /**
  * Request Web Push permission and return an FCM token.
- * Returns null if the user denied permission (not an error).
- * Throws on unexpected errors so callers can surface them.
+ * Throws a descriptive Error for every failure so callers can surface the real reason.
  */
-export const requestWebPushPermission = async (vapidKey: string): Promise<string | null> => {
+export const requestWebPushPermission = async (vapidKey: string): Promise<string> => {
+    // ── 1. Browser support ────────────────────────────────────────────────────
+    if (typeof Notification === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+        throw new Error('Web Push is not supported in this browser. Try Chrome or Edge on HTTPS.');
+    }
+
     const supported = await isSupported();
     if (!supported) {
-        console.warn('[FCM] Web Push not supported in this browser (requires HTTPS + compatible browser)');
-        return null;
+        throw new Error('Firebase Messaging is not supported in this browser (requires HTTPS + modern browser).');
+    }
+
+    // ── 2. Permission ─────────────────────────────────────────────────────────
+    if (Notification.permission === 'denied') {
+        throw new Error(
+            'Notifications are blocked in your browser settings.\n' +
+            'Click the 🔒 icon in the address bar → Site settings → Notifications → Allow, then retry.'
+        );
     }
 
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') {
-        console.log('[FCM] Notification permission not granted by user');
-        return null;
+        throw new Error('Notification permission was not granted. Please allow notifications when prompted.');
     }
 
+    // ── 3. Service Worker ─────────────────────────────────────────────────────
     const messaging = getMessaging(app);
 
     // Register the firebase SW with a stable URL (no version suffix) so we always
-    // get the same registration object and FCM can match it to the stored token.
+    // get the same registration and FCM can match it to the stored token.
     const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
 
     // Wait for THIS registration's worker to activate — not navigator.serviceWorker.ready,
     // which could resolve to Expo's SW and cause getToken to use the wrong registration.
     await waitForActive(registration);
 
+    // ── 4. FCM Token ──────────────────────────────────────────────────────────
     const currentToken = await getToken(messaging, {
         vapidKey,
         serviceWorkerRegistration: registration,
     });
 
     if (!currentToken) {
-        console.warn('[FCM] getToken returned empty — verify VAPID key and SW scope');
-        return null;
+        throw new Error(
+            'FCM returned an empty token. Possible causes:\n' +
+            '• VAPID key mismatch (check Firebase Console → Project Settings → Cloud Messaging → Web Push certificates)\n' +
+            '• Service worker scope or URL mismatch\n' +
+            '• Firebase project not properly configured for Web Push'
+        );
     }
 
     console.log('[FCM] Web push token:', currentToken.slice(0, 20) + '...');

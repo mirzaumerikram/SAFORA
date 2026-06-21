@@ -39,9 +39,9 @@ export async function registerForPushNotifications(authToken, role = 'passenger'
         let token;
 
         if (Platform.OS === 'web') {
-            // Use standard Firebase JS SDK for Web Push
+            // requestWebPushPermission throws a descriptive Error on every failure
+            // so the caller (test button / AuthContext) gets the real reason.
             token = await requestWebPushPermission(VAPID_KEY);
-            if (!token) return null;
         } else {
             // Use Expo Notifications for Native (Android/iOS)
             const { status: existingStatus } = await Notifications.getPermissionsAsync();

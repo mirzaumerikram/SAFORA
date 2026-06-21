@@ -61,6 +61,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 if (token) {
                     setTimeout(async () => {
                         try {
+                            // On web: only re-register silently if permission was already granted.
+                            // If it's 'default', the user hasn't been asked yet — let the explicit
+                            // "Enable Notifications" flow handle it rather than auto-prompting.
+                            if (Platform.OS === 'web' && typeof Notification !== 'undefined' && Notification.permission !== 'granted') {
+                                return;
+                            }
                             await registerForPushNotifications(token, role);
                             if (Platform.OS === 'web' && !foregroundUnsubRef.current) {
                                 const { setupForegroundNotifications } = await import('../config/firebaseConfig');
@@ -90,6 +96,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 if (token) {
                     setTimeout(async () => {
                         try {
+                            // On web: only re-register silently if permission was already granted.
+                            // If it's 'default', the user hasn't been asked yet — let the explicit
+                            // "Enable Notifications" flow handle it rather than auto-prompting.
+                            if (Platform.OS === 'web' && typeof Notification !== 'undefined' && Notification.permission !== 'granted') {
+                                return;
+                            }
                             await registerForPushNotifications(token, role);
                             if (Platform.OS === 'web' && !foregroundUnsubRef.current) {
                                 const { setupForegroundNotifications } = await import('../config/firebaseConfig');
