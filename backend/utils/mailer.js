@@ -61,7 +61,7 @@ const sendVerificationEmail = async (toEmail, name, token) => {
 
     try {
         const { data, error } = await resend.emails.send({
-            from: 'SAFORA <onboarding@resend.dev>',
+            from: 'SAFORA <noreply@safora.me>',
             to: toEmail,
             subject: 'Verify your SAFORA account ✓',
             html,
@@ -136,7 +136,7 @@ const sendAdminOTPEmail = async (toEmail, name, otp) => {
 
     try {
         const { data, error } = await resend.emails.send({
-            from: 'SAFORA Admin <onboarding@resend.dev>',
+            from: 'SAFORA Admin <admin@safora.me>',
             to: toEmail,
             subject: `🔐 Admin Login Code: ${otp}`,
             html,
