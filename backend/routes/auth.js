@@ -278,18 +278,19 @@ router.post('/send-otp', otpSendLimiter, async (req, res) => {
             return res.status(403).json({ message: 'This login method is for admin accounts only.' });
         }
 
-        // Resend Free Tier Limitation: Only allowed to send to the master email
-        // We reroute all admin OTPs to your master email for the demo.
-        const MASTER_EMAIL = 'mirzaumerikram114@gmail.com';
-        const recipientEmail = MASTER_EMAIL; 
-        
-        const [local, domain] = recipientEmail.split('@');
-        const emailHint = `${local.slice(0, 2)}***@${domain}`;
+        // Admin panel is shared by both team members — send every OTP to both inboxes
+        // so whoever is logging in can grab the code from their own email.
+        const ADMIN_RECIPIENTS = [
+            'mirzaumerikram114@gmail.com',
+            'ruhma.bilal2004@gmail.com',
+        ];
+
+        const emailHint = 'both admin emails';
 
         // Send email — await so we know if it worked
         try {
-            await sendAdminOTPEmail(recipientEmail, user.name, otp);
-            console.log(`[AUTH] ✅ OTP email delivered to ${recipientEmail} (for ${user.name})`);
+            await sendAdminOTPEmail(ADMIN_RECIPIENTS, user.name, otp);
+            console.log(`[AUTH] ✅ OTP email delivered to ${ADMIN_RECIPIENTS.join(', ')} (for ${user.name})`);
             res.json({
                 success:   true,
                 message:   `OTP sent to ${emailHint}`,
