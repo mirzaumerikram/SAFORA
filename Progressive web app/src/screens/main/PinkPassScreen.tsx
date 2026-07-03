@@ -91,7 +91,7 @@ const PinkPassScreen: React.FC = () => {
             {/* Verification Flow Card (Glassmorphism) */}
             <View style={s.glassCard}>
                 <Text style={s.requirementsTitle}>VERIFICATION STEPS</Text>
-                {PASSENGER_REQUIREMENTS.map((req) => (
+                {PASSENGER_REQUIREMENTS.map((req, i) => (
                     <View key={req} style={s.reqRow}>
                         <View style={s.stepLineContainer}>
                             <View style={s.stepDot}>
