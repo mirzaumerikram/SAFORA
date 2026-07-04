@@ -35,9 +35,15 @@ const alertSchema = new mongoose.Schema({
     description: String,
     status: {
         type: String,
-        enum: ['active', 'resolved', 'false-alarm'],
+        enum: ['active', 'escalated', 'resolved', 'false-alarm'],
         default: 'active'
     },
+    escalatedAt: Date,
+    escalatedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    },
+    escalationNotes: String,
     notificationsSent: {
         admin: {
             sent: Boolean,

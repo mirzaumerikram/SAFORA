@@ -29,7 +29,7 @@ class PricingService:
     def predict_price(self, features):
         """
         Predict ride price using Linear Regression model
-        
+
         Args:
             features: dict with keys:
                 - distance (km)
@@ -37,9 +37,9 @@ class PricingService:
                 - time_of_day (hour, 0-23)
                 - day_of_week (0-6, Monday=0)
                 - demand_level ('low', 'medium', 'high', 'peak')
-                - origin_area (area code or zone)
+                - ride_type (0=standard, 1=pink-pass, 2=eco — must match train_model.py encoding)
                 - traffic_multiplier (1.0-2.0)
-        
+
         Returns:
             dict with predicted price and breakdown
         """
@@ -47,19 +47,21 @@ class PricingService:
         duration = features.get('duration', 0)
         demand_level = features.get('demand_level', 'low')
         traffic_multiplier = features.get('traffic_multiplier', 1.0)
-        
+
         if self.model:
-            # Prepare features for model
+            # Prepare features for model — order must exactly match train_model.py's
+            # training feature order: [distance, duration, time_of_day, day_of_week,
+            # demand_score, ride_type, traffic_multiplier]
             X = np.array([[
                 distance,
                 duration,
                 features.get('time_of_day', 12),
                 features.get('day_of_week', 0),
                 self._encode_demand(demand_level),
-                features.get('origin_area', 0),
+                features.get('ride_type', 0),
                 traffic_multiplier
             ]])
-            
+
             predicted_price = self.model.predict(X)[0]
         else:
             # Fallback calculation

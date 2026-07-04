@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Animated, Easing, TouchableOpacity, StatusBar } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAppTheme } from '../../context/ThemeContext';
@@ -15,6 +15,7 @@ const SearchingScreen: React.FC = () => {
     
     const pulseAnim = useRef(new Animated.Value(1)).current;
     const rotateAnim = useRef(new Animated.Value(0)).current;
+    const [noDriverFound, setNoDriverFound] = useState(false);
 
     useEffect(() => {
         // Pulse Animation
@@ -64,6 +65,12 @@ const SearchingScreen: React.FC = () => {
             navigation.navigate('Tracking', { rideId: data.rideId || rideId });
         });
 
+        // No driver available (initial search exhausted, or every candidate rejected/timed out)
+        socketService.onNoDriverFound(() => {
+            console.log('[Searching] No driver available for this ride.');
+            setNoDriverFound(true);
+        });
+
         // Polling Safety Net: If socket fails, check API every 3s (Backup)
         let navigated = false; // prevent double navigation
         const pollInterval = setInterval(async () => {
@@ -101,9 +108,13 @@ const SearchingScreen: React.FC = () => {
             <StatusBar barStyle={theme.dark ? 'light-content' : 'dark-content'} />
             
             <View style={styles.header}>
-                <Text style={[styles.title, { color: theme.colors.text }]}>{t.findingDriver || 'Finding your Driver'}</Text>
+                <Text style={[styles.title, { color: theme.colors.text }]}>
+                    {noDriverFound ? 'No Drivers Available' : (t.findingDriver || 'Finding your Driver')}
+                </Text>
                 <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-                    {t.findingSub || 'Connecting you with the nearest SAFORA driver'}
+                    {noDriverFound
+                        ? 'No nearby drivers accepted your ride. Please try again in a moment.'
+                        : (t.findingSub || 'Connecting you with the nearest SAFORA driver')}
                 </Text>
             </View>
 

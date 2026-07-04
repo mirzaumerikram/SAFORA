@@ -83,6 +83,10 @@ const userSchema = new mongoose.Schema({
         type: String,
         default: ''
     },
+    pinkPassAttempts: {
+        type: Number,
+        default: 0
+    },
     homeAddress: {
         type: String,
         default: ''

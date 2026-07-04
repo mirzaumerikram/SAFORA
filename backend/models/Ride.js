@@ -10,6 +10,10 @@ const rideSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Driver'
     },
+    excludedDrivers: {
+        type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Driver' }],
+        default: []
+    },
     pickupLocation: {
         address: String,
         coordinates: {

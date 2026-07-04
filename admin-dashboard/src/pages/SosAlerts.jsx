@@ -4,7 +4,7 @@ import { api } from '../services/api';
 import './TablePage.css';
 
 const sevColor = { critical: '#e74c3c', high: '#e67e22', medium: '#f39c12', low: '#3498db' };
-const statusColor = { active: '#e74c3c', handling: '#3498db', resolved: '#27ae60' };
+const statusColor = { active: '#e74c3c', escalated: '#8e44ad', resolved: '#27ae60' };
 
 const timeAgo = (iso) => {
   const diff = Math.floor((Date.now() - new Date(iso)) / 60000);
@@ -62,6 +62,10 @@ export default function SosAlerts() {
       setAlerts(prev => prev.map(a => a._id === alertId ? { ...a, status: 'resolved' } : a));
     });
 
+    socket.on('alert-escalated', ({ alertId }) => {
+      setAlerts(prev => prev.map(a => a._id === alertId ? { ...a, status: 'escalated' } : a));
+    });
+
     return () => socket.disconnect();
   }, []);
 
@@ -72,6 +76,17 @@ export default function SosAlerts() {
       showToast('Alert resolved');
     } catch {
       showToast('Failed to resolve alert');
+    }
+  };
+
+  const escalate = async (alertId) => {
+    if (!window.confirm('Escalate this alert to the police / external authorities?')) return;
+    try {
+      await api.patch(`/safety/alerts/${alertId}/escalate`, { notes: 'Escalated by admin' });
+      setAlerts(prev => prev.map(a => a._id === alertId ? { ...a, status: 'escalated' } : a));
+      showToast('Alert escalated to police');
+    } catch {
+      showToast('Failed to escalate alert');
     }
   };
 
@@ -108,7 +123,7 @@ export default function SosAlerts() {
       </div>
 
       <div className="filter-tabs">
-        {['all', 'active', 'handling', 'resolved'].map(f => (
+        {['all', 'active', 'escalated', 'resolved'].map(f => (
           <button key={f} className={`filter-tab ${filter === f ? 'active' : ''}`} onClick={() => setFilter(f)}>
             {f.charAt(0).toUpperCase() + f.slice(1)}
             {f === 'active' && alerts.filter(a => a.status === 'active').length > 0 && (
@@ -193,12 +208,20 @@ export default function SosAlerts() {
                     <td>
                       <div style={{ display: 'flex', gap: 8 }}>
                         {a.status === 'active' && (
-                          <button
-                            onClick={() => resolve(a._id)}
-                            style={{ background: '#27ae60', color: '#fff', border: 'none', borderRadius: 6, padding: '4px 12px', fontSize: 12, cursor: 'pointer' }}
-                          >
-                            Resolve
-                          </button>
+                          <>
+                            <button
+                              onClick={() => resolve(a._id)}
+                              style={{ background: '#27ae60', color: '#fff', border: 'none', borderRadius: 6, padding: '4px 12px', fontSize: 12, cursor: 'pointer' }}
+                            >
+                              Resolve
+                            </button>
+                            <button
+                              onClick={() => escalate(a._id)}
+                              style={{ background: '#8e44ad', color: '#fff', border: 'none', borderRadius: 6, padding: '4px 12px', fontSize: 12, cursor: 'pointer' }}
+                            >
+                              Escalate to Police
+                            </button>
+                          </>
                         )}
                         <button
                           onClick={() => deleteAlert(a._id)}

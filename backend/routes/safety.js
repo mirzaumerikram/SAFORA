@@ -173,6 +173,45 @@ router.get('/alerts', auth, authorize('admin'), async (req, res) => {
     }
 });
 
+// @route   PATCH /api/safety/alerts/:id/escalate
+// @desc    Escalate an active alert to the police / external authorities
+// @access  Private (Admin only)
+router.patch('/alerts/:id/escalate', auth, authorize('admin'), async (req, res) => {
+    try {
+        const { notes } = req.body;
+
+        const alert = await Alert.findById(req.params.id);
+        if (!alert) {
+            return res.status(404).json({ message: 'Alert not found' });
+        }
+        if (alert.status !== 'active') {
+            return res.status(400).json({ message: 'Only active alerts can be escalated' });
+        }
+
+        alert.status = 'escalated';
+        alert.escalatedAt = new Date();
+        alert.escalatedBy = req.user.userId;
+        alert.escalationNotes = notes;
+
+        await alert.save();
+
+        // Notify via Socket.io so the dashboard updates in real time
+        const io = req.app.get('io');
+        io.emit('alert-escalated', {
+            alertId: alert._id,
+            escalatedAt: alert.escalatedAt
+        });
+
+        res.json({
+            success: true,
+            alert
+        });
+
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
 // @route   PATCH /api/safety/alerts/:id/resolve
 // @desc    Resolve a safety alert
 // @access  Private (Admin only)

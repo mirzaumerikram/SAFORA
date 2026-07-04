@@ -61,6 +61,10 @@ class SocketService {
         this.socket?.on('ride:request', cb);
     }
 
+    onNoDriverFound(cb: (data: { rideId: string }) => void): void {
+        this.socket?.on('ride:no-driver', cb);
+    }
+
     joinChat(rideId: string): void {
         this.socket?.emit('chat:join', { rideId });
     }
@@ -117,6 +121,7 @@ class SocketService {
         this.socket?.off('ride-status-updated');
         this.socket?.off('driver:location');
         this.socket?.off('safety:deviation-alert');
+        this.socket?.off('ride:no-driver');
     }
 
     offAll() {

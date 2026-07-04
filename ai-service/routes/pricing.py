@@ -15,7 +15,7 @@ def predict_price():
         "time_of_day": 14,
         "day_of_week": 2,
         "demand_level": "medium",
-        "origin_area": 0,
+        "ride_type": 0,
         "traffic_multiplier": 1.2
     }
     """

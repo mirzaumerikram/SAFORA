@@ -75,6 +75,10 @@ const driverSchema = new mongoose.Schema({
         default: 'none'
     },
     pinkPassAppliedAt: Date,
+    pinkPassAttempts: {
+        type: Number,
+        default: 0
+    },
     cnics: String,
     totalEarnings: {
         type: Number,

@@ -25,6 +25,14 @@ router.post('/enroll', auth, async (req, res) => {
             return res.status(403).json({ message: 'Pink Pass is only available for female passengers' });
         }
 
+        const MAX_ATTEMPTS = 3;
+        if (user.pinkPassAttempts >= MAX_ATTEMPTS && user.pinkPassStatus === 'rejected') {
+            return res.status(429).json({
+                success: false,
+                message: `Maximum verification attempts (${MAX_ATTEMPTS}) reached. Please contact support for manual review.`
+            });
+        }
+
         const { cnics, livenessFrames } = req.body;
         if (!cnics || !livenessFrames) {
             return res.status(400).json({ message: 'CNIC photo and selfie are required' });
@@ -61,21 +69,27 @@ router.post('/enroll', auth, async (req, res) => {
         if (verified) {
             user.pinkPassVerified = false; // Requires Admin Approval
             user.pinkPassStatus   = 'pending_review';
+            user.pinkPassAttempts = 0; // Reset on a successful scan
             await user.save();
-            return res.json({ 
-                success: true, 
-                message: 'AI Verified! Application submitted for manual admin review.', 
+            return res.json({
+                success: true,
+                message: 'AI Verified! Application submitted for manual admin review.',
                 status: 'pending_review',
-                confidence 
+                confidence
             });
         } else if (aiAvailable) {
             // AI specifically said NO
             const reason = aiRes?.data?.reason || 'Verification failed. Please ensure your CNIC is clear and your selfie shows your full face.';
             user.pinkPassStatus = 'rejected';
+            user.pinkPassAttempts = (user.pinkPassAttempts || 0) + 1;
             await user.save();
+            const attemptsLeft = Math.max(0, MAX_ATTEMPTS - user.pinkPassAttempts);
             return res.status(400).json({
                 success: false,
-                message: reason,
+                message: attemptsLeft > 0
+                    ? `${reason} (${attemptsLeft} attempt${attemptsLeft === 1 ? '' : 's'} remaining)`
+                    : `${reason} No attempts remaining — please contact support for manual review.`,
+                attemptsLeft
             });
         } else {
             // AI service was offline - fallback to pending admin review
@@ -229,6 +243,14 @@ router.post('/driver-apply', auth, async (req, res) => {
             return res.status(400).json({ success: false, message: 'You are already a certified Pink Pass driver.' });
         }
 
+        const MAX_ATTEMPTS = 3;
+        if (driver.pinkPassAttempts >= MAX_ATTEMPTS && driver.pinkPassStatus === 'rejected') {
+            return res.status(429).json({
+                success: false,
+                message: `Maximum verification attempts (${MAX_ATTEMPTS}) reached. Please contact support for manual review.`
+            });
+        }
+
         const { cnics, livenessFrames } = req.body;
 
         if (!cnics) {
@@ -260,11 +282,16 @@ router.post('/driver-apply', auth, async (req, res) => {
         }
 
         if (!verified) {
+            driver.pinkPassStatus = 'rejected';
+            driver.pinkPassAttempts = (driver.pinkPassAttempts || 0) + 1;
+            await driver.save();
+            const attemptsLeft = Math.max(0, MAX_ATTEMPTS - driver.pinkPassAttempts);
             return res.status(400).json({
                 success:    false,
                 verified:   false,
                 reason,
                 confidence,
+                attemptsLeft
             });
         }
 
@@ -272,6 +299,7 @@ router.post('/driver-apply', auth, async (req, res) => {
         driver.cnics           = cnics.substring(0, 50); // store short ref, not full image
         driver.pinkPassStatus  = 'pending_review';
         driver.pinkPassAppliedAt = new Date();
+        driver.pinkPassAttempts = 0; // Reset on a successful scan
         await driver.save();
 
         res.json({

@@ -7,6 +7,75 @@ const axios = require('axios');
 const { RideStateMachine } = require('../utils/RideStateMachine');
 const { auth, authorize } = require('../middleware/auth');
 
+// Maps a ride's `type` to the numeric encoding the AI pricing model was trained on
+// (see ai-service/train_model.py — ride_type: 0=standard, 1=pink-pass, 2=eco)
+const RIDE_TYPE_ENCODING = { standard: 0, 'pink-pass': 1, eco: 2 };
+
+// Shared driver-matching logic — used both on initial request and when re-matching
+// after a driver rejects/times out. Mutates and saves `ride`, emits Socket.io events,
+// and sends a push notification to the matched driver (if any).
+async function attemptDriverMatch(ride, io, pLat, pLng, excludeDriverIds = []) {
+    const matchQuery = {
+        status: 'online',
+        currentLocation: {
+            $near: {
+                $geometry: { type: 'Point', coordinates: [pLng, pLat] },
+                $maxDistance: 15000 // 15km search radius
+            }
+        }
+    };
+    if (excludeDriverIds.length > 0) {
+        matchQuery._id = { $nin: excludeDriverIds };
+    }
+
+    const nearbyDrivers = await Driver.find(matchQuery)
+        .populate('user', 'name gender phone')
+        .limit(10);
+
+    let matchedDriver = null;
+    if (ride.type === 'pink-pass') {
+        matchedDriver = nearbyDrivers.find(
+            d => d.user.gender === 'female' && d.pinkPassStatus === 'approved'
+        );
+    } else {
+        matchedDriver = nearbyDrivers[0] || null;
+    }
+
+    if (matchedDriver) {
+        ride.driver = matchedDriver._id;
+        ride.status = 'matched';
+        await ride.save();
+
+        if (io) {
+            const passUser = await User.findById(ride.passenger);
+            io.to(`driver-${matchedDriver._id}`).emit('ride:request', {
+                rideId: ride._id,
+                passenger: { name: passUser ? passUser.name : 'Passenger' },
+                pickup: ride.pickupLocation,
+                dropoff: ride.dropoffLocation,
+                estimatedPrice: ride.estimatedPrice,
+                estimatedDuration: ride.estimatedDuration,
+                distance: ride.distance,
+                type: ride.type
+            });
+        }
+
+        try {
+            const { notifyNewRideRequest } = require('../utils/notificationService');
+            if (matchedDriver.fcmToken) {
+                await notifyNewRideRequest(matchedDriver.fcmToken, ride.pickupLocation?.address || 'your area', String(ride._id));
+            }
+        } catch (fcmErr) {
+            console.error('[FCM] new ride request push failed:', fcmErr.message);
+        }
+    } else if (io) {
+        // No candidate found (or exhausted) — let the passenger know instead of leaving them polling forever.
+        io.to(`ride-${ride._id}`).emit('ride:no-driver', { rideId: ride._id });
+    }
+
+    return matchedDriver;
+}
+
 // @route   POST /api/rides/request
 // @desc    Request a new ride
 // @access  Private (Passenger)
@@ -62,7 +131,7 @@ router.post('/request', auth, async (req, res) => {
                     time_of_day: new Date().getHours(),
                     day_of_week: new Date().getDay(),
                     demand_level: 'medium',
-                    origin_area: 0,
+                    ride_type: RIDE_TYPE_ENCODING[type] ?? RIDE_TYPE_ENCODING.standard,
                     traffic_multiplier: 1.0
                 }, { timeout: 3000 });
                 if (pricingResponse.data?.estimated_price) {
@@ -95,75 +164,11 @@ router.post('/request', auth, async (req, res) => {
 
         try {
             console.log(`[RIDE_DEBUG] Searching for drivers near: ${pLat}, ${pLng}`);
-            
-            // Driver matching: find nearest driver
-            const matchQuery = {
-                // status: 'online', // BYPASSED FOR TESTING
-                currentLocation: {
-                    $near: {
-                        $geometry: {
-                            type: 'Point',
-                            coordinates: [pLng, pLat]
-                        },
-                        // $maxDistance: 15000 
-                    }
-                }
-            };
-
-            const nearbyDrivers = await Driver.find(matchQuery)
-                .populate('user', 'name gender phone')
-                .limit(10);
-
-            console.log(`[RIDE_DEBUG] Found ${nearbyDrivers.length} potential drivers.`);
-
-            let matchedDriver = null;
-
-            if (type === 'pink-pass') {
-                matchedDriver = nearbyDrivers.find(
-                    d => d.user.gender === 'female' && d.pinkPassCertified
-                );
-            } else {
-                matchedDriver = nearbyDrivers[0] || null;
-            }
-
-            if (matchedDriver) {
-                console.log(`[RIDE_DEBUG] Matched with driver: ${matchedDriver.user.name} (${matchedDriver._id})`);
-                ride.driver = matchedDriver._id;
-                ride.status = 'matched';
-                await ride.save();
-
-                // Notify matched driver via Socket.io
-                const io = req.app.get('io');
-                if (io) {
-                    const roomName = `driver-${matchedDriver._id}`;
-                    console.log(`[RIDE_DEBUG] Emitting ride:request to room: ${roomName}`);
-                    
-                    const passUser = await User.findById(passengerId);
-                    
-                    // Target the specific matched driver's room (matches socket.join in index.js)
-                    io.to(roomName).emit('ride:request', {
-                        rideId: ride._id,
-                        passenger: { name: passUser ? passUser.name : 'Passenger' },
-                        pickup: pickupLocation,
-                        dropoff: dropoffLocation,
-                        estimatedPrice,
-                        estimatedDuration,
-                        distance,
-                        type: ride.type
-                    });
-                }
-
-                // Push notification to matched driver (catches backgrounded/closed app)
-                try {
-                    const { notifyNewRideRequest } = require('../utils/notificationService');
-                    if (matchedDriver.fcmToken) {
-                        const pickupAddr = pickupLocation?.address || 'your area';
-                        await notifyNewRideRequest(matchedDriver.fcmToken, pickupAddr, String(ride._id));
-                    }
-                } catch (fcmErr) {
-                    console.error('[FCM] new ride request push failed:', fcmErr.message);
-                }
-            }
+            const io = req.app.get('io');
+            const matchedDriver = await attemptDriverMatch(ride, io, pLat, pLng);
+            console.log(matchedDriver
+                ? `[RIDE_DEBUG] Matched with driver: ${matchedDriver.user.name} (${matchedDriver._id})`
+                : '[RIDE_DEBUG] No driver matched.');
         } catch (matchErr) {
             console.error('[RIDE] Matching failed but ride saved:', matchErr.message);
             // We still proceed since the ride was already saved as 'requested' at line 72
@@ -274,10 +279,13 @@ router.patch('/:id/status', auth, authorize('driver'), async (req, res) => {
         if (status === 'started')    ride.startedAt   = new Date();
         if (status === 'completed') {
             ride.completedAt = new Date();
+            // Cash settlement assumed at trip end — finalize the fare and mark payment settled
+            ride.actualPrice = ride.actualPrice || ride.estimatedPrice || 0;
+            ride.paymentStatus = 'paid';
             // Update driver stats
             if (ride.driver) {
                 await Driver.findByIdAndUpdate(ride.driver, {
-                    $inc: { totalRides: 1, totalEarnings: (ride.actualPrice || ride.estimatedPrice || 0) }
+                    $inc: { totalRides: 1, totalEarnings: ride.actualPrice }
                 });
             }
         }
@@ -378,21 +386,30 @@ router.post('/:id/accept', auth, authorize('driver'), async (req, res) => {
 });
 
 // @route   PATCH /api/rides/:id/reject
-// @desc    Driver rejects a ride — triggers re-matching
+// @desc    Driver rejects/times out on a ride — re-matches to the next-nearest driver
 // @access  Private (Driver)
 router.patch('/:id/reject', auth, authorize('driver'), async (req, res) => {
     try {
         const ride = await Ride.findById(req.params.id);
         if (!ride) return res.status(404).json({ message: 'Ride not found' });
 
+        // Exclude this driver from future matches on this ride
+        if (ride.driver && !ride.excludedDrivers.some(id => id.equals(ride.driver))) {
+            ride.excludedDrivers.push(ride.driver);
+        }
         ride.status = 'requested';
         ride.driver = null;
         await ride.save();
 
         const io = req.app.get('io');
-        io.to(`ride-${ride._id}`).emit('ride:no-driver', { rideId: ride._id });
+        const pLat = ride.pickupLocation.coordinates[1];
+        const pLng = ride.pickupLocation.coordinates[0];
+        const matchedDriver = await attemptDriverMatch(ride, io, pLat, pLng, ride.excludedDrivers);
 
-        res.json({ success: true, message: 'Ride returned to pool' });
+        res.json({
+            success: true,
+            message: matchedDriver ? 'Ride re-matched to next-nearest driver' : 'No other drivers available — ride returned to pool'
+        });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
