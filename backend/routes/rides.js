@@ -321,13 +321,18 @@ router.patch('/:id/status', auth, authorize('driver'), async (req, res) => {
         const safetySentinel = req.app.get('safetySentinel');
         if (safetySentinel) {
             if (status === 'started') {
-                // Build a simple straight-line route between pickup and dropoff for monitoring
-                const plannedRoute = [
-                    ride.pickupLocation.coordinates,   // [lng, lat]
-                    ride.dropoffLocation.coordinates   // [lng, lat]
-                ];
+                // Road-following route from OSRM (falls back to a straight line if OSRM
+                // is unreachable) — a real route means normal road curvature no longer
+                // reads as a deviation the way a straight pickup->dropoff line did.
+                const { getRoadRoute } = require('../utils/routingService');
+                const plannedRoute = await getRoadRoute(
+                    ride.pickupLocation.coordinates,
+                    ride.dropoffLocation.coordinates
+                );
+                ride.plannedRoute = plannedRoute;
+                await ride.save();
                 safetySentinel.startMonitoring(ride._id.toString(), plannedRoute);
-                console.log(`[SafetySentinel] Started monitoring ride ${ride._id}`);
+                console.log(`[SafetySentinel] Started monitoring ride ${ride._id} with a ${plannedRoute.length}-point route`);
             } else if (status === 'completed' || status === 'cancelled') {
                 safetySentinel.stopMonitoring(ride._id.toString());
             }
@@ -339,6 +344,68 @@ router.patch('/:id/status', auth, authorize('driver'), async (req, res) => {
     }
 });
 
+// @route   POST /api/rides/:id/reroute
+// @desc    Driver reports a legitimate reroute (traffic/closed road) mid-trip. Re-baselines
+//          SafetySentinel's planned route from the driver's current position to the dropoff
+//          so the detour itself doesn't read as a deviation. Capped at 2 uses per ride and
+//          always surfaced to the passenger — this can reduce false alarms, it can never
+//          silence the passenger's own manual SOS button.
+// @access  Private (Driver, must be the ride's assigned driver)
+const MAX_REROUTE_FLAGS_PER_RIDE = 2;
+
+router.post('/:id/reroute', auth, authorize('driver'), async (req, res) => {
+    try {
+        const { lat, lng, reason } = req.body;
+        if (typeof lat !== 'number' || typeof lng !== 'number') {
+            return res.status(400).json({ message: 'Current lat/lng are required' });
+        }
+
+        const driver = await Driver.findOne({ user: req.user.userId });
+        if (!driver) return res.status(404).json({ message: 'Driver not found' });
+
+        const ride = await Ride.findById(req.params.id);
+        if (!ride) return res.status(404).json({ message: 'Ride not found' });
+        if (!ride.driver || ride.driver.toString() !== driver._id.toString()) {
+            return res.status(403).json({ message: 'You are not the assigned driver for this ride' });
+        }
+        if (ride.status !== 'started') {
+            return res.status(400).json({ message: 'Reroute can only be reported during an active trip' });
+        }
+        if (ride.rerouteFlags.length >= MAX_REROUTE_FLAGS_PER_RIDE) {
+            return res.status(429).json({ message: 'Reroute limit reached for this ride' });
+        }
+
+        const { getRoadRoute } = require('../utils/routingService');
+        const newRoute = await getRoadRoute([lng, lat], ride.dropoffLocation.coordinates);
+
+        ride.plannedRoute = newRoute;
+        ride.rerouteFlags.push({ reason: reason || 'Traffic/road closure reported by driver', fromLocation: [lng, lat] });
+        await ride.save();
+
+        // Re-baseline SafetySentinel against the new route — this also resets the
+        // deviation timer/latch for this ride (startMonitoring replaces its state wholesale).
+        const safetySentinel = req.app.get('safetySentinel');
+        if (safetySentinel) {
+            safetySentinel.startMonitoring(ride._id.toString(), newRoute);
+        }
+
+        // Transparent to the passenger — never a silent monitoring blackout.
+        const io = req.app.get('io');
+        io.to(`ride-${ride._id}`).emit('driver:reroute-notice', {
+            rideId: ride._id,
+            reason: ride.rerouteFlags[ride.rerouteFlags.length - 1].reason,
+            at: ride.rerouteFlags[ride.rerouteFlags.length - 1].flaggedAt,
+        });
+
+        res.json({
+            success: true,
+            rerouteFlagsUsed: ride.rerouteFlags.length,
+            rerouteFlagsRemaining: MAX_REROUTE_FLAGS_PER_RIDE - ride.rerouteFlags.length,
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
 
 // @route   POST /api/rides/:id/accept
 // @desc    Driver accepts a ride

@@ -32,6 +32,16 @@ const rideSchema = new mongoose.Schema({
         type: [[Number]], // Array of [longitude, latitude] pairs
         default: []
     },
+    rerouteFlags: {
+        // Audit log of driver-reported reroutes (traffic/closed road). Capped at 2 per
+        // ride (enforced in the route handler) so it can't be used to blind monitoring.
+        type: [{
+            flaggedAt: { type: Date, default: Date.now },
+            reason: String,
+            fromLocation: { type: [Number] } // [lng, lat] where the driver was when flagging
+        }],
+        default: []
+    },
     distance: {
         type: Number, // in kilometers
         required: true
