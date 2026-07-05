@@ -46,6 +46,7 @@ router.post('/alert', auth, async (req, res) => {
         // Create alert
         const alert = new Alert({
             ride: rideId,
+            passenger: ride.passenger._id,
             type,
             severity,
             location: {
@@ -154,10 +155,10 @@ router.get('/alerts', auth, authorize('admin'), async (req, res) => {
         const alerts = await Alert.find({ status })
             .populate({
                 path: 'ride',
-                populate: {
-                    path: 'passenger driver',
-                    select: 'name phone'
-                }
+                populate: [
+                    { path: 'passenger', select: 'name phone' },
+                    { path: 'driver', populate: { path: 'user', select: 'name phone' } }
+                ]
             })
             .sort({ createdAt: -1 })
             .limit(50);

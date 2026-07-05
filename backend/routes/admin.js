@@ -220,10 +220,10 @@ router.get('/alerts/active', async (req, res) => {
             .populate('passenger', 'name phone')
             .populate({
                 path: 'ride',
-                populate: {
-                    path: 'passenger driver',
-                    populate: { path: 'user', select: 'name phone' }
-                }
+                populate: [
+                    { path: 'passenger', select: 'name phone' },
+                    { path: 'driver', populate: { path: 'user', select: 'name phone' } }
+                ]
             })
             .sort({ createdAt: -1 })
             .limit(50);
@@ -243,10 +243,10 @@ router.get('/alerts/all', async (req, res) => {
             .populate('passenger', 'name phone')
             .populate({
                 path: 'ride',
-                populate: {
-                    path: 'passenger driver',
-                    populate: { path: 'user', select: 'name phone' }
-                }
+                populate: [
+                    { path: 'passenger', select: 'name phone' },
+                    { path: 'driver', populate: { path: 'user', select: 'name phone' } }
+                ]
             })
             .sort({ createdAt: -1 })
             .limit(100);
