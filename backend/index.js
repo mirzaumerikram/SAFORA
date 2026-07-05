@@ -3,6 +3,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const http = require('http');
 const { Server } = require('socket.io');
+const jwt = require('jsonwebtoken');
 const connectDB = require('./config/database');
 const Ride = require('./models/Ride');
 const {
@@ -62,6 +63,21 @@ const io = new Server(server, {
   cors: { origin: ALLOWED_ORIGINS, methods: ['GET', 'POST'] }
 });
 
+// Verify the JWT sent at handshake (if any) so room-join handlers can check real ownership.
+// Connections with no token are still allowed (e.g. the admin dashboard's SOS listener, which
+// only consumes global broadcasts) but `socket.user` stays undefined for them, and every
+// room-scoped join below requires it to be set.
+io.use((socket, next) => {
+  const token = socket.handshake.auth?.token;
+  if (!token) return next();
+  try {
+    socket.user = jwt.verify(token, process.env.JWT_SECRET); // { userId, role }
+    next();
+  } catch (err) {
+    next(new Error('Authentication error: invalid token'));
+  }
+});
+
 // Middleware
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions)); // handle preflight for all routes
@@ -78,17 +94,55 @@ const { redis, cacheDriverLocation } = require('./config/redis');
 io.on('connection', (socket) => {
   console.log('New client connected:', socket.id);
 
-  // Passenger joins ride room to get live updates for their trip
-  socket.on('join:ride', ({ rideId }) => {
-    socket.join(`ride-${rideId}`);
-    console.log(`[Socket] Client joined ride room: ride-${rideId}`);
+  // Passenger or driver joins ride room to get live updates for their trip.
+  // Only the ride's own passenger/driver (or an admin) may join — otherwise anyone
+  // who guessed/leaked a rideId could eavesdrop on location, status and chat events.
+  socket.on('join:ride', async ({ rideId }) => {
+    if (!rideId) return;
+    if (!socket.user) {
+      return socket.emit('error', { message: 'Authentication required to join ride room' });
+    }
+    try {
+      const ride = await Ride.findById(rideId).select('passenger driver');
+      if (!ride) return socket.emit('error', { message: 'Ride not found' });
+
+      const isPassenger = ride.passenger?.toString() === socket.user.userId;
+      let isDriver = false;
+      if (ride.driver) {
+        const Driver = require('./models/Driver');
+        const driverDoc = await Driver.findById(ride.driver).select('user');
+        isDriver = driverDoc?.user?.toString() === socket.user.userId;
+      }
+      if (!isPassenger && !isDriver && socket.user.role !== 'admin') {
+        return socket.emit('error', { message: 'Not authorized for this ride' });
+      }
+
+      socket.join(`ride-${rideId}`);
+      console.log(`[Socket] Client joined ride room: ride-${rideId}`);
+    } catch (err) {
+      console.error('[Socket] join:ride failed:', err.message);
+    }
   });
 
-  // Driver joins their personal room to receive ride requests and manage status
-  socket.on('join:driver', ({ driverId }) => {
-    if (driverId) {
+  // Driver joins their personal room to receive ride requests and manage status.
+  // Only that driver's own account (or an admin) may join their room.
+  socket.on('join:driver', async ({ driverId }) => {
+    if (!driverId) return;
+    if (!socket.user) {
+      return socket.emit('error', { message: 'Authentication required to join driver room' });
+    }
+    try {
+      const Driver = require('./models/Driver');
+      const driverDoc = await Driver.findById(driverId).select('user');
+      const isSelf = driverDoc?.user?.toString() === socket.user.userId;
+      if (!isSelf && socket.user.role !== 'admin') {
+        return socket.emit('error', { message: 'Not authorized for this driver room' });
+      }
+
       socket.join(`driver-${driverId}`);
       console.log(`[Socket] Driver ${driverId} joined room: driver-${driverId}`);
+    } catch (err) {
+      console.error('[Socket] join:driver failed:', err.message);
     }
   });
 
@@ -196,9 +250,32 @@ io.on('connection', (socket) => {
     console.log(`[SOS] Triggered for ride: ${rideId}`);
   });
 
-  // In-app chat — passenger ↔ driver messaging
-  socket.on('chat:join', ({ rideId }) => {
-    if (rideId) socket.join(`chat-${rideId}`);
+  // In-app chat — passenger ↔ driver messaging. Same ownership rule as join:ride:
+  // only the ride's own passenger/driver (or an admin) can read/send chat for it.
+  socket.on('chat:join', async ({ rideId }) => {
+    if (!rideId) return;
+    if (!socket.user) {
+      return socket.emit('error', { message: 'Authentication required to join chat' });
+    }
+    try {
+      const ride = await Ride.findById(rideId).select('passenger driver');
+      if (!ride) return;
+
+      const isPassenger = ride.passenger?.toString() === socket.user.userId;
+      let isDriver = false;
+      if (ride.driver) {
+        const Driver = require('./models/Driver');
+        const driverDoc = await Driver.findById(ride.driver).select('user');
+        isDriver = driverDoc?.user?.toString() === socket.user.userId;
+      }
+      if (!isPassenger && !isDriver && socket.user.role !== 'admin') {
+        return socket.emit('error', { message: 'Not authorized for this chat' });
+      }
+
+      socket.join(`chat-${rideId}`);
+    } catch (err) {
+      console.error('[Socket] chat:join failed:', err.message);
+    }
   });
 
   socket.on('chat:send', async ({ rideId, text, sender, senderName }) => {
