@@ -43,7 +43,7 @@ class SocketService {
 
     onDeviationAlert(cb: (data: {
         rideId: string;
-        type: string;
+        type: 'route-deviation' | 'suspicious-stop' | 'signal-lost' | 'signal-restored' | string;
         description: string;
         distance?: number;
         duration?: number;
@@ -112,6 +112,13 @@ class SocketService {
         } catch (err) {
             console.error('[Socket] Failed to emit location update', err);
         }
+    }
+
+    // Redundant fallback signal for SafetySentinel — keeps the trip observable if the
+    // driver's phone loses power/signal, since the passenger's own device is present
+    // for the whole ride.
+    emitPassengerLocationUpdate(rideId: string, lat: number, lng: number): void {
+        this.socket?.emit('passenger:location-update', { rideId, lat, lng });
     }
 
     offChat(): void {

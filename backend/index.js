@@ -90,6 +90,60 @@ connectDB();
 // Connect to Redis (graceful fallback if not configured)
 const { redis, cacheDriverLocation } = require('./config/redis');
 
+// Persists a SafetySentinel alert and broadcasts it to the ride room + admin dashboard.
+// Shared by the driver ping handler, the passenger fallback ping handler, and the
+// signal-loss sweep, so all three alert sources go through one consistent path.
+async function handleSafetyAlert(rideId, alertObj) {
+  try {
+    const Alert = require('./models/Alert');
+
+    const ride = await Ride.findById(rideId).populate('passenger', 'name phone');
+
+    let severity = 'medium';
+    if (alertObj.type === 'suspicious-stop') severity = 'high';
+    else if (alertObj.type === 'route-deviation') severity = 'medium';
+    else if (alertObj.type === 'signal-lost') severity = 'critical';
+    else if (alertObj.type === 'signal-restored') severity = 'low';
+
+    const newAlert = new Alert({
+      ride: rideId,
+      passenger: ride ? ride.passenger._id : undefined,
+      type: alertObj.type,
+      severity,
+      location: {
+        type: 'Point',
+        coordinates: [alertObj.location.lng, alertObj.location.lat]
+      },
+      description: alertObj.description,
+      status: 'active'
+    });
+    await newAlert.save();
+
+    io.to(`ride-${rideId}`).emit('safety:deviation-alert', {
+      rideId,
+      type: alertObj.type,
+      description: alertObj.description,
+      location: alertObj.location,
+      timestamp: newAlert.createdAt
+    });
+    io.emit('safety-alert', {
+      alertId: newAlert._id,
+      rideId,
+      type: alertObj.type,
+      severity,
+      message: alertObj.description,
+      location: alertObj.location,
+      passenger: ride && ride.passenger ? {
+        name: ride.passenger.name,
+        phone: ride.passenger.phone
+      } : { name: 'Unknown', phone: '' },
+      timestamp: newAlert.createdAt
+    });
+  } catch (err) {
+    console.error('[SafetySentinel] Error:', err.message);
+  }
+}
+
 // Socket.io connection
 io.on('connection', (socket) => {
   console.log('New client connected:', socket.id);
@@ -156,52 +210,8 @@ io.on('connection', (socket) => {
 
       // 2. SafetySentinel — check for route deviation / suspicious stops
       try {
-        const alertObj = await safetySentinel.updateLocation(rideId, { lat, lng });
-        if (alertObj) {
-          const Alert = require('./models/Alert');
-          const Ride = require('./models/Ride');
-          
-          const ride = await Ride.findById(rideId).populate('passenger', 'name phone');
-          
-          let severity = 'medium';
-          if (alertObj.type === 'suspicious-stop') severity = 'high';
-          else if (alertObj.type === 'route-deviation') severity = 'medium';
-
-          const newAlert = new Alert({
-              ride: rideId,
-              passenger: ride ? ride.passenger._id : undefined,
-              type: alertObj.type,
-              severity: severity,
-              location: {
-                  type: 'Point',
-                  coordinates: [lng, lat]
-              },
-              description: alertObj.description,
-              status: 'active'
-          });
-          await newAlert.save();
-
-          io.to(`ride-${rideId}`).emit('safety:deviation-alert', {
-            rideId,
-            type: alertObj.type,
-            description: alertObj.description,
-            location: alertObj.location,
-            timestamp: newAlert.createdAt
-          });
-          io.emit('safety-alert', {
-            alertId: newAlert._id,
-            rideId,
-            type: alertObj.type,
-            severity: severity,
-            message: alertObj.description,
-            location: alertObj.location,
-            passenger: ride && ride.passenger ? {
-                name: ride.passenger.name,
-                phone: ride.passenger.phone
-            } : { name: 'Unknown', phone: '' },
-            timestamp: newAlert.createdAt
-          });
-        }
+        const alertObj = await safetySentinel.updateLocation(rideId, { lat, lng }, 'driver');
+        if (alertObj) await handleSafetyAlert(rideId, alertObj);
       } catch (err) {
         console.error('[SafetySentinel] Error:', err.message);
       }
@@ -219,6 +229,26 @@ io.on('connection', (socket) => {
       });
     } catch (err) {
       console.error('[Socket] Driver DB update failed:', err.message);
+    }
+  });
+
+  // Passenger's own phone also reports GPS during an active trip — a redundant fallback
+  // channel so SafetySentinel isn't blind if the driver's phone loses power, is force-quit,
+  // or drops connectivity. Only the ride's own passenger (or an admin) may report for it.
+  socket.on('passenger:location-update', async ({ rideId, lat, lng }) => {
+    if (!rideId || typeof lat !== 'number' || typeof lng !== 'number') return;
+    if (!socket.user) return;
+
+    try {
+      const ride = await Ride.findById(rideId).select('passenger');
+      if (!ride) return;
+      const isPassenger = ride.passenger?.toString() === socket.user.userId;
+      if (!isPassenger && socket.user.role !== 'admin') return;
+
+      const alertObj = await safetySentinel.updateLocation(rideId, { lat, lng }, 'passenger');
+      if (alertObj) await handleSafetyAlert(rideId, alertObj);
+    } catch (err) {
+      console.error('[SafetySentinel] passenger:location-update error:', err.message);
     }
   });
 
@@ -334,6 +364,9 @@ app.set('io', io);
 const SafetySentinel = require('./utils/SafetySentinel');
 const safetySentinel = new SafetySentinel(io);
 app.set('safetySentinel', safetySentinel);
+// Timer-driven sweep inside SafetySentinel catches total silence (both driver and
+// passenger devices dark) that no incoming ping would ever trigger on its own.
+safetySentinel.onSignalLost = (rideId, alertObj) => handleSafetyAlert(rideId, alertObj);
 
 // Routes
 app.get('/', (req, res) => {

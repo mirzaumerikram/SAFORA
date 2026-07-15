@@ -47,12 +47,18 @@ const TrackingScreen: React.FC = () => {
     const pulseAnim = useRef(new Animated.Value(0)).current;
 
     // SafetySentinel deviation alert state
-    const [deviationAlert, setDeviationAlert] = useState<{ description: string; distance?: number } | null>(null);
+    const [deviationAlert, setDeviationAlert] = useState<{ type?: string; description: string; distance?: number } | null>(null);
+    const ALERT_TITLES: Record<string, string> = {
+        'route-deviation': 'Route Deviation Detected',
+        'suspicious-stop': 'Unexpected Stop Detected',
+        'signal-lost': 'Location Signal Lost',
+    };
     const [countdown, setCountdown]           = useState(30);
     const countdownRef                        = useRef<ReturnType<typeof setInterval> | null>(null);
     const [hasNewMessage, setHasNewMessage]   = useState(false);
     const [rerouteNotice, setRerouteNotice]   = useState<string | null>(null);
     const rerouteTimerRef                     = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const watchIdRef                          = useRef<number | null>(null);
 
     useEffect(() => {
         Animated.loop(
@@ -186,6 +192,17 @@ const TrackingScreen: React.FC = () => {
 
                 socketService.onDeviationAlert((alert) => {
                     if (!mounted) return;
+
+                    // Good news doesn't need a scary modal + auto-SOS countdown — just a toast.
+                    if (alert.type === 'signal-restored') {
+                        setRerouteNotice(alert.description || 'Location tracking has resumed.');
+                        if (rerouteTimerRef.current) clearTimeout(rerouteTimerRef.current);
+                        rerouteTimerRef.current = setTimeout(() => {
+                            if (mounted) setRerouteNotice(null);
+                        }, 6000);
+                        return;
+                    }
+
                     setDeviationAlert(alert);
                     setCountdown(30);
                     if (countdownRef.current) clearInterval(countdownRef.current);
@@ -246,6 +263,35 @@ const TrackingScreen: React.FC = () => {
         };
 
     }, [rideId]);
+
+    // Redundant location fallback for SafetySentinel — the passenger's own phone is present
+    // for the whole trip, so it keeps the ride observable if the driver's device loses
+    // power, gets force-quit, or drops connectivity. Only active once onboard, matching the
+    // backend's monitoring window (it only watches rides in 'started' status).
+    useEffect(() => {
+        const clearWatch = () => {
+            if (watchIdRef.current !== null && (navigator as any)?.geolocation) {
+                (navigator as any).geolocation.clearWatch(watchIdRef.current);
+                watchIdRef.current = null;
+            }
+        };
+
+        if (status !== 'ONBOARD' || !rideId || rideId === 'demo' || Platform.OS !== 'web' || !(navigator as any).geolocation) {
+            clearWatch();
+            return;
+        }
+
+        watchIdRef.current = (navigator as any).geolocation.watchPosition(
+            (pos: any) => {
+                const { latitude, longitude } = pos.coords;
+                socketService.emitPassengerLocationUpdate(rideId, latitude, longitude);
+            },
+            () => {},
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+        );
+
+        return clearWatch;
+    }, [status, rideId]);
 
     // Dismiss deviation alert (passenger is safe)
     const dismissAlert = () => {
@@ -323,7 +369,9 @@ const TrackingScreen: React.FC = () => {
                 <View style={styles.alertOverlay}>
                     <View style={styles.alertCard}>
                         <Text style={styles.alertEmoji}>⚠️</Text>
-                        <Text style={styles.alertTitle}>Route Deviation Detected</Text>
+                        <Text style={styles.alertTitle}>
+                            {ALERT_TITLES[deviationAlert?.type || ''] || 'Route Deviation Detected'}
+                        </Text>
                         <Text style={styles.alertDesc}>
                             {deviationAlert?.description || 'Your driver has deviated from the planned route.'}
                         </Text>
