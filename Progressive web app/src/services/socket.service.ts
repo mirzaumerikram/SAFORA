@@ -65,6 +65,10 @@ class SocketService {
         this.socket?.on('ride:no-driver', cb);
     }
 
+    onRerouteNotice(cb: (data: { rideId: string; reason: string; at: string }) => void): void {
+        this.socket?.on('driver:reroute-notice', cb);
+    }
+
     joinChat(rideId: string): void {
         this.socket?.emit('chat:join', { rideId });
     }
@@ -122,6 +126,7 @@ class SocketService {
         this.socket?.off('driver:location');
         this.socket?.off('safety:deviation-alert');
         this.socket?.off('ride:no-driver');
+        this.socket?.off('driver:reroute-notice');
     }
 
     offAll() {

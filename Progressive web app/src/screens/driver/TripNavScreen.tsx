@@ -71,6 +71,9 @@ const TripNavScreen: React.FC = () => {
     const [loading, setLoading]           = useState(false);
     const [sosOpen, setSosOpen]           = useState(false);
     const [completeOpen, setCompleteOpen] = useState(false);
+    const [rerouteOpen, setRerouteOpen]       = useState(false);
+    const [rerouteSending, setRerouteSending] = useState(false);
+    const [rerouteRemaining, setRerouteRemaining] = useState(2);
     const [hasNewMessage, setHasNewMessage] = useState(false);
     const [driverCoords, setDriverCoords] = useState<{ latitude: number; longitude: number } | null>(null);
 
@@ -247,6 +250,32 @@ const TripNavScreen: React.FC = () => {
         }
     };
 
+    // Driver reports a legitimate reroute (traffic/closed road) — re-baselines
+    // SafetySentinel's route from here to the dropoff instead of letting the
+    // detour itself read as a route-deviation emergency. Capped server-side at 2/ride.
+    const handleReroute = async (reason: string) => {
+        if (!request?.rideId || !driverCoords) {
+            showAlert('Location Unavailable', 'Waiting for GPS — try again in a moment.');
+            return;
+        }
+        setRerouteSending(true);
+        try {
+            const res: any = await apiService.post(`/rides/${request.rideId}/reroute`, {
+                lat: driverCoords.latitude,
+                lng: driverCoords.longitude,
+                reason,
+            });
+            setRerouteOpen(false);
+            setRerouteRemaining(res.rerouteFlagsRemaining ?? 0);
+            showAlert('Reroute Reported', 'Your passenger has been notified. Safety monitoring has been updated to your new route.');
+        } catch (e: any) {
+            setRerouteOpen(false);
+            showAlert('Could Not Report Reroute', e.message || 'Please try again.');
+        } finally {
+            setRerouteSending(false);
+        }
+    };
+
     const handleSOS = () => {
         setSosOpen(false);
         if (request?.rideId) socketService.emitSOS(request.rideId);
@@ -332,6 +361,11 @@ const TripNavScreen: React.FC = () => {
                     <Text style={s.floatIcon}>💬</Text>
                     {hasNewMessage && <View style={s.floatBadge} />}
                 </TouchableOpacity>
+                {(phase === 'onboard' || phase === 'dropping') && rerouteRemaining > 0 && (
+                    <TouchableOpacity style={s.floatBtn} onPress={() => setRerouteOpen(true)}>
+                        <Text style={s.floatIcon}>🔄</Text>
+                    </TouchableOpacity>
+                )}
                 <TouchableOpacity style={[s.floatBtn, s.floatSOS]} onPress={() => setSosOpen(true)}>
                     <Text style={s.floatSOSText}>SOS</Text>
                 </TouchableOpacity>
@@ -487,6 +521,42 @@ const TripNavScreen: React.FC = () => {
                         <TouchableOpacity style={s.completeCancelBtn} onPress={() => setCompleteOpen(false)}>
                             <Text style={s.completeCancelText}>Not yet</Text>
                         </TouchableOpacity>
+                    </Pressable>
+                </Pressable>
+            </Modal>
+
+            {/* Reroute Reason Modal */}
+            <Modal visible={rerouteOpen} transparent animationType="fade" onRequestClose={() => setRerouteOpen(false)}>
+                <Pressable style={s.sosOverlay} onPress={() => !rerouteSending && setRerouteOpen(false)}>
+                    <Pressable style={s.rerouteModal} onPress={e => e.stopPropagation()}>
+                        <Text style={s.rerouteEmoji}>🔄</Text>
+                        <Text style={s.rerouteTitle}>Report a Reroute</Text>
+                        <Text style={s.rerouteSub}>
+                            Let your passenger and SAFORA safety monitoring know you're taking a different route.
+                            {'\n'}{rerouteRemaining} of 2 uses left for this trip.
+                        </Text>
+                        <TouchableOpacity
+                            style={s.rerouteOptionBtn}
+                            disabled={rerouteSending}
+                            onPress={() => handleReroute('Road closed / blocked')}
+                        >
+                            <Text style={s.rerouteOptionText}>🚧  Road Closed / Blocked</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={s.rerouteOptionBtn}
+                            disabled={rerouteSending}
+                            onPress={() => handleReroute('Heavy traffic jam')}
+                        >
+                            <Text style={s.rerouteOptionText}>🚦  Heavy Traffic Jam</Text>
+                        </TouchableOpacity>
+                        {rerouteSending
+                            ? <ActivityIndicator color={theme.colors.primary} style={{ marginTop: 6 }} />
+                            : (
+                                <TouchableOpacity style={s.rerouteCancelBtn} onPress={() => setRerouteOpen(false)}>
+                                    <Text style={s.rerouteCancelText}>Cancel</Text>
+                                </TouchableOpacity>
+                            )
+                        }
                     </Pressable>
                 </Pressable>
             </Modal>
@@ -656,6 +726,16 @@ const makeStyles = (t: AppTheme) => StyleSheet.create({
     completeConfirmText:{ color: '#fff', fontWeight: '900', fontSize: 16 },
     completeCancelBtn:  { paddingVertical: 10 },
     completeCancelText: { color: t.colors.textSecondary, fontSize: 14 },
+
+    // Reroute Modal
+    rerouteModal:      { backgroundColor: t.colors.card, borderRadius: 24, padding: 28, alignItems: 'center', borderWidth: 2, borderColor: '#3B82F6' },
+    rerouteEmoji:      { fontSize: 40, marginBottom: 10 },
+    rerouteTitle:      { fontSize: 20, fontWeight: '900', color: t.colors.text, marginBottom: 8 },
+    rerouteSub:        { fontSize: 13, color: t.colors.textSecondary, textAlign: 'center', marginBottom: 20, lineHeight: 19 },
+    rerouteOptionBtn:  { width: '100%', backgroundColor: t.dark ? '#1A1A1A' : '#F5F5F5', borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginBottom: 10 },
+    rerouteOptionText: { fontSize: 14, fontWeight: '800', color: t.colors.text },
+    rerouteCancelBtn:  { paddingVertical: 10 },
+    rerouteCancelText: { color: t.colors.textSecondary, fontSize: 14 },
 
     sosOverlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', padding: 24 },
     sosModal:      { backgroundColor: t.colors.card, borderRadius: 24, padding: 28, alignItems: 'center', borderWidth: 2, borderColor: '#EF4444' },

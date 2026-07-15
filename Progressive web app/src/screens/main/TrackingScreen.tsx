@@ -51,6 +51,8 @@ const TrackingScreen: React.FC = () => {
     const [countdown, setCountdown]           = useState(30);
     const countdownRef                        = useRef<ReturnType<typeof setInterval> | null>(null);
     const [hasNewMessage, setHasNewMessage]   = useState(false);
+    const [rerouteNotice, setRerouteNotice]   = useState<string | null>(null);
+    const rerouteTimerRef                     = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
         Animated.loop(
@@ -204,6 +206,17 @@ const TrackingScreen: React.FC = () => {
                     if (msg.sender !== 'passenger') setHasNewMessage(true);
                 });
 
+                // Driver reported a legitimate reroute (traffic/closed road) — transparent
+                // heads-up so a route change doesn't look suspicious with no explanation.
+                socketService.onRerouteNotice((data) => {
+                    if (!mounted) return;
+                    setRerouteNotice(data.reason || 'Your driver has changed the route.');
+                    if (rerouteTimerRef.current) clearTimeout(rerouteTimerRef.current);
+                    rerouteTimerRef.current = setTimeout(() => {
+                        if (mounted) setRerouteNotice(null);
+                    }, 6000);
+                });
+
             } catch {
                 if (mounted) setSocketStatus('offline');
             }
@@ -227,6 +240,7 @@ const TrackingScreen: React.FC = () => {
         return () => {
             mounted = false;
             if (countdownRef.current) clearInterval(countdownRef.current);
+            if (rerouteTimerRef.current) clearTimeout(rerouteTimerRef.current);
             if (pollInterval) clearInterval(pollInterval);
             socketService.offTracking(); // Only remove tracking listeners, not chat
         };
@@ -292,6 +306,17 @@ const TrackingScreen: React.FC = () => {
                 pickupLocation={pCoords ?? undefined}
                 dropoffLocation={dCoords ?? undefined}
             />
+
+            {/* Reroute notice toast — driver flagged a legitimate detour */}
+            {rerouteNotice && (
+                <View style={styles.rerouteToast} pointerEvents="none">
+                    <Text style={styles.rerouteToastIcon}>🔄</Text>
+                    <View style={{ flex: 1 }}>
+                        <Text style={styles.rerouteToastTitle}>Route changed</Text>
+                        <Text style={styles.rerouteToastText} numberOfLines={2}>{rerouteNotice}</Text>
+                    </View>
+                </View>
+            )}
 
             {/* SafetySentinel Deviation Alert Modal */}
             <Modal visible={!!deviationAlert} transparent animationType="slide">
@@ -468,6 +493,30 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: theme.colors.background,
     },
+    // ── Reroute Notice Toast ────────────────────────────────────
+    rerouteToast: {
+        position: 'absolute',
+        top: Platform.OS === 'ios' ? 100 : 86,
+        left: 16,
+        right: 16,
+        backgroundColor: theme.colors.card,
+        borderRadius: 16,
+        padding: 14,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        borderWidth: 1,
+        borderColor: '#3B82F6',
+        zIndex: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 10,
+        elevation: 12,
+    },
+    rerouteToastIcon: { fontSize: 22 },
+    rerouteToastTitle: { fontSize: 12, fontWeight: '900', color: '#3B82F6', marginBottom: 2 },
+    rerouteToastText: { fontSize: 12, color: theme.colors.textSecondary, fontWeight: '500' },
     // ── Deviation Alert Modal ──────────────────────────────────
     alertOverlay: {
         flex: 1,
