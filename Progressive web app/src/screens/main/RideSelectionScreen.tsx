@@ -184,6 +184,7 @@ const RideSelectionScreen: React.FC = () => {
                 distance: routeInfo.distance,
                 duration: routeInfo.duration,
                 type: selected,
+                pickupLocation: { lat: pickupCoords.latitude, lng: pickupCoords.longitude },
             })
             .then((resp: any) => {
                 if (cancelled) return;

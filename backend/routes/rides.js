@@ -11,6 +11,25 @@ const { auth, authorize } = require('../middleware/auth');
 // (see ai-service/train_model.py — ride_type: 0=standard, 1=pink-pass, 2=eco)
 const RIDE_TYPE_ENCODING = { standard: 0, 'pink-pass': 1, eco: 2 };
 
+// Computes a real demand signal from live marketplace data (online drivers vs
+// active ride requests near the pickup point) instead of a fixed placeholder,
+// so the pricing model's demand input reflects what is actually happening right
+// now, not just a static rush-hour time window.
+const DEMAND_RADIUS_KM = 5;
+async function computeDemandLevel(pLat, pLng) {
+    const centerSphere = { $geoWithin: { $centerSphere: [[pLng, pLat], DEMAND_RADIUS_KM / 6378.1] } };
+    const [onlineDrivers, activeRides] = await Promise.all([
+        Driver.countDocuments({ status: 'online', currentLocation: centerSphere }),
+        Ride.countDocuments({ status: { $in: ['requested', 'matched'] }, 'pickupLocation.coordinates': centerSphere })
+    ]);
+    const ratio = activeRides / Math.max(onlineDrivers, 1);
+    let demand_level = 'low';
+    if (ratio > 2) demand_level = 'peak';
+    else if (ratio > 1) demand_level = 'high';
+    else if (ratio > 0.5) demand_level = 'medium';
+    return { demand_level, onlineDrivers, activeRides, ratio: Number(ratio.toFixed(2)) };
+}
+
 // Shared driver-matching logic — used both on initial request and when re-matching
 // after a driver rejects/times out. Mutates and saves `ride`, emits Socket.io events,
 // and sends a push notification to the matched driver (if any).
@@ -83,9 +102,18 @@ async function attemptDriverMatch(ride, io, pLat, pLng, excludeDriverIds = []) {
 // @access  Private (Passenger)
 router.post('/estimate', auth, async (req, res) => {
     try {
-        const { distance, duration, type } = req.body;
+        const { distance, duration, type, pickupLocation } = req.body;
         if (typeof distance !== 'number' || typeof duration !== 'number') {
             return res.status(400).json({ success: false, message: 'distance and duration (numbers) are required' });
+        }
+
+        let demandInfo = { demand_level: 'medium' };
+        if (pickupLocation && typeof pickupLocation.lat === 'number' && typeof pickupLocation.lng === 'number') {
+            try {
+                demandInfo = await computeDemandLevel(pickupLocation.lat, pickupLocation.lng);
+            } catch (demandErr) {
+                console.error('[PRICING] /estimate: demand lookup failed, defaulting to medium:', demandErr.message);
+            }
         }
 
         try {
@@ -95,7 +123,7 @@ router.post('/estimate', auth, async (req, res) => {
                 duration,
                 time_of_day: new Date().getHours(),
                 day_of_week: new Date().getDay(),
-                demand_level: 'medium',
+                demand_level: demandInfo.demand_level,
                 ride_type: RIDE_TYPE_ENCODING[type] ?? RIDE_TYPE_ENCODING.standard,
                 traffic_multiplier: 1.0
             }, { timeout: 3000 });
@@ -168,6 +196,15 @@ router.post('/request', auth, async (req, res) => {
         let estimatedPrice = clientPrice || Math.round((distance * 35) + (estimatedDuration * 5) + 50);
         let priceSource = clientPrice ? 'client_formula' : 'server_formula';
 
+        // Real demand signal from the actual marketplace right now: online drivers
+        // versus active ride requests near the pickup point, not a fixed placeholder.
+        let demandInfo = { demand_level: 'medium' };
+        try {
+            demandInfo = await computeDemandLevel(pLat, pLng);
+        } catch (demandErr) {
+            console.error('[PRICING] demand lookup failed, defaulting to medium:', demandErr.message);
+        }
+
         try {
             // The trained pricing model is the source of truth for what gets charged.
             // It is consulted on every request, not only when the client omits a price,
@@ -178,7 +215,7 @@ router.post('/request', auth, async (req, res) => {
                 duration: estimatedDuration,
                 time_of_day: new Date().getHours(),
                 day_of_week: new Date().getDay(),
-                demand_level: 'medium',
+                demand_level: demandInfo.demand_level,
                 ride_type: RIDE_TYPE_ENCODING[type] ?? RIDE_TYPE_ENCODING.standard,
                 traffic_multiplier: 1.0
             }, { timeout: 3000 });

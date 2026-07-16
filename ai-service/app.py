@@ -43,14 +43,22 @@ def predict_price():
             now = datetime.datetime.now()
             time_of_day = now.hour
             day_of_week = now.weekday() # 0 = Monday, 6 = Sunday
-            
-            # Estimate demand score based on current time
-            demand_score = 0
-            if (7 <= time_of_day <= 9) or (17 <= time_of_day <= 20):
-                demand_score = 2 # High demand (rush hour)
-            elif day_of_week == 4: # Friday
-                demand_score = 1 # Medium demand
-                
+
+            # Demand score: prefer the real marketplace signal computed by the
+            # backend (actual online drivers vs active ride requests near the
+            # pickup point) over a fixed time-of-day guess. Only fall back to
+            # the rush-hour heuristic if the caller did not supply one.
+            demand_level_map = {'low': 0, 'medium': 1, 'high': 2, 'peak': 3}
+            demand_level_str = data.get('demand_level')
+            if demand_level_str in demand_level_map:
+                demand_score = demand_level_map[demand_level_str]
+            else:
+                demand_score = 0
+                if (7 <= time_of_day <= 9) or (17 <= time_of_day <= 20):
+                    demand_score = 2 # High demand (rush hour)
+                elif day_of_week == 4: # Friday
+                    demand_score = 1 # Medium demand
+
             # Ride type parsing
             ride_type_str = data.get('type', 'standard').lower()
             if ride_type_str == 'pink-pass':
@@ -78,9 +86,11 @@ def predict_price():
             estimated_price = round(max(50, min(predicted, 3000))) # enforce bounds
             
             return jsonify({
-                'estimated_price': estimated_price, 
-                'currency': 'PKR', 
-                'method': 'ai_ml_model'
+                'estimated_price': estimated_price,
+                'currency': 'PKR',
+                'method': 'ai_ml_model',
+                'demand_score': demand_score,
+                'demand_source': 'live_marketplace' if demand_level_str in demand_level_map else 'time_of_day_heuristic'
             })
         except Exception as e:
             print(f"[AI Service] ML prediction failed: {e}")
