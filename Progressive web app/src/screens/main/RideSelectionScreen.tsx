@@ -93,6 +93,12 @@ const RideSelectionScreen: React.FC = () => {
     // Dynamic pricing state
     const [routeInfo, setRouteInfo] = useState<{ distance: number; duration: number } | null>(null);
 
+    // Model-backed price quote for the currently selected ride type. The list below
+    // still uses the instant local formula for fast browsing, but the price actually
+    // booked comes from this verified quote whenever the pricing model is reachable.
+    const [verifiedQuote, setVerifiedQuote] = useState<{ price: number; source: string } | null>(null);
+    const [quoteLoading, setQuoteLoading] = useState<boolean>(false);
+
     useEffect(() => {
         const checkPinkPass = async () => {
             try {
@@ -163,6 +169,45 @@ const RideSelectionScreen: React.FC = () => {
 
     const selectedRide = dynamicRideTypes.find(r => r.id === selected)!;
 
+    // Fetch a model-backed quote for the selected ride type whenever the route or
+    // the selected type changes, so the price the passenger books is verified by
+    // the trained pricing model rather than only the local instant estimate.
+    useEffect(() => {
+        if (!routeInfo) {
+            setVerifiedQuote(null);
+            return;
+        }
+        let cancelled = false;
+        setQuoteLoading(true);
+        apiService
+            .post('/rides/estimate', {
+                distance: routeInfo.distance,
+                duration: routeInfo.duration,
+                type: selected,
+            })
+            .then((resp: any) => {
+                if (cancelled) return;
+                if (resp?.success && typeof resp.estimatedPrice === 'number') {
+                    setVerifiedQuote({ price: Math.round(resp.estimatedPrice), source: resp.source });
+                } else {
+                    setVerifiedQuote(null);
+                }
+            })
+            .catch(() => {
+                if (!cancelled) setVerifiedQuote(null);
+            })
+            .finally(() => {
+                if (!cancelled) setQuoteLoading(false);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [routeInfo, selected]);
+
+    // Final price used for the actual booking: prefer the model-verified quote,
+    // fall back to the instant local estimate if the pricing model is unreachable.
+    const finalPrice = verifiedQuote?.price ?? selectedRide.price;
+
     // -----------------------------------------------------------------------
     // Confirm handler
     // -----------------------------------------------------------------------
@@ -182,7 +227,7 @@ const RideSelectionScreen: React.FC = () => {
                 pickupLocation:  { address: pickup,  lat: pickupCoords.latitude, lng: pickupCoords.longitude },
                 dropoffLocation: { address: dropoff, lat: dropoffCoords.latitude, lng: dropoffCoords.longitude },
                 type: selected,
-                estimatedPrice: selectedRide.price,
+                estimatedPrice: finalPrice,
                 distance: routeInfo?.distance,
                 estimatedDuration: routeInfo?.duration,
             });
@@ -343,11 +388,11 @@ const RideSelectionScreen: React.FC = () => {
                         >
                             {booking ? (
                                 <ActivityIndicator color={theme.colors.black} />
-                            ) : !routeInfo ? (
+                            ) : !routeInfo || quoteLoading ? (
                                 <ActivityIndicator color={theme.colors.black} />
                             ) : (
                                 <Text style={s.confirmText}>
-                                    Confirm {selectedRide?.name}{'  '}Rs {selectedRide?.price}
+                                    Confirm {selectedRide?.name}{'  '}Rs {finalPrice}
                                 </Text>
                             )}
                         </TouchableOpacity>

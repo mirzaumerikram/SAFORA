@@ -76,6 +76,51 @@ async function attemptDriverMatch(ride, io, pLat, pLng, excludeDriverIds = []) {
     return matchedDriver;
 }
 
+// @route   POST /api/rides/estimate
+// @desc    Get a model-backed price quote for a trip before booking (used by the
+//          ride-selection screen so the number shown to the passenger comes from
+//          the same trained pricing model that will set the final locked price)
+// @access  Private (Passenger)
+router.post('/estimate', auth, async (req, res) => {
+    try {
+        const { distance, duration, type } = req.body;
+        if (typeof distance !== 'number' || typeof duration !== 'number') {
+            return res.status(400).json({ success: false, message: 'distance and duration (numbers) are required' });
+        }
+
+        try {
+            const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:5001';
+            const pricingResponse = await axios.post(`${aiServiceUrl}/api/pricing/predict`, {
+                distance,
+                duration,
+                time_of_day: new Date().getHours(),
+                day_of_week: new Date().getDay(),
+                demand_level: 'medium',
+                ride_type: RIDE_TYPE_ENCODING[type] ?? RIDE_TYPE_ENCODING.standard,
+                traffic_multiplier: 1.0
+            }, { timeout: 3000 });
+
+            return res.json({
+                success: true,
+                estimatedPrice: pricingResponse.data.estimated_price,
+                breakdown: pricingResponse.data.breakdown,
+                source: 'ai_model'
+            });
+        } catch (pricingErr) {
+            console.error('[PRICING] /estimate: AI service unreachable, using fallback price:', pricingErr.message);
+            const fallbackPrice = Math.round((distance * 35) + (duration * 5) + 50);
+            return res.json({
+                success: true,
+                estimatedPrice: fallbackPrice,
+                breakdown: null,
+                source: 'server_formula'
+            });
+        }
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Server error', error: error.message });
+    }
+});
+
 // @route   POST /api/rides/request
 // @desc    Request a new ride
 // @access  Private (Passenger)
@@ -118,28 +163,32 @@ router.post('/request', auth, async (req, res) => {
         const distance = clientDistance || parseFloat((R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))).toFixed(2)) || 1.0;
         const estimatedDuration = clientDuration || Math.max(5, Math.round(distance * 3)); // ~3 min/km average
 
-        // Use client price if provided, otherwise fallback to formula
-        let estimatedPrice = clientPrice || Math.round((distance * 35) + (estimatedDuration * 5) + 50); 
-        
+        // Fallback price if the AI model is unreachable: client-supplied estimate,
+        // then a plain formula as a last resort.
+        let estimatedPrice = clientPrice || Math.round((distance * 35) + (estimatedDuration * 5) + 50);
+        let priceSource = clientPrice ? 'client_formula' : 'server_formula';
+
         try {
-            // ONLY use AI service if passenger hasn't already confirmed a price
-            if (!clientPrice) {
-                const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:5001';
-                const pricingResponse = await axios.post(`${aiServiceUrl}/api/pricing/predict`, {
-                    distance,
-                    duration: estimatedDuration,
-                    time_of_day: new Date().getHours(),
-                    day_of_week: new Date().getDay(),
-                    demand_level: 'medium',
-                    ride_type: RIDE_TYPE_ENCODING[type] ?? RIDE_TYPE_ENCODING.standard,
-                    traffic_multiplier: 1.0
-                }, { timeout: 3000 });
-                if (pricingResponse.data?.estimated_price) {
-                    estimatedPrice = pricingResponse.data.estimated_price;
-                }
+            // The trained pricing model is the source of truth for what gets charged.
+            // It is consulted on every request, not only when the client omits a price,
+            // so the client-side number shown while browsing is always re-verified here.
+            const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:5001';
+            const pricingResponse = await axios.post(`${aiServiceUrl}/api/pricing/predict`, {
+                distance,
+                duration: estimatedDuration,
+                time_of_day: new Date().getHours(),
+                day_of_week: new Date().getDay(),
+                demand_level: 'medium',
+                ride_type: RIDE_TYPE_ENCODING[type] ?? RIDE_TYPE_ENCODING.standard,
+                traffic_multiplier: 1.0
+            }, { timeout: 3000 });
+            if (pricingResponse.data?.estimated_price) {
+                estimatedPrice = pricingResponse.data.estimated_price;
+                priceSource = 'ai_model';
             }
-        } catch {
-            // AI service not running or clientPrice exists — use existing price
+        } catch (pricingErr) {
+            console.error('[PRICING] AI service unreachable, using fallback price:', pricingErr.message);
+            // AI service not running or unreachable — keep the fallback price computed above.
         }
 
         // Create ride request
@@ -181,7 +230,8 @@ router.post('/request', auth, async (req, res) => {
                 estimatedPrice,
                 estimatedDuration,
                 status: ride.status,
-                driverMatched: !!ride.driver
+                driverMatched: !!ride.driver,
+                priceSource
             }
         });
     } catch (error) {
