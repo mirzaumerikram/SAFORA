@@ -291,7 +291,13 @@ const TripNavScreen: React.FC = () => {
             apiService.post(`/rides/${request.rideId}/cancel`, { cancelledBy: 'driver' }).catch(() => {});
         }
         stopGPS();
-        navigation.goBack();
+        // navigation.goBack() only works if this screen was reached via an in-app
+        // navigation this session. When it was restored directly on page load/refresh
+        // (DriverDashboard does this for an active ride), there is no history entry
+        // to go back to and goBack() silently no-ops, leaving the driver stuck here
+        // on an already-cancelled ride. Navigate to the driver home screen explicitly
+        // instead, which works regardless of how this screen was reached.
+        navigation.navigate('DriverTabs');
     };
 
     // Show loading until request is loaded from AsyncStorage
