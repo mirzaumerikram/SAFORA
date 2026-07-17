@@ -66,10 +66,14 @@ def predict_price():
             elif ride_type_str == 'eco':
                 ride_type = 2
             else:
+                # 'rickshaw' and 'standard' both use the standard feature row below,
+                # since the model was only trained on standard/pink-pass/eco. Rickshaw
+                # gets its own discount applied to the prediction afterward instead,
+                # see RICKSHAW_DISCOUNT, so it does not silently price the same as a car.
                 ride_type = 0
-                
+
             traffic_multiplier = float(data.get('traffic', 1.2))
-            
+
             # Build feature array to match the training data
             features = np.array([[
                 distance_km,
@@ -80,11 +84,19 @@ def predict_price():
                 ride_type,
                 traffic_multiplier
             ]])
-            
+
             # Predict using the loaded .pkl model
             predicted = price_model.predict(features)[0]
+
+            # Rickshaw was never a trained category, apply a flat discount to the
+            # standard prediction so it sits between eco and standard, not equal to
+            # standard.
+            RICKSHAW_DISCOUNT = 0.75
+            if ride_type_str == 'rickshaw':
+                predicted = predicted * RICKSHAW_DISCOUNT
+
             estimated_price = round(max(50, min(predicted, 3000))) # enforce bounds
-            
+
             return jsonify({
                 'estimated_price': estimated_price,
                 'currency': 'PKR',
@@ -96,9 +108,12 @@ def predict_price():
             print(f"[AI Service] ML prediction failed: {e}")
             
     # Fallback math formula if model fails or isn't loaded
-    estimated_price = round((distance_km * 35) + (duration_min * 5) + 50)
+    estimated_price = (distance_km * 35) + (duration_min * 5) + 50
+    if data.get('type', 'standard').lower() == 'rickshaw':
+        estimated_price = estimated_price * 0.75
+    estimated_price = round(estimated_price)
     return jsonify({
-        'estimated_price': estimated_price, 
+        'estimated_price': estimated_price,
         'currency': 'PKR', 
         'method': 'fallback_formula'
     })
