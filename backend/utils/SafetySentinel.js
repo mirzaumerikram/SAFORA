@@ -4,8 +4,7 @@ class SafetySentinel {
     constructor(io) {
         this.io = io;
         this.monitoredRides = new Map(); // rideId -> monitoring data
-        this.DEVIATION_THRESHOLD = 500; // meters
-        this.DEVIATION_DURATION = 30000; // 30 seconds in milliseconds
+        this.DEVIATION_THRESHOLD = 500; // meters — alert fires immediately past this, no grace window
         this.SUSPICIOUS_STOP_DURATION = 300000; // 5 minutes
         this.SIGNAL_LOST_THRESHOLD = 75000; // 75s with no ping from either device is itself a risk signal
 
@@ -26,7 +25,6 @@ class SafetySentinel {
         const now = Date.now();
         this.monitoredRides.set(rideId, {
             plannedRoute,
-            deviationStartTime: null,
             lastLocation: null,
             lastMovementTime: now,
             isDeviated: false,
@@ -88,30 +86,24 @@ class SafetySentinel {
         let alert = null;
         const sourceNote = source === 'passenger' ? ' (tracked via passenger device — driver signal lost)' : '';
 
-        // Check for route deviation
+        // Check for route deviation — fires immediately on the first reading past the
+        // 500m threshold, no sustained grace window. isDeviated only latches so a
+        // continuously deviated ride does not re-alert on every single ping.
         if (distance > this.DEVIATION_THRESHOLD) {
-            if (!monitoringData.deviationStartTime) {
-                // Start the 30-second grace window
-                monitoringData.deviationStartTime = now;
-                console.log(`Ride ${rideId}: Deviation detected (${Math.round(distance)}m off route). 30s grace window started.`);
-            } else if (!monitoringData.isDeviated && (now - monitoringData.deviationStartTime >= this.DEVIATION_DURATION)) {
-                // 30 seconds of continuous deviation — trigger alert
-                const deviationSecs = Math.round((now - monitoringData.deviationStartTime) / 1000);
+            if (!monitoringData.isDeviated) {
                 alert = {
                     type: 'route-deviation',
                     location: currentLocation,
-                    description: `Vehicle deviated ${Math.round(distance)}m from planned route for ${deviationSecs}s!${sourceNote}`,
-                    distance: Math.round(distance),
-                    duration: deviationSecs
+                    description: `Vehicle deviated ${Math.round(distance)}m from planned route!${sourceNote}`,
+                    distance: Math.round(distance)
                 };
                 monitoringData.isDeviated = true;
-                console.log(`Ride ${rideId}: ALERT - Route deviation confirmed after ${deviationSecs}s grace window.`);
+                console.log(`Ride ${rideId}: ALERT - Route deviation detected (${Math.round(distance)}m off route).`);
             }
         } else {
-            // Reset deviation timer if back on route
-            if (monitoringData.isDeviated || monitoringData.deviationStartTime) {
+            // Reset deviation state once back on route
+            if (monitoringData.isDeviated) {
                 console.log(`Ride ${rideId}: Back on route`);
-                monitoringData.deviationStartTime = null;
                 monitoringData.isDeviated = false;
             }
         }
