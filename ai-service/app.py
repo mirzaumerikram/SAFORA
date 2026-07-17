@@ -46,10 +46,10 @@ TYPE_MULTIPLIERS = {
 # accept. These floors are applied per type after TYPE_MULTIPLIERS, on top of the
 # global 50 PKR bound, so a short ride never quotes below a realistic minimum.
 MIN_FARES = {
-    'eco':       70,
-    'rickshaw':  110,
-    'standard':  180,
-    'pink-pass': 220,
+    'eco':       150,
+    'rickshaw':  220,
+    'standard':  300,
+    'pink-pass': 345,
 }
 
 @pricing_bp.route('/predict', methods=['POST'])
