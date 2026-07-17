@@ -29,7 +29,6 @@ const rideTypes = [
         icon: '🏍️',
         price: 120,
         desc: 'Fastest · 3 min away',
-        badge: '+6 min',
         pink: false,
     },
     {
@@ -38,7 +37,6 @@ const rideTypes = [
         icon: '🛺',
         price: 180,
         desc: '3 Seats · 4 min away',
-        badge: '-1 min',
         pink: false,
     },
     {
@@ -47,7 +45,6 @@ const rideTypes = [
         icon: '🚗',
         price: 280,
         desc: 'Sedan · 5 min away',
-        badge: '-2 min',
         pink: false,
     },
     {
@@ -56,7 +53,6 @@ const rideTypes = [
         icon: '🎀',
         price: 250,
         desc: 'Women-Only · Verified Female Driver',
-        badge: '+10 min',
         pink: true,
     },
 ];
@@ -385,16 +381,11 @@ const RideSelectionScreen: React.FC = () => {
                                     <Text style={s.rideDesc}>{ride.desc}</Text>
                                 </View>
 
-                                {/* Price + badge */}
+                                {/* Price */}
                                 <View style={s.priceCol}>
                                     <Text style={[s.priceText, isSelected && !isPink && s.priceTextActive, isPink && s.priceTextPink]}>
                                         Rs {ride.price}
                                     </Text>
-                                    <View style={[s.badge, isPink && s.badgePink]}>
-                                        <Text style={[s.badgeText, isPink && s.badgeTextPink]}>
-                                            {ride.badge}
-                                        </Text>
-                                    </View>
                                 </View>
                             </TouchableOpacity>
                         );
@@ -660,25 +651,6 @@ const makeStyles = (t: AppTheme) => {
             color: t.colors.primary,
         },
         priceTextPink: {
-            color: PINK,
-        },
-
-        // Badge
-        badge: {
-            backgroundColor: t.dark ? '#2A2A2A' : '#EFEFEF',
-            borderRadius: 6,
-            paddingHorizontal: 7,
-            paddingVertical: 2,
-        },
-        badgePink: {
-            backgroundColor: PINK_BG,
-        },
-        badgeText: {
-            fontSize: 10,
-            fontWeight: t.fontWeight.bold,
-            color: t.colors.textSecondary,
-        },
-        badgeTextPink: {
             color: PINK,
         },
 
