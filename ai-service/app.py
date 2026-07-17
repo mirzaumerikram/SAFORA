@@ -41,6 +41,17 @@ TYPE_MULTIPLIERS = {
     'pink-pass': 1.15,  # verified female driver, premium
 }
 
+# The trained model has no concept of a minimum fare, it is a linear fit across
+# 2-30km trips and can underprice a short trip below what any real driver would
+# accept. These floors are applied per type after TYPE_MULTIPLIERS, on top of the
+# global 50 PKR bound, so a short ride never quotes below a realistic minimum.
+MIN_FARES = {
+    'eco':       70,
+    'rickshaw':  110,
+    'standard':  180,
+    'pink-pass': 220,
+}
+
 @pricing_bp.route('/predict', methods=['POST'])
 def predict_price():
     data = request.get_json() or {}
@@ -95,8 +106,9 @@ def predict_price():
 
             # Predict the standard fare, then apply the explicit type multiplier.
             predicted = price_model.predict(features)[0] * type_multiplier
+            min_fare = MIN_FARES.get(ride_type_str, 50)
 
-            estimated_price = round(max(50, min(predicted, 3000))) # enforce bounds
+            estimated_price = round(max(min_fare, min(predicted, 3000))) # enforce bounds
 
             return jsonify({
                 'estimated_price': estimated_price,
@@ -112,6 +124,7 @@ def predict_price():
     fallback_type = data.get('type', 'standard').lower()
     estimated_price = (distance_km * 35) + (duration_min * 5) + 50
     estimated_price = estimated_price * TYPE_MULTIPLIERS.get(fallback_type, 1.0)
+    estimated_price = max(MIN_FARES.get(fallback_type, 50), estimated_price)
     estimated_price = round(estimated_price)
     return jsonify({
         'estimated_price': estimated_price,
