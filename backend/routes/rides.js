@@ -7,10 +7,6 @@ const axios = require('axios');
 const { RideStateMachine } = require('../utils/RideStateMachine');
 const { auth, authorize } = require('../middleware/auth');
 
-// Maps a ride's `type` to the numeric encoding the AI pricing model was trained on
-// (see ai-service/train_model.py — ride_type: 0=standard, 1=pink-pass, 2=eco)
-const RIDE_TYPE_ENCODING = { standard: 0, 'pink-pass': 1, eco: 2 };
-
 // Computes a real demand signal from live marketplace data (online drivers vs
 // active ride requests near the pickup point) instead of a fixed placeholder,
 // so the pricing model's demand input reflects what is actually happening right
@@ -124,8 +120,8 @@ router.post('/estimate', auth, async (req, res) => {
                 time_of_day: new Date().getHours(),
                 day_of_week: new Date().getDay(),
                 demand_level: demandInfo.demand_level,
-                ride_type: RIDE_TYPE_ENCODING[type] ?? RIDE_TYPE_ENCODING.standard,
-                traffic_multiplier: 1.0
+                type,
+                traffic: 1.0
             }, { timeout: 3000 });
 
             return res.json({
@@ -216,8 +212,8 @@ router.post('/request', auth, async (req, res) => {
                 time_of_day: new Date().getHours(),
                 day_of_week: new Date().getDay(),
                 demand_level: demandInfo.demand_level,
-                ride_type: RIDE_TYPE_ENCODING[type] ?? RIDE_TYPE_ENCODING.standard,
-                traffic_multiplier: 1.0
+                type,
+                traffic: 1.0
             }, { timeout: 3000 });
             if (pricingResponse.data?.estimated_price) {
                 estimatedPrice = pricingResponse.data.estimated_price;
