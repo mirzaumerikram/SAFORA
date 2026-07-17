@@ -101,14 +101,62 @@ const RideSelectionScreen: React.FC = () => {
 
     const [pickup]  = useState<string>(route.params?.pickup  || 'Gulberg II');
     const [dropoff] = useState<string>(route.params?.dropoff || 'DHA Phase 5');
-    const [pickupCoords] = useState<Coordinates>(() => resolveCoords(
+
+    const DEFAULT_PICKUP: Coordinates  = { latitude: 31.5204, longitude: 74.3587 };
+    const DEFAULT_DROPOFF: Coordinates = { latitude: 31.4504, longitude: 74.2667 };
+
+    const [pickupCoords, setPickupCoords] = useState<Coordinates>(() => resolveCoords(
         route.params?.pickupLat, route.params?.pickupLng, route.params?.pickupCoords,
-        { latitude: 31.5204, longitude: 74.3587 }
+        DEFAULT_PICKUP
     ));
-    const [dropoffCoords] = useState<Coordinates>(() => resolveCoords(
+    const [dropoffCoords, setDropoffCoords] = useState<Coordinates>(() => resolveCoords(
         route.params?.dropoffLat, route.params?.dropoffLng, route.params?.dropoffCoords,
-        { latitude: 31.4504, longitude: 74.2667 }
+        DEFAULT_DROPOFF
     ));
+
+    // If real coordinates never arrived from navigation (e.g. an old bookmarked or
+    // history URL from before coordinates were passed as route params), silently
+    // matching drivers against a fixed fallback point can search an entirely wrong
+    // city with no visible error. As a safety net, geocode the typed address text
+    // instead once the Maps script is available, so a stale link degrades to a
+    // real lookup rather than a wrong, silent default.
+    useEffect(() => {
+        const pickupIsFallback  = pickupCoords.latitude  === DEFAULT_PICKUP.latitude  && pickupCoords.longitude  === DEFAULT_PICKUP.longitude;
+        const dropoffIsFallback = dropoffCoords.latitude === DEFAULT_DROPOFF.latitude && dropoffCoords.longitude === DEFAULT_DROPOFF.longitude;
+        if (!pickupIsFallback && !dropoffIsFallback) return;
+
+        let cancelled = false;
+        let attempts = 0;
+
+        const tryGeocode = () => {
+            if (cancelled) return;
+            const g = (window as any).google;
+            if (!g?.maps?.Geocoder) {
+                attempts += 1;
+                if (attempts < 20) setTimeout(tryGeocode, 300);
+                return;
+            }
+            const geocoder = new g.maps.Geocoder();
+            if (pickupIsFallback) {
+                geocoder.geocode({ address: pickup }, (results: any, status: string) => {
+                    if (cancelled || status !== 'OK' || !results?.[0]) return;
+                    const loc = results[0].geometry.location;
+                    setPickupCoords({ latitude: loc.lat(), longitude: loc.lng() });
+                });
+            }
+            if (dropoffIsFallback) {
+                geocoder.geocode({ address: dropoff }, (results: any, status: string) => {
+                    if (cancelled || status !== 'OK' || !results?.[0]) return;
+                    const loc = results[0].geometry.location;
+                    setDropoffCoords({ latitude: loc.lat(), longitude: loc.lng() });
+                });
+            }
+        };
+        tryGeocode();
+
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
     const [selected, setSelected] = useState<string>('eco');
     const [booking,  setBooking]  = useState<boolean>(false);
     const [isPinkVerified, setIsPinkVerified] = useState<boolean>(false);
