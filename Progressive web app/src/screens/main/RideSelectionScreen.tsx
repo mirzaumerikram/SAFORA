@@ -120,10 +120,11 @@ const RideSelectionScreen: React.FC = () => {
     // Dynamic pricing state
     const [routeInfo, setRouteInfo] = useState<{ distance: number; duration: number } | null>(null);
 
-    // Model-backed price quote for the currently selected ride type. The list below
-    // still uses the instant local formula for fast browsing, but the price actually
-    // booked comes from this verified quote whenever the pricing model is reachable.
-    const [verifiedQuote, setVerifiedQuote] = useState<{ price: number; source: string } | null>(null);
+    // Model-backed price quotes, keyed by ride type id. Fetched for every ride type
+    // once the route is known, so the number shown in the list and the number shown
+    // on the Confirm button are always the same verified quote, never two different
+    // formulas producing two different prices for the same ride type.
+    const [verifiedQuotes, setVerifiedQuotes] = useState<Record<string, { price: number; source: string }>>({});
     const [quoteLoading, setQuoteLoading] = useState<boolean>(false);
 
     useEffect(() => {
@@ -174,11 +175,12 @@ const RideSelectionScreen: React.FC = () => {
         return Math.max(finalPrice, typeId === 'eco' ? 50 : typeId === 'rickshaw' ? 80 : 150);
     };
 
-    // Update rideTypes with dynamic data
+    // Update rideTypes with dynamic data. Prefer the model-verified quote for each
+    // type once it has loaded, so this list always agrees with the Confirm button.
     const dynamicRideTypes = useMemo(() => {
         let list = rideTypes.map(ride => ({
             ...ride,
-            price: getPricing(ride.id) || ride.price
+            price: verifiedQuotes[ride.id]?.price ?? getPricing(ride.id) ?? ride.price
         }));
 
         // Restriction: Bikes only allowed for within-city (distance < 40km)
@@ -192,49 +194,55 @@ const RideSelectionScreen: React.FC = () => {
         }
 
         return list;
-    }, [routeInfo, selected]);
+    }, [routeInfo, selected, verifiedQuotes]);
 
     const selectedRide = dynamicRideTypes.find(r => r.id === selected)!;
 
-    // Fetch a model-backed quote for the selected ride type whenever the route or
-    // the selected type changes, so the price the passenger books is verified by
-    // the trained pricing model rather than only the local instant estimate.
+    // Fetch a model-backed quote for every ride type as soon as the route is known,
+    // so the price shown while browsing and the price shown on Confirm are always
+    // the same verified number for whichever type is selected.
     useEffect(() => {
         if (!routeInfo) {
-            setVerifiedQuote(null);
+            setVerifiedQuotes({});
             return;
         }
         let cancelled = false;
         setQuoteLoading(true);
-        apiService
-            .post('/rides/estimate', {
-                distance: routeInfo.distance,
-                duration: routeInfo.duration,
-                type: selected,
-                pickupLocation: { lat: pickupCoords.latitude, lng: pickupCoords.longitude },
-            })
-            .then((resp: any) => {
-                if (cancelled) return;
-                if (resp?.success && typeof resp.estimatedPrice === 'number') {
-                    setVerifiedQuote({ price: Math.round(resp.estimatedPrice), source: resp.source });
-                } else {
-                    setVerifiedQuote(null);
-                }
-            })
-            .catch(() => {
-                if (!cancelled) setVerifiedQuote(null);
-            })
-            .finally(() => {
-                if (!cancelled) setQuoteLoading(false);
-            });
+        Promise.all(
+            rideTypes.map((rt) =>
+                apiService
+                    .post('/rides/estimate', {
+                        distance: routeInfo.distance,
+                        duration: routeInfo.duration,
+                        type: rt.id,
+                        pickupLocation: { lat: pickupCoords.latitude, lng: pickupCoords.longitude },
+                    })
+                    .then((resp: any) => {
+                        if (resp?.success && typeof resp.estimatedPrice === 'number') {
+                            return [rt.id, { price: Math.round(resp.estimatedPrice), source: resp.source }] as const;
+                        }
+                        return null;
+                    })
+                    .catch(() => null)
+            )
+        ).then((results) => {
+            if (cancelled) return;
+            const map: Record<string, { price: number; source: string }> = {};
+            results.forEach((r) => { if (r) map[r[0]] = r[1]; });
+            setVerifiedQuotes(map);
+        }).finally(() => {
+            if (!cancelled) setQuoteLoading(false);
+        });
         return () => {
             cancelled = true;
         };
-    }, [routeInfo, selected]);
+    }, [routeInfo]);
 
-    // Final price used for the actual booking: prefer the model-verified quote,
-    // fall back to the instant local estimate if the pricing model is unreachable.
-    const finalPrice = verifiedQuote?.price ?? selectedRide.price;
+    // Final price used for the actual booking: prefer the model-verified quote for
+    // whichever type is selected, fall back to the instant local estimate if the
+    // pricing model is unreachable.
+    const selectedQuote = verifiedQuotes[selected];
+    const finalPrice = selectedQuote?.price ?? selectedRide.price;
 
     // -----------------------------------------------------------------------
     // Confirm handler
@@ -395,6 +403,22 @@ const RideSelectionScreen: React.FC = () => {
 
                 {/* Confirm button */}
                 <View style={s.footer}>
+                    {routeInfo && (
+                        <View style={s.breakdownRow}>
+                            <Text style={s.breakdownText}>
+                                {routeInfo.distance.toFixed(1)} km{'  ·  '}
+                                {Math.round(routeInfo.duration)} min{'  ·  '}
+                                Rs {selectedRide.price}
+                            </Text>
+                            <Text style={s.breakdownSource}>
+                                {quoteLoading
+                                    ? 'Verifying price…'
+                                    : selectedQuote?.source === 'ai_model'
+                                        ? 'AI verified price'
+                                        : 'Estimated price'}
+                            </Text>
+                        </View>
+                    )}
                     {selected === 'pink-pass' && !isPinkVerified ? (
                         <TouchableOpacity
                             style={[s.confirmBtn, s.confirmBtnPink]}
@@ -662,6 +686,22 @@ const makeStyles = (t: AppTheme) => {
         footer: {
             paddingTop: 10,
             paddingBottom: Platform.OS === 'ios' ? 30 : 20,
+        },
+        breakdownRow: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 10,
+            paddingHorizontal: 2,
+        },
+        breakdownText: {
+            fontSize: 12,
+            color: t.colors.textSecondary,
+        },
+        breakdownSource: {
+            fontSize: 11,
+            fontWeight: t.fontWeight.bold,
+            color: t.colors.textSecondary,
         },
         confirmBtn: {
             backgroundColor: t.colors.primary,
