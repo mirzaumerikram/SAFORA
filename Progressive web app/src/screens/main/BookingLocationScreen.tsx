@@ -92,6 +92,26 @@ const BookingLocationScreen: React.FC = () => {
 
         setLoading(true);
         try {
+            // Also stash the real coordinates in localStorage as the primary handoff.
+            // Route params round trip through the URL on web and can be lost entirely
+            // (old bookmarked links, browser history), silently leaving RideSelection
+            // with no real location. localStorage is not subject to that at all.
+            if (typeof window !== 'undefined' && window.localStorage) {
+                try {
+                    window.localStorage.setItem('safora_last_booking', JSON.stringify({
+                        pickup: pickupLocation.address,
+                        dropoff: dropoffLocation.address,
+                        pickupLat: pickupLocation.lat,
+                        pickupLng: pickupLocation.lng,
+                        dropoffLat: dropoffLocation.lat,
+                        dropoffLng: dropoffLocation.lng,
+                        savedAt: Date.now(),
+                    }));
+                } catch (e) {
+                    console.warn('[BookingLocation] Failed to stash booking in localStorage:', e);
+                }
+            }
+
             // Navigate to RideSelection with the selected locations and coordinates
             // Coordinates are passed as flat numeric params, not nested objects,
             // since the web build serializes route params into the URL and an

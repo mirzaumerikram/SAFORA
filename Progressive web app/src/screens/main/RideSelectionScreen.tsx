@@ -95,22 +95,41 @@ const resolveCoords = (
     return fallback;
 };
 
+// Reads the most recent booking stashed by BookingLocationScreen right before it
+// navigated here. This is the primary coordinate source, not the URL route params,
+// since localStorage survives a stale/bookmarked URL that dropped its query params
+// entirely, which route params cannot. Only trusted if saved within the last hour,
+// so an old leftover entry from a previous session is not mistaken for this trip.
+const readStoredBooking = (): any => {
+    try {
+        if (typeof window === 'undefined' || !window.localStorage) return null;
+        const raw = window.localStorage.getItem('safora_last_booking');
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed?.savedAt || Date.now() - parsed.savedAt > 60 * 60 * 1000) return null;
+        return parsed;
+    } catch {
+        return null;
+    }
+};
+
 const RideSelectionScreen: React.FC = () => {
     const navigation = useNavigation<any>();
     const route = useRoute<any>();
+    const stored = useState(() => readStoredBooking())[0];
 
-    const [pickup]  = useState<string>(route.params?.pickup  || 'Gulberg II');
-    const [dropoff] = useState<string>(route.params?.dropoff || 'DHA Phase 5');
+    const [pickup]  = useState<string>(stored?.pickup  || route.params?.pickup  || 'Gulberg II');
+    const [dropoff] = useState<string>(stored?.dropoff || route.params?.dropoff || 'DHA Phase 5');
 
     const DEFAULT_PICKUP: Coordinates  = { latitude: 31.5204, longitude: 74.3587 };
     const DEFAULT_DROPOFF: Coordinates = { latitude: 31.4504, longitude: 74.2667 };
 
     const [pickupCoords, setPickupCoords] = useState<Coordinates>(() => resolveCoords(
-        route.params?.pickupLat, route.params?.pickupLng, route.params?.pickupCoords,
+        stored?.pickupLat ?? route.params?.pickupLat, stored?.pickupLng ?? route.params?.pickupLng, route.params?.pickupCoords,
         DEFAULT_PICKUP
     ));
     const [dropoffCoords, setDropoffCoords] = useState<Coordinates>(() => resolveCoords(
-        route.params?.dropoffLat, route.params?.dropoffLng, route.params?.dropoffCoords,
+        stored?.dropoffLat ?? route.params?.dropoffLat, stored?.dropoffLng ?? route.params?.dropoffLng, route.params?.dropoffCoords,
         DEFAULT_DROPOFF
     ));
 
