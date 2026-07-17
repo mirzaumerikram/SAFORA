@@ -78,14 +78,41 @@ const isLocationAllowed = (coords: { latitude: number; longitude: number }) => {
     return inLahore || inSialkot;
 };
 
+// Resolves a coordinate from either the flat lat/lng route params (used on web,
+// since the web build serializes params into the URL and a nested object param
+// round trips back as the literal string "[object Object]") or a nested
+// coords object (used on native, where params are passed in memory, no URL
+// round trip). Falls back to the given default if neither yields real numbers.
+const resolveCoords = (
+    flatLat: unknown, flatLng: unknown,
+    nested: unknown,
+    fallback: Coordinates
+): Coordinates => {
+    const lat = Number(flatLat);
+    const lng = Number(flatLng);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) return { latitude: lat, longitude: lng };
+
+    const n = nested as Partial<Coordinates> | undefined;
+    if (n && Number.isFinite(Number(n.latitude)) && Number.isFinite(Number(n.longitude))) {
+        return { latitude: Number(n.latitude), longitude: Number(n.longitude) };
+    }
+    return fallback;
+};
+
 const RideSelectionScreen: React.FC = () => {
     const navigation = useNavigation<any>();
     const route = useRoute<any>();
 
     const [pickup]  = useState<string>(route.params?.pickup  || 'Gulberg II');
     const [dropoff] = useState<string>(route.params?.dropoff || 'DHA Phase 5');
-    const [pickupCoords] = useState<Coordinates>(route.params?.pickupCoords || { latitude: 31.5204, longitude: 74.3587 });
-    const [dropoffCoords] = useState<Coordinates>(route.params?.dropoffCoords || { latitude: 31.4504, longitude: 74.2667 });
+    const [pickupCoords] = useState<Coordinates>(() => resolveCoords(
+        route.params?.pickupLat, route.params?.pickupLng, route.params?.pickupCoords,
+        { latitude: 31.5204, longitude: 74.3587 }
+    ));
+    const [dropoffCoords] = useState<Coordinates>(() => resolveCoords(
+        route.params?.dropoffLat, route.params?.dropoffLng, route.params?.dropoffCoords,
+        { latitude: 31.4504, longitude: 74.2667 }
+    ));
     const [selected, setSelected] = useState<string>('eco');
     const [booking,  setBooking]  = useState<boolean>(false);
     const [isPinkVerified, setIsPinkVerified] = useState<boolean>(false);

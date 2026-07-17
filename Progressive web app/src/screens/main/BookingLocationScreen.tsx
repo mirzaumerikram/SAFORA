@@ -93,17 +93,16 @@ const BookingLocationScreen: React.FC = () => {
         setLoading(true);
         try {
             // Navigate to RideSelection with the selected locations and coordinates
+            // Coordinates are passed as flat numeric params, not nested objects,
+            // since the web build serializes route params into the URL and an
+            // object param round trips back as the literal string "[object Object]".
             navigation.navigate('RideSelection', {
                 pickup: pickupLocation.address,
                 dropoff: dropoffLocation.address,
-                pickupCoords: {
-                    latitude: pickupLocation.lat,
-                    longitude: pickupLocation.lng,
-                },
-                dropoffCoords: {
-                    latitude: dropoffLocation.lat,
-                    longitude: dropoffLocation.lng,
-                },
+                pickupLat: pickupLocation.lat,
+                pickupLng: pickupLocation.lng,
+                dropoffLat: dropoffLocation.lat,
+                dropoffLng: dropoffLocation.lng,
             });
         } catch (err) {
             console.warn('[BookingLocation] Navigation error:', err);
