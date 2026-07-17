@@ -31,6 +31,16 @@ except Exception as e:
     print(f"[AI Service] Warning: Could not load price_model.pkl: {e}. Will use fallback formula.")
     price_model = None
 
+# Applied as an explicit multiplier on the standard fare, model and fallback formula
+# both use this, rather than trusting the trained model's raw ordinal ride_type
+# feature, which cannot reliably encode a clean per-type discount or premium.
+TYPE_MULTIPLIERS = {
+    'eco':       0.55,  # bike, cheapest option
+    'rickshaw':  0.75,  # between bike and car
+    'standard':  1.0,   # car, baseline
+    'pink-pass': 1.15,  # verified female driver, premium
+}
+
 @pricing_bp.route('/predict', methods=['POST'])
 def predict_price():
     data = request.get_json() or {}
@@ -59,41 +69,32 @@ def predict_price():
                 elif day_of_week == 4: # Friday
                     demand_score = 1 # Medium demand
 
-            # Ride type parsing
+            # Ride type parsing. The model treats ride_type as a raw ordinal number
+            # (0/1/2), which a linear regression cannot reliably turn into a clean
+            # per-type discount or premium, in practice this made eco land more
+            # expensive than rickshaw for some trips, and pink-pass land cheaper
+            # than standard. So the model is only ever asked to predict the
+            # standard (ride_type=0) fare, and every type's real price is that
+            # standard fare times an explicit, easy-to-explain multiplier below.
             ride_type_str = data.get('type', 'standard').lower()
-            if ride_type_str == 'pink-pass':
-                ride_type = 1
-            elif ride_type_str == 'eco':
-                ride_type = 2
-            else:
-                # 'rickshaw' and 'standard' both use the standard feature row below,
-                # since the model was only trained on standard/pink-pass/eco. Rickshaw
-                # gets its own discount applied to the prediction afterward instead,
-                # see RICKSHAW_DISCOUNT, so it does not silently price the same as a car.
-                ride_type = 0
+            type_multiplier = TYPE_MULTIPLIERS.get(ride_type_str, 1.0)
 
             traffic_multiplier = float(data.get('traffic', 1.2))
 
-            # Build feature array to match the training data
+            # Build feature array to match the training data. ride_type is always 0
+            # (standard) here, see comment above.
             features = np.array([[
                 distance_km,
                 duration_min,
                 time_of_day,
                 day_of_week,
                 demand_score,
-                ride_type,
+                0,
                 traffic_multiplier
             ]])
 
-            # Predict using the loaded .pkl model
-            predicted = price_model.predict(features)[0]
-
-            # Rickshaw was never a trained category, apply a flat discount to the
-            # standard prediction so it sits between eco and standard, not equal to
-            # standard.
-            RICKSHAW_DISCOUNT = 0.75
-            if ride_type_str == 'rickshaw':
-                predicted = predicted * RICKSHAW_DISCOUNT
+            # Predict the standard fare, then apply the explicit type multiplier.
+            predicted = price_model.predict(features)[0] * type_multiplier
 
             estimated_price = round(max(50, min(predicted, 3000))) # enforce bounds
 
@@ -108,9 +109,9 @@ def predict_price():
             print(f"[AI Service] ML prediction failed: {e}")
             
     # Fallback math formula if model fails or isn't loaded
+    fallback_type = data.get('type', 'standard').lower()
     estimated_price = (distance_km * 35) + (duration_min * 5) + 50
-    if data.get('type', 'standard').lower() == 'rickshaw':
-        estimated_price = estimated_price * 0.75
+    estimated_price = estimated_price * TYPE_MULTIPLIERS.get(fallback_type, 1.0)
     estimated_price = round(estimated_price)
     return jsonify({
         'estimated_price': estimated_price,
