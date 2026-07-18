@@ -130,15 +130,22 @@ const SaforaMap: React.FC<SaforaMapProps> = ({
         loadGoogleMapsScript(MAPS_KEY).then(() => setMapReady(true));
     }, []);
 
-    // ── 3. Initialise the map once div + api + location are all ready ─────────
+    // ── 3. Initialise the map once div + api are ready ─────────────────────────
+    // Pickup/dropoff are already known synchronously (they come from the previous
+    // screen), so when they're set the map center doesn't depend on the rider's own
+    // GPS fix at all. Gating map creation on `loading` (which waits on
+    // getCurrentPosition, sometimes 3-4s with enableHighAccuracy) delayed drawing
+    // the route/markers the rider is actually waiting on for no reason. Only wait
+    // for the rider's own location when there are no custom points to center on.
     useEffect(() => {
         if (Platform.OS !== 'web') return;
-        if (!mapReady || !mapDivRef.current || loading) return;
+        const hasCustomPoints = !!(pickupLocation || dropoffLocation);
+        if (!mapReady || !mapDivRef.current || (loading && !hasCustomPoints)) return;
         if (mapObjRef.current) return; // already created
 
         const initMap = () => {
             if (mapObjRef.current) return;
-            
+
             // Final safety check: if the script is "loaded" but the object isn't ready
             if (typeof google === 'undefined' || !google.maps || !google.maps.Map) {
                 console.warn('[SaforaMap] Google Maps API not fully initialized yet. Retrying...');
@@ -146,7 +153,7 @@ const SaforaMap: React.FC<SaforaMapProps> = ({
                 return;
             }
 
-            const center = userLocation || LAHORE;
+            const center = userLocation || pickupLocation || LAHORE;
 
             const map = new google.maps.Map(mapDivRef.current!, {
                 center:    { lat: center.latitude, lng: center.longitude },

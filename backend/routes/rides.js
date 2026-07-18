@@ -144,6 +144,72 @@ router.post('/estimate', auth, async (req, res) => {
     }
 });
 
+// @route   POST /api/rides/estimate-batch
+// @desc    Quote every ride type for one trip in a single call. The ride-selection
+//          screen used to call /estimate once per ride type (4 parallel requests),
+//          which computed live demand (online drivers vs active rides — a DB read)
+//          separately for each request. Those 4 reads don't happen atomically, so
+//          if the live counts shifted between them (a driver going on/offline, a
+//          ride request landing) each ride type could be priced against a
+//          different demand snapshot — the rider would see inconsistent-looking
+//          prices with no single moment they were all "correct" together.
+//          Computing demand once and reusing it for all 4 types guarantees every
+//          ride type in the list is priced against the exact same real-time signal.
+// @access  Private (Passenger)
+router.post('/estimate-batch', auth, async (req, res) => {
+    try {
+        const { distance, duration, pickupLocation } = req.body;
+        if (typeof distance !== 'number' || typeof duration !== 'number') {
+            return res.status(400).json({ success: false, message: 'distance and duration (numbers) are required' });
+        }
+
+        let demandInfo = { demand_level: 'medium' };
+        if (pickupLocation && typeof pickupLocation.lat === 'number' && typeof pickupLocation.lng === 'number') {
+            try {
+                demandInfo = await computeDemandLevel(pickupLocation.lat, pickupLocation.lng);
+            } catch (demandErr) {
+                console.error('[PRICING] /estimate-batch: demand lookup failed, defaulting to medium:', demandErr.message);
+            }
+        }
+
+        const types = ['eco', 'rickshaw', 'standard', 'pink-pass'];
+        const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:5001';
+        const timeOfDay = new Date().getHours();
+        const dayOfWeek = new Date().getDay();
+
+        const quotes = {};
+        await Promise.all(types.map(async (type) => {
+            try {
+                const pricingResponse = await axios.post(`${aiServiceUrl}/api/pricing/predict`, {
+                    distance,
+                    duration,
+                    time_of_day: timeOfDay,
+                    day_of_week: dayOfWeek,
+                    demand_level: demandInfo.demand_level,
+                    type,
+                }, { timeout: 3000 });
+
+                quotes[type] = {
+                    price: pricingResponse.data.estimated_price,
+                    breakdown: pricingResponse.data.breakdown,
+                    source: 'ai_model',
+                };
+            } catch (pricingErr) {
+                console.error(`[PRICING] /estimate-batch: AI service unreachable for ${type}, using fallback price:`, pricingErr.message);
+                quotes[type] = {
+                    price: Math.round((distance * 35) + (duration * 5) + 50),
+                    breakdown: null,
+                    source: 'server_formula',
+                };
+            }
+        }));
+
+        res.json({ success: true, quotes, demandLevel: demandInfo.demand_level });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Server error', error: error.message });
+    }
+});
+
 // @route   POST /api/rides/request
 // @desc    Request a new ride
 // @access  Private (Passenger)

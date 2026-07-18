@@ -217,6 +217,11 @@ const RideSelectionScreen: React.FC = () => {
     // formulas producing two different prices for the same ride type.
     const [verifiedQuotes, setVerifiedQuotes] = useState<Record<string, { price: number; source: string }>>({});
     const [quoteLoading, setQuoteLoading] = useState<boolean>(false);
+    // The routeInfo that verifiedQuotes was actually fetched for. Compared against
+    // the current routeInfo below so a stale quote (or the pre-fetch gap where
+    // quoteLoading is still false because the fetch effect hasn't run yet) can
+    // never render as if it were the current answer.
+    const [quotesRouteInfo, setQuotesRouteInfo] = useState<{ distance: number; duration: number } | null>(null);
 
     useEffect(() => {
         const checkPinkPass = async () => {
@@ -266,28 +271,26 @@ const RideSelectionScreen: React.FC = () => {
         return Math.max(finalPrice, typeId === 'eco' ? 50 : typeId === 'rickshaw' ? 80 : 150);
     };
 
-    // Update rideTypes with dynamic data. Show the verified quote once it has
-    // loaded; while it's still in flight, price is null (rendered as a loading
-    // skeleton) rather than a locally-computed guess, so only one number is ever
-    // shown per ride type instead of a wrong one flashing before the real one.
-    // The local formula/hardcoded default is only used as a last-resort fallback
-    // once the route is known, a fetch has actually finished, and the backend
-    // still didn't return a quote — NOT merely whenever quoteLoading happens to
-    // be false, since quoteLoading only turns true after routeInfo exists. Before
-    // routeInfo arrives (map still computing the route), quoteLoading is still
-    // false too, and skipping this routeInfo check let the hardcoded per-type
-    // default (Rs 120/180/280/250) flash for that entire window instead of a
-    // spinner.
+    // Update rideTypes with dynamic data. Price is null (rendered as a loading
+    // spinner) until verifiedQuotes has actually been fetched FOR THE CURRENT
+    // routeInfo — checked via quotesRouteInfo rather than quoteLoading, since
+    // quoteLoading only flips true once the fetch effect runs a render *after*
+    // routeInfo is set, leaving a one-render gap where routeInfo is set,
+    // quoteLoading is still false, and verifiedQuotes is still empty/stale. That
+    // gap used to render the local formula/hardcoded price, which then changed
+    // again once the real quote arrived — the flash the rider was seeing.
+    const quotesMatchRoute = !!routeInfo && quotesRouteInfo === routeInfo;
+
     const dynamicRideTypes = useMemo(() => {
         let list = rideTypes.map(ride => ({
             ...ride,
-            price: verifiedQuotes[ride.id]?.price ?? (routeInfo && !quoteLoading ? (getPricing(ride.id) ?? ride.price) : null)
+            price: quotesMatchRoute ? (verifiedQuotes[ride.id]?.price ?? getPricing(ride.id) ?? ride.price) : null
         }));
 
         // Restriction: Bikes only allowed for within-city (distance < 40km)
         if (routeInfo && routeInfo.distance > 40) {
             list = list.filter(r => r.id !== 'eco');
-            
+
             // If Eco was selected but now hidden, auto-select Standard
             if (selected === 'eco') {
                 setSelected('standard');
@@ -295,7 +298,7 @@ const RideSelectionScreen: React.FC = () => {
         }
 
         return list;
-    }, [routeInfo, selected, verifiedQuotes]);
+    }, [quotesMatchRoute, routeInfo, selected, verifiedQuotes]);
 
     const selectedRide = dynamicRideTypes.find(r => r.id === selected)!;
 
@@ -305,35 +308,43 @@ const RideSelectionScreen: React.FC = () => {
     useEffect(() => {
         if (!routeInfo) {
             setVerifiedQuotes({});
+            setQuotesRouteInfo(null);
             return;
         }
+        const forRouteInfo = routeInfo;
         let cancelled = false;
         setQuoteLoading(true);
-        Promise.all(
-            rideTypes.map((rt) =>
-                apiService
-                    .post('/rides/estimate', {
-                        distance: routeInfo.distance,
-                        duration: routeInfo.duration,
-                        type: rt.id,
-                        pickupLocation: { lat: pickupCoords.latitude, lng: pickupCoords.longitude },
-                    })
-                    .then((resp: any) => {
-                        if (resp?.success && typeof resp.estimatedPrice === 'number') {
-                            return [rt.id, { price: Math.round(resp.estimatedPrice), source: resp.source }] as const;
+        // Single batched call so every ride type is priced against the exact same
+        // live-demand snapshot — see backend rides.js /estimate-batch for why 4
+        // separate calls (one per ride type) could return inconsistent prices.
+        apiService
+            .post('/rides/estimate-batch', {
+                distance: routeInfo.distance,
+                duration: routeInfo.duration,
+                pickupLocation: { lat: pickupCoords.latitude, lng: pickupCoords.longitude },
+            })
+            .then((resp: any) => {
+                if (cancelled) return;
+                const map: Record<string, { price: number; source: string }> = {};
+                if (resp?.success && resp.quotes) {
+                    Object.keys(resp.quotes).forEach((typeId) => {
+                        const q = resp.quotes[typeId];
+                        if (q && typeof q.price === 'number') {
+                            map[typeId] = { price: Math.round(q.price), source: q.source };
                         }
-                        return null;
-                    })
-                    .catch(() => null)
-            )
-        ).then((results) => {
-            if (cancelled) return;
-            const map: Record<string, { price: number; source: string }> = {};
-            results.forEach((r) => { if (r) map[r[0]] = r[1]; });
-            setVerifiedQuotes(map);
-        }).finally(() => {
-            if (!cancelled) setQuoteLoading(false);
-        });
+                    });
+                }
+                setVerifiedQuotes(map);
+                setQuotesRouteInfo(forRouteInfo);
+            })
+            .catch(() => {
+                if (cancelled) return;
+                setVerifiedQuotes({});
+                setQuotesRouteInfo(forRouteInfo);
+            })
+            .finally(() => {
+                if (!cancelled) setQuoteLoading(false);
+            });
         return () => {
             cancelled = true;
         };
