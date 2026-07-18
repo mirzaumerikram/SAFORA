@@ -139,35 +139,63 @@ const RideSelectionScreen: React.FC = () => {
     // city with no visible error. As a safety net, geocode the typed address text
     // instead once the Maps script is available, so a stale link degrades to a
     // real lookup rather than a wrong, silent default.
+    //
+    // `coordsSettled` gates the map/route computation (and therefore every price
+    // quote downstream of it) until coordinates are final. Without this, the map
+    // would draw a route against the fallback point first, fire onRouteInfo with
+    // that distance, fetch quotes for it, and then draw a SECOND route once the
+    // geocoded coordinates arrive — showing the rider a second, different price a
+    // moment later. Coordinates only ever change once here (fallback -> geocoded),
+    // so gating on this avoids re-running the whole pricing pipeline mid-browse.
+    const [coordsSettled, setCoordsSettled] = useState<boolean>(() => {
+        const pickupIsFallback  = pickupCoords.latitude  === DEFAULT_PICKUP.latitude  && pickupCoords.longitude  === DEFAULT_PICKUP.longitude;
+        const dropoffIsFallback = dropoffCoords.latitude === DEFAULT_DROPOFF.latitude && dropoffCoords.longitude === DEFAULT_DROPOFF.longitude;
+        return !pickupIsFallback && !dropoffIsFallback;
+    });
+
     useEffect(() => {
         const pickupIsFallback  = pickupCoords.latitude  === DEFAULT_PICKUP.latitude  && pickupCoords.longitude  === DEFAULT_PICKUP.longitude;
         const dropoffIsFallback = dropoffCoords.latitude === DEFAULT_DROPOFF.latitude && dropoffCoords.longitude === DEFAULT_DROPOFF.longitude;
-        if (!pickupIsFallback && !dropoffIsFallback) return;
+        if (!pickupIsFallback && !dropoffIsFallback) {
+            setCoordsSettled(true);
+            return;
+        }
 
         let cancelled = false;
         let attempts = 0;
+
+        const finish = () => { if (!cancelled) setCoordsSettled(true); };
 
         const tryGeocode = () => {
             if (cancelled) return;
             const g = (window as any).google;
             if (!g?.maps?.Geocoder) {
                 attempts += 1;
-                if (attempts < 20) setTimeout(tryGeocode, 300);
+                if (attempts < 20) { setTimeout(tryGeocode, 300); return; }
+                finish(); // give up — settle with the fallback rather than hang forever
                 return;
             }
             const geocoder = new g.maps.Geocoder();
+            const pending = [pickupIsFallback, dropoffIsFallback].filter(Boolean).length;
+            let done = 0;
+            const onOne = () => { done += 1; if (done >= pending) finish(); };
+
             if (pickupIsFallback) {
                 geocoder.geocode({ address: pickup }, (results: any, status: string) => {
-                    if (cancelled || status !== 'OK' || !results?.[0]) return;
-                    const loc = results[0].geometry.location;
-                    setPickupCoords({ latitude: loc.lat(), longitude: loc.lng() });
+                    if (!cancelled && status === 'OK' && results?.[0]) {
+                        const loc = results[0].geometry.location;
+                        setPickupCoords({ latitude: loc.lat(), longitude: loc.lng() });
+                    }
+                    onOne();
                 });
             }
             if (dropoffIsFallback) {
                 geocoder.geocode({ address: dropoff }, (results: any, status: string) => {
-                    if (cancelled || status !== 'OK' || !results?.[0]) return;
-                    const loc = results[0].geometry.location;
-                    setDropoffCoords({ latitude: loc.lat(), longitude: loc.lng() });
+                    if (!cancelled && status === 'OK' && results?.[0]) {
+                        const loc = results[0].geometry.location;
+                        setDropoffCoords({ latitude: loc.lat(), longitude: loc.lng() });
+                    }
+                    onOne();
                 });
             }
         };
@@ -238,12 +266,16 @@ const RideSelectionScreen: React.FC = () => {
         return Math.max(finalPrice, typeId === 'eco' ? 50 : typeId === 'rickshaw' ? 80 : 150);
     };
 
-    // Update rideTypes with dynamic data. Prefer the model-verified quote for each
-    // type once it has loaded, so this list always agrees with the Confirm button.
+    // Update rideTypes with dynamic data. Show the verified quote once it has
+    // loaded; while it's still in flight, price is null (rendered as a loading
+    // skeleton) rather than a locally-computed guess, so only one number is ever
+    // shown per ride type instead of a wrong one flashing before the real one.
+    // The local formula is only used as a fallback once loading has finished and
+    // the backend genuinely couldn't be reached.
     const dynamicRideTypes = useMemo(() => {
         let list = rideTypes.map(ride => ({
             ...ride,
-            price: verifiedQuotes[ride.id]?.price ?? getPricing(ride.id) ?? ride.price
+            price: verifiedQuotes[ride.id]?.price ?? (quoteLoading ? null : (getPricing(ride.id) ?? ride.price))
         }));
 
         // Restriction: Bikes only allowed for within-city (distance < 40km)
@@ -373,15 +405,21 @@ const RideSelectionScreen: React.FC = () => {
         <View style={s.root}>
             {/* ── MAP (top ~45%) ─────────────────────────────────────── */}
             <View style={s.mapWrapper}>
-                <SaforaMap 
-                    type="home"
-                    pickupLocation={pickupCoords}
-                    dropoffLocation={dropoffCoords}
-                    onRouteInfo={(info) => {
-                        console.log('[RideSelection] Received route info:', info);
-                        setRouteInfo(info);
-                    }}
-                />
+                {coordsSettled ? (
+                    <SaforaMap
+                        type="home"
+                        pickupLocation={pickupCoords}
+                        dropoffLocation={dropoffCoords}
+                        onRouteInfo={(info) => {
+                            console.log('[RideSelection] Received route info:', info);
+                            setRouteInfo(info);
+                        }}
+                    />
+                ) : (
+                    <View style={s.mapLoading}>
+                        <ActivityIndicator color={theme.colors.primary} />
+                    </View>
+                )}
 
                 {/* Back button floating over map */}
                 <TouchableOpacity
@@ -450,9 +488,13 @@ const RideSelectionScreen: React.FC = () => {
 
                                 {/* Price */}
                                 <View style={s.priceCol}>
-                                    <Text style={[s.priceText, isSelected && !isPink && s.priceTextActive, isPink && s.priceTextPink]}>
-                                        Rs {ride.price}
-                                    </Text>
+                                    {ride.price === null ? (
+                                        <ActivityIndicator size="small" color={theme.colors.textSecondary} />
+                                    ) : (
+                                        <Text style={[s.priceText, isSelected && !isPink && s.priceTextActive, isPink && s.priceTextPink]}>
+                                            Rs {ride.price}
+                                        </Text>
+                                    )}
                                 </View>
                             </TouchableOpacity>
                         );
@@ -465,8 +507,8 @@ const RideSelectionScreen: React.FC = () => {
                         <View style={s.breakdownRow}>
                             <Text style={s.breakdownText}>
                                 {routeInfo.distance.toFixed(1)} km{'  ·  '}
-                                {Math.round(routeInfo.duration)} min{'  ·  '}
-                                Rs {selectedRide.price}
+                                {Math.round(routeInfo.duration)} min
+                                {selectedRide.price !== null && <>{'  ·  '}Rs {selectedRide.price}</>}
                             </Text>
                             <Text style={s.breakdownSource}>
                                 {quoteLoading
@@ -534,6 +576,12 @@ const makeStyles = (t: AppTheme) => {
         mapWrapper: {
             height: MAP_HEIGHT,
             overflow: 'hidden',
+        },
+        mapLoading: {
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: t.colors.cardSecondary,
         },
 
         // Back button

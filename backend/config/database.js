@@ -1,4 +1,11 @@
 const mongoose = require('mongoose');
+const dns = require('dns');
+
+// On some Windows networks, Node's own DNS resolver fails SRV lookups
+// ("querySrv ECONNREFUSED") for mongodb+srv:// URIs even though the OS
+// resolver handles the same query fine. Pinning to public DNS servers here
+// avoids that without needing the connection string itself to change.
+dns.setServers(['8.8.8.8', '1.1.1.1', ...dns.getServers()]);
 
 const connectDB = async () => {
     try {

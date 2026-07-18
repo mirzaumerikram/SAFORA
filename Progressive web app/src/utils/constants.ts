@@ -2,15 +2,20 @@
 // Production: Railway backend (live, accessible anywhere)
 // Local dev fallback: Wi-Fi IP for testing on same network
 const RAILWAY_URL = 'https://safora-production-f5ce.up.railway.app/api';
-const LOCAL_IP    = '192.168.43.47';
+// Matches any private LAN IP (192.168.x.x, 10.x.x.x, 172.16-31.x.x) — derived
+// from whatever host the page was actually loaded from, not a hardcoded IP,
+// so this doesn't go stale every time the dev machine's Wi-Fi network changes
+// (a hardcoded IP here silently broke local-network testing previously).
+const PRIVATE_LAN_IP = /^(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})$/;
 
 const getApiBase = (): string => {
     if (typeof window !== 'undefined') {
         const h = window.location.hostname;
         // Running locally on PC — still use Railway so admin dashboard works
         if (h === 'localhost' || h === '127.0.0.1') return RAILWAY_URL;
-        // Running on phone browser on same Wi-Fi
-        if (h === LOCAL_IP) return `http://${LOCAL_IP}:5000/api`;
+        // Running on phone/another device browser on the same Wi-Fi as the dev
+        // machine — talk to that machine's own backend, not production.
+        if (PRIVATE_LAN_IP.test(h)) return `http://${h}:5000/api`;
     }
     // React Native native app — use Railway
     return RAILWAY_URL;

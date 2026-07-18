@@ -121,7 +121,6 @@ router.post('/estimate', auth, async (req, res) => {
                 day_of_week: new Date().getDay(),
                 demand_level: demandInfo.demand_level,
                 type,
-                traffic: 1.0
             }, { timeout: 3000 });
 
             return res.json({
@@ -191,6 +190,17 @@ router.post('/request', auth, async (req, res) => {
         // then a plain formula as a last resort.
         let estimatedPrice = clientPrice || Math.round((distance * 35) + (estimatedDuration * 5) + 50);
         let priceSource = clientPrice ? 'client_formula' : 'server_formula';
+        // Cost composition behind estimatedPrice, shown on the receipt screen.
+        // Kept in sync with whatever estimatedPrice ends up being (see below) so
+        // rows always add up to the total, even in the AI-service-unreachable
+        // fallback case.
+        let priceBreakdown = {
+            base_fare: 50,
+            distance_cost: Math.round((estimatedPrice - 50) * 0.7),
+            time_cost: Math.round((estimatedPrice - 50) * 0.3),
+            demand_charge: 0,
+            type_multiplier: 1,
+        };
 
         // Real demand signal from the actual marketplace right now: online drivers
         // versus active ride requests near the pickup point, not a fixed placeholder.
@@ -202,9 +212,15 @@ router.post('/request', auth, async (req, res) => {
         }
 
         try {
-            // The trained pricing model is the source of truth for what gets charged.
-            // It is consulted on every request, not only when the client omits a price,
-            // so the client-side number shown while browsing is always re-verified here.
+            // The trained pricing model is used to VALIDATE the price the rider was
+            // just quoted on the selection screen (via /rides/estimate, seconds
+            // earlier), not to silently replace it. Live demand can shift between
+            // that quote and this request, so blindly overwriting with a fresh
+            // server number made the rider see a different price than the one they
+            // clicked Confirm on. Only fall back to the freshly-computed price if
+            // the client didn't supply one, or if it's wildly off (>25% either way
+            // from what the server would charge right now) — a sign of a stale or
+            // tampered quote, not ordinary demand drift.
             const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:5001';
             const pricingResponse = await axios.post(`${aiServiceUrl}/api/pricing/predict`, {
                 distance,
@@ -213,11 +229,28 @@ router.post('/request', auth, async (req, res) => {
                 day_of_week: new Date().getDay(),
                 demand_level: demandInfo.demand_level,
                 type,
-                traffic: 1.0
             }, { timeout: 3000 });
-            if (pricingResponse.data?.estimated_price) {
-                estimatedPrice = pricingResponse.data.estimated_price;
-                priceSource = 'ai_model';
+            const serverPrice = pricingResponse.data?.estimated_price;
+            if (serverPrice) {
+                const withinTolerance = clientPrice && Math.abs(clientPrice - serverPrice) <= 0.25 * serverPrice;
+                estimatedPrice = withinTolerance ? clientPrice : serverPrice;
+                priceSource = withinTolerance ? 'client_quote_verified' : 'ai_model';
+
+                // Rescale the AI service's breakdown (which sums to serverPrice)
+                // so it sums to whichever number we actually locked in as
+                // estimatedPrice — keeps the receipt's line items honest even
+                // when the client-quoted price was used instead of serverPrice.
+                const serverBreakdown = pricingResponse.data?.breakdown;
+                if (serverBreakdown) {
+                    const scale = estimatedPrice / serverPrice;
+                    priceBreakdown = {
+                        base_fare: Math.round(serverBreakdown.base_fare * scale * 100) / 100,
+                        distance_cost: Math.round(serverBreakdown.distance_cost * scale * 100) / 100,
+                        time_cost: Math.round(serverBreakdown.time_cost * scale * 100) / 100,
+                        demand_charge: Math.round(serverBreakdown.demand_charge * scale * 100) / 100,
+                        type_multiplier: serverBreakdown.type_multiplier,
+                    };
+                }
             }
         } catch (pricingErr) {
             console.error('[PRICING] AI service unreachable, using fallback price:', pricingErr.message);
@@ -238,6 +271,7 @@ router.post('/request', auth, async (req, res) => {
             distance,
             estimatedDuration,
             estimatedPrice,
+            priceBreakdown,
             type: type || 'standard',
             status: 'requested'
         });

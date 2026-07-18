@@ -1,7 +1,19 @@
 const { Resend } = require('resend');
 
-// Initialize Resend with API Key
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Constructing Resend eagerly with no key throws at require-time and takes
+// down the whole server on boot, even for routes that never send email. Only
+// construct it once a key is actually needed, so a missing RESEND_API_KEY in
+// dev breaks email sending, not server startup.
+let resend = null;
+function getResendClient() {
+    if (!process.env.RESEND_API_KEY) {
+        throw new Error('RESEND_API_KEY is not set — email sending is unavailable');
+    }
+    if (!resend) {
+        resend = new Resend(process.env.RESEND_API_KEY);
+    }
+    return resend;
+}
 
 const sendVerificationEmail = async (toEmail, name, token) => {
     const verifyUrl = `${process.env.APP_BASE_URL}/api/auth/verify-email/${token}`;
@@ -60,7 +72,7 @@ const sendVerificationEmail = async (toEmail, name, token) => {
     </html>`;
 
     try {
-        const { data, error } = await resend.emails.send({
+        const { data, error } = await getResendClient().emails.send({
             from: 'SAFORA <noreply@safora.me>',
             to: toEmail,
             subject: 'Verify your SAFORA account ✓',
@@ -135,7 +147,7 @@ const sendAdminOTPEmail = async (toEmail, name, otp) => {
     </html>`;
 
     try {
-        const { data, error } = await resend.emails.send({
+        const { data, error } = await getResendClient().emails.send({
             from: 'SAFORA Admin <admin@safora.me>',
             to: toEmail,
             subject: `🔐 Admin Login Code: ${otp}`,

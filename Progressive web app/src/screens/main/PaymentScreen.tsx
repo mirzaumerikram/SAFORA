@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity,
     ActivityIndicator, Alert, ScrollView,
@@ -13,20 +13,43 @@ type PayMethod = 'cash' | 'card';
 const PaymentScreen: React.FC = () => {
     const navigation = useNavigation<any>();
     const route = useRoute<any>();
-    const { rideId, estimatedPrice, pickup, dropoff, rideType, rideName } = route.params || {};
+    const { rideId, estimatedPrice: navPrice, pickup, dropoff, rideType, rideName } = route.params || {};
 
     const { theme } = useAppTheme();
     const s = useMemo(() => makeStyles(theme), [theme]);
 
     const [method, setMethod] = useState<PayMethod>('cash');
     const [loading, setLoading] = useState(false);
+    const [rideLoading, setRideLoading] = useState(true);
+    const [rideData, setRideData] = useState<any>(null);
 
-    // Fare breakdown derived from estimatedPrice (fallback to design values)
-    const total = estimatedPrice || 185;
-    const baseFare = 140;
-    const timeCharge = 54;
-    const safetyFee = 9;
-    const promoDiscount = 18;
+    useEffect(() => {
+        const fetchRide = async () => {
+            if (!rideId) { setRideLoading(false); return; }
+            try {
+                const res: any = await apiService.get(`/rides/${rideId}`);
+                if (res.success && res.ride) setRideData(res.ride);
+            } catch (err) {
+                console.log('Failed to fetch ride for payment summary', err);
+            } finally {
+                setRideLoading(false);
+            }
+        };
+        fetchRide();
+    }, [rideId]);
+
+    // Fare breakdown — the real cost composition stored on the ride
+    // (ai-service/services/pricing.py), not invented numbers. `total` is null
+    // while loading (rendered as a spinner) rather than a nav-param guess, so
+    // this screen doesn't flash one number and then swap to another.
+    const total: number | null = rideLoading ? null : (rideData?.estimatedPrice ?? navPrice ?? null);
+    const distance = rideData ? parseFloat((rideData.distance || 0).toFixed(1)) : 0;
+    const duration = rideData ? Math.round(rideData.estimatedDuration || 0) : 0;
+    const breakdown = rideData?.priceBreakdown;
+    const baseFare = Math.round(breakdown?.base_fare ?? 0);
+    const distanceCost = Math.round(breakdown?.distance_cost ?? 0);
+    const timeCharge = Math.round(breakdown?.time_cost ?? 0);
+    const demandCharge = Math.round(breakdown?.demand_charge ?? 0);
 
     const handleConfirm = async () => {
         setLoading(true);
@@ -72,7 +95,11 @@ const PaymentScreen: React.FC = () => {
 
                 {/* Large Amount Hero */}
                 <View style={s.heroBlock}>
-                    <Text style={s.heroAmount}>RS {total}</Text>
+                    {total === null ? (
+                        <ActivityIndicator color={theme.colors.primary} />
+                    ) : (
+                        <Text style={s.heroAmount}>RS {total}</Text>
+                    )}
                     <Text style={s.tripMeta}>
                         Trip #{rideId ? `SF-${rideId}` : 'SF-2024-00843'} · Cash Payment
                     </Text>
@@ -80,29 +107,37 @@ const PaymentScreen: React.FC = () => {
 
                 {/* Fare Breakdown */}
                 <Text style={s.sectionLabel}>FARE BREAKDOWN</Text>
-                <View style={s.breakdownCard}>
-                    <View style={s.breakRow}>
-                        <Text style={s.breakLabel}>Base Fare (5.8 km)</Text>
-                        <Text style={s.breakValue}>Rs {baseFare}</Text>
+                {rideLoading ? (
+                    <View style={[s.breakdownCard, { alignItems: 'center', padding: 30 }]}>
+                        <ActivityIndicator color={theme.colors.primary} />
                     </View>
-                    <View style={s.breakRow}>
-                        <Text style={s.breakLabel}>Time Charge (18 min)</Text>
-                        <Text style={s.breakValue}>Rs {timeCharge}</Text>
+                ) : (
+                    <View style={s.breakdownCard}>
+                        <View style={s.breakRow}>
+                            <Text style={s.breakLabel}>Base Fare</Text>
+                            <Text style={s.breakValue}>Rs {baseFare}</Text>
+                        </View>
+                        <View style={s.breakRow}>
+                            <Text style={s.breakLabel}>Distance Charge ({distance} km)</Text>
+                            <Text style={s.breakValue}>Rs {distanceCost}</Text>
+                        </View>
+                        <View style={s.breakRow}>
+                            <Text style={s.breakLabel}>Time Charge ({duration} min)</Text>
+                            <Text style={s.breakValue}>Rs {timeCharge}</Text>
+                        </View>
+                        {demandCharge > 0 && (
+                            <View style={s.breakRow}>
+                                <Text style={[s.breakLabel, { color: '#EAB308', fontWeight: '800' }]}>⚡ Demand Surcharge</Text>
+                                <Text style={[s.breakValue, { color: '#EAB308' }]}>+Rs {demandCharge}</Text>
+                            </View>
+                        )}
+                        <View style={s.breakDivider} />
+                        <View style={s.breakRow}>
+                            <Text style={s.totalLabel}>Total</Text>
+                            <Text style={s.totalValue}>Rs {total ?? (baseFare + distanceCost + timeCharge + demandCharge)}</Text>
+                        </View>
                     </View>
-                    <View style={s.breakRow}>
-                        <Text style={s.breakLabel}>🛡️ SAFORA Safety Fee</Text>
-                        <Text style={s.breakValue}>Rs {safetyFee}</Text>
-                    </View>
-                    <View style={s.breakRow}>
-                        <Text style={s.promoLabel}>Promo Code SAF10</Text>
-                        <Text style={s.promoValue}>-Rs {promoDiscount}</Text>
-                    </View>
-                    <View style={s.breakDivider} />
-                    <View style={s.breakRow}>
-                        <Text style={s.totalLabel}>Total</Text>
-                        <Text style={s.totalValue}>Rs {total}</Text>
-                    </View>
-                </View>
+                )}
 
                 {/* Payment Method */}
                 <Text style={s.sectionLabel}>PAYMENT METHOD</Text>

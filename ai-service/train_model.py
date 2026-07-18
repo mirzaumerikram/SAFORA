@@ -3,168 +3,177 @@ SAFORA AI Pricing Model — Training Script
 ==========================================
 FYP26-CS-G11 | SAFORA — Safe Ride-Hailing for Women in Pakistan
 
-Generates 500 synthetic ride records based on real Pakistani ride-hailing
-pricing patterns and trains a Linear Regression model.
+Fare architecture
+------------------
+The fare shown to a rider has two parts:
+
+  1. A transparent formula (BASE_FARE + RATE_PER_KM*distance + RATE_PER_MIN*duration)
+     multiplied by a per-ride-type rate multiplier — see services/pricing.py.
+
+  2. Real-time surge, taken entirely from the live marketplace signal already
+     computed by the backend (online drivers vs active ride requests right now)
+     plus a fixed rush-hour heuristic — see services/pricing.py.
+
+What this script does
+----------------------
+This script does NOT do (2). We initially planned to train a model that
+predicts a time-of-day demand multiplier from the Kaggle "Uber and Lyft
+Dataset Boston, MA" data (ravi72munde/uber-lyft-cab-prices, cab_rides.csv),
+but inspecting the data first showed that's not viable: `surge_multiplier`
+is 1.0 for 97%+ of rows (exactly 1.0 for 100% of Uber rows — Uber's real
+surge isn't exposed in this export), and the hour-of-day average of
+price-vs-route-median ratio is flat (1.024-1.030 across all 24 hours).
+There is no learnable temporal demand pattern in this dataset. Training a
+"demand" model on it anyway would just produce a model that always predicts
+~1.0 — not a real finding, and not something we want to present as "the AI
+learned demand patterns" when it demonstrably didn't.
+
+What the data IS good for: within each ride category, price is strongly
+explained by distance alone (R^2 = 0.40-0.83 depending on category — checked
+before writing this). So instead, this script uses real regression fits of
+price-vs-distance, per category, to empirically derive SAFORA's per-type
+rate multipliers (TYPE_MULTIPLIERS in services/pricing.py) — replacing
+hand-picked numbers with numbers grounded in a real dataset, R^2 included.
 
 Usage:
     cd ai-service
     python train_model.py
 
+Input (place before running):
+    models/cab_rides.csv        — raw Kaggle dataset (download manually)
+
 Output:
-    models/price_model.pkl   — trained model
-    models/training_data.csv — synthetic dataset (for documentation)
+    models/fare_calibration.pkl — {ride_type: {multiplier, r2, rate_per_km_usd,
+                                    base_usd, n_samples}}, loaded by
+                                    services/pricing.py at startup
+    models/training_data.csv    — cleaned sample of the real rows used (for
+                                    the SDD appendix / defence — real data,
+                                    not synthetic)
 """
 
 import os
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_absolute_error, r2_score
-from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import r2_score
 import joblib
 
-# ─── Seed for reproducibility ────────────────────────────────────────────────
-np.random.seed(42)
-N = 500  # number of synthetic training samples
+RAW_CSV_PATH = os.path.join('models', 'cab_rides.csv')
+CALIBRATION_PATH = os.path.join('models', 'fare_calibration.pkl')
+TRAINING_DATA_PATH = os.path.join('models', 'training_data.csv')
+
+# Reference distance (km) at which each category's fitted line is compared,
+# to derive a single multiplier relative to 'standard'. Chosen as a
+# mid-range trip, inside the distance range actually present in the data.
+REFERENCE_DISTANCE_KM = 3.0
+
+# Which Kaggle ride names count as which SAFORA ride type. Only 'eco' and
+# 'standard' have a genuine equivalent in the source data — Uber/Lyft's
+# "Black"/"Lux" tiers are a *luxury vehicle class*, which is not what
+# 'pink-pass' means in SAFORA (same vehicle class as standard, just a
+# verified female driver). Mapping pink-pass to luxury-car fares would
+# conflate "safety premium" with "bigger car", so pink-pass and rickshaw
+# (no Boston equivalent either) are deliberately NOT regression-derived —
+# see the manual multipliers applied after this dict below.
+TYPE_GROUPS = {
+    'eco':       ['UberPool', 'Shared'],          # cheapest / shared tier
+    'standard':  ['UberX', 'Lyft'],                 # baseline tier
+}
+
+# Business-set premiums for ride types with no honest Kaggle equivalent.
+# Kept modest and separate from vehicle-class pricing on purpose — a safety
+# feature shouldn't be priced like a luxury car.
+MANUAL_MULTIPLIERS = {
+    'pink-pass': 1.15,  # verified female driver, same vehicle class as standard
+    'rickshaw':  0.75,  # cheaper than a car, no real-data equivalent in Boston
+}
 
 print("=" * 60)
-print("  SAFORA Pricing Model — Training Script")
+print("  SAFORA Fare-Rate Calibration — Training Script")
 print("  FYP26-CS-G11")
 print("=" * 60)
 
-# ─── Generate Synthetic Dataset ──────────────────────────────────────────────
-print(f"\n[1/4] Generating {N} synthetic ride records...")
+if not os.path.exists(RAW_CSV_PATH):
+    raise SystemExit(
+        f"\n[ERROR] {RAW_CSV_PATH} not found.\n\n"
+        "Download the Kaggle dataset 'Uber and Lyft Dataset Boston, MA'\n"
+        "(ravi72munde/uber-lyft-cab-prices), and place cab_rides.csv at:\n"
+        f"  {os.path.abspath(RAW_CSV_PATH)}\n"
+    )
 
-# Feature: distance (km) — Lahore city rides range 2–30 km
-distance_km = np.random.uniform(2.0, 30.0, N)
+# ─── Load & Clean Real Dataset ────────────────────────────────────────────────
+print(f"\n[1/3] Loading {RAW_CSV_PATH}...")
+raw = pd.read_csv(RAW_CSV_PATH)
+raw = raw.dropna(subset=['distance', 'price', 'name'])
+raw = raw[raw['distance'] > 0]
+print(f"  [OK] {len(raw)} usable rows after cleaning")
 
-# Feature: duration (min) — correlated with distance + traffic noise
-duration_min = distance_km * 3.0 + np.random.normal(0, 5, N)
-duration_min = np.clip(duration_min, 5, 90).astype(int)
+# ─── Fit price ~ distance per SAFORA ride type ────────────────────────────────
+print("\n[2/3] Fitting price ~ distance per ride type...")
+calibration = {}
+for safora_type, kaggle_names in TYPE_GROUPS.items():
+    subset = raw[raw['name'].isin(kaggle_names)]
+    if len(subset) < 30:
+        print(f"  [SKIP] {safora_type}: only {len(subset)} samples")
+        continue
 
-# Feature: time_of_day (hour 0–23) — rush hours = higher demand
-time_of_day = np.random.randint(0, 24, N)
+    X = subset[['distance']].values
+    y = subset['price'].values
+    model = LinearRegression().fit(X, y)
+    r2 = r2_score(y, model.predict(X))
 
-# Feature: day_of_week (0=Mon, 6=Sun)
-day_of_week = np.random.randint(0, 7, N)
+    rate_per_km_usd = float(model.coef_[0])
+    base_usd = float(model.intercept_)
+    reference_price = rate_per_km_usd * REFERENCE_DISTANCE_KM + base_usd
 
-# Feature: demand_score (0=low, 1=medium, 2=high, 3=peak)
-# Rush hours (7-9am, 5-8pm) and Fridays get higher demand
-demand_score = np.zeros(N, dtype=int)
-for i in range(N):
-    h = time_of_day[i]
-    d = day_of_week[i]
-    if (7 <= h <= 9) or (17 <= h <= 20):   # rush hours
-        demand_score[i] = np.random.choice([2, 3], p=[0.5, 0.5])
-    elif d == 4:                             # Friday
-        demand_score[i] = np.random.choice([1, 2], p=[0.5, 0.5])
-    else:
-        demand_score[i] = np.random.choice([0, 1, 2], p=[0.5, 0.35, 0.15])
+    calibration[safora_type] = {
+        'rate_per_km_usd': rate_per_km_usd,
+        'base_usd': base_usd,
+        'reference_price_usd': reference_price,
+        'r2': r2,
+        'n_samples': len(subset),
+    }
+    print(f"  {safora_type:<12} n={len(subset):6d}  R2={r2:.3f}  "
+          f"rate/km=${rate_per_km_usd:.2f}  base=${base_usd:.2f}  "
+          f"price@{REFERENCE_DISTANCE_KM}km=${reference_price:.2f}")
 
-# Feature: ride_type (0=standard, 1=pink-pass, 2=eco)
-ride_type = np.random.choice([0, 1, 2], N, p=[0.6, 0.25, 0.15])
+# ─── Derive multipliers relative to 'standard' ────────────────────────────────
+standard_ref = calibration['standard']['reference_price_usd']
+for safora_type, stats in calibration.items():
+    stats['multiplier'] = round(stats['reference_price_usd'] / standard_ref, 3)
 
-# Feature: traffic_multiplier (1.0 – 1.8)
-traffic_multiplier = np.random.uniform(1.0, 1.8, N)
+# Ride types with no honest Kaggle equivalent get a documented manual
+# multiplier instead of a regression fit — see MANUAL_MULTIPLIERS above.
+for safora_type, multiplier in MANUAL_MULTIPLIERS.items():
+    calibration[safora_type] = {
+        'multiplier': multiplier,
+        'r2': None,
+        'rate_per_km_usd': None,
+        'base_usd': None,
+        'n_samples': 0,
+        'note': 'manually set, no honest Kaggle equivalent category exists',
+    }
 
-# ─── Target: Fare in PKR ─────────────────────────────────────────────────────
-# Base formula: (distance * 35) + (duration * 5) + 50
-# Demand multiplier: low=1.0, medium=1.2, high=1.5, peak=2.0
-# Ride type: eco saves 15%, pink-pass costs 10% more
-demand_multipliers = np.array([1.0, 1.2, 1.5, 2.0])
-type_multipliers   = np.array([1.0, 1.10, 0.85])  # standard, pink-pass, eco
+print("\n  Derived TYPE_MULTIPLIERS (relative to standard = 1.0):")
+for safora_type, stats in calibration.items():
+    print(f"    {safora_type:<12} {stats['multiplier']:.3f}")
 
-fare_base = (distance_km * 35) + (duration_min * 5) + 50
-fare_demand = fare_base * demand_multipliers[demand_score]
-fare_traffic = fare_demand * traffic_multiplier
-fare_type = fare_traffic * type_multipliers[ride_type]
-
-# Add realistic noise (±15%)
-noise = np.random.normal(1.0, 0.08, N)
-fare_final = np.clip(fare_type * noise, 50, 3000).round(2)
-
-# ─── Build DataFrame ──────────────────────────────────────────────────────────
-df = pd.DataFrame({
-    'distance_km':        distance_km,
-    'duration_min':       duration_min,
-    'time_of_day':        time_of_day,
-    'day_of_week':        day_of_week,
-    'demand_score':       demand_score,
-    'ride_type':          ride_type,
-    'traffic_multiplier': traffic_multiplier,
-    'fare_pkr':           fare_final,
-})
-
-print(f"  [OK] Dataset generated | shape: {df.shape}")
-print(f"  Fare range: PKR {df['fare_pkr'].min():.0f} – {df['fare_pkr'].max():.0f}")
-print(f"  Mean fare:  PKR {df['fare_pkr'].mean():.0f}")
-
-# ─── Train / Test Split ───────────────────────────────────────────────────────
-print("\n[2/4] Splitting dataset (80% train / 20% test)...")
-X = df.drop('fare_pkr', axis=1).values
-y = df['fare_pkr'].values
-
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42
-)
-print(f"  [OK] Train: {len(X_train)} samples | Test: {len(X_test)} samples")
-
-# ─── Train Model ──────────────────────────────────────────────────────────────
-print("\n[3/4] Training LinearRegression model...")
-model = LinearRegression()
-model.fit(X_train, y_train)
-
-y_pred = model.predict(X_test)
-mae    = mean_absolute_error(y_test, y_pred)
-r2     = r2_score(y_test, y_pred)
-
-print(f"  [OK] Model trained successfully!")
-print(f"  R² Score:              {r2:.4f}  (1.0 = perfect)")
-print(f"  Mean Absolute Error:   PKR {mae:.2f}")
-print(f"\n  Feature Coefficients:")
-feature_names = ['distance_km', 'duration_min', 'time_of_day', 'day_of_week',
-                 'demand_score', 'ride_type', 'traffic_multiplier']
-for name, coef in zip(feature_names, model.coef_):
-    print(f"    {name:<22} {coef:+.4f}")
-print(f"    {'intercept':<22} {model.intercept_:+.4f}")
-
-# ─── Save Model ───────────────────────────────────────────────────────────────
-print("\n[4/4] Saving model and dataset...")
+# ─── Save Calibration + Sample of Real Data Used ──────────────────────────────
+print("\n[3/3] Saving calibration and training data sample...")
 os.makedirs('models', exist_ok=True)
 
-# Save trained model
-model_path = 'models/price_model.pkl'
-joblib.dump(model, model_path)
-print(f"  [OK] Model saved -> {model_path}")
+joblib.dump(calibration, CALIBRATION_PATH)
+print(f"  [OK] Calibration saved -> {CALIBRATION_PATH}")
 
-# Save training data for documentation / SDD appendix
-csv_path = 'models/training_data.csv'
-df.to_csv(csv_path, index=False)
-print(f"  [OK] Training data saved -> {csv_path}")
+used_names = [n for names in TYPE_GROUPS.values() for n in names]
+sample = raw[raw['name'].isin(used_names)][['distance', 'name', 'price', 'time_stamp']]
+sample = sample.sample(n=min(2000, len(sample)), random_state=42)
+sample.to_csv(TRAINING_DATA_PATH, index=False)
+print(f"  [OK] Training data sample saved -> {TRAINING_DATA_PATH}")
+print(f"  (source: Kaggle 'Uber and Lyft Dataset Boston, MA', ravi72munde/uber-lyft-cab-prices)")
 
-# ─── Quick Smoke Test ─────────────────────────────────────────────────────────
 print("\n" + "=" * 60)
-print("  SMOKE TEST — Sample Predictions")
-print("=" * 60)
-
-loaded_model = joblib.load(model_path)
-
-test_cases = [
-    {"desc": "Short eco ride (3km, off-peak)",      "features": [3,  9,   10, 1, 0, 2, 1.0]},
-    {"desc": "Medium standard ride (10km, medium)", "features": [10, 28,  14, 2, 1, 0, 1.2]},
-    {"desc": "Long pink-pass (20km, rush hour)",    "features": [20, 55,  8,  0, 3, 1, 1.5]},
-    {"desc": "City ride (7km, peak Friday)",        "features": [7,  22,  17, 4, 3, 0, 1.8]},
-]
-
-for case in test_cases:
-    X_sample = np.array([case["features"]])
-    predicted = loaded_model.predict(X_sample)[0]
-    predicted = max(50, min(predicted, 3000))  # bounds
-    print(f"  {case['desc']}")
-    print(f"    -> Predicted fare: PKR {predicted:.0f}\n")
-
-print("=" * 60)
-print("  ✅ SAFORA pricing model trained and ready!")
-print(f"  Load with: joblib.load('{model_path}')")
+print("  Calibration complete. services/pricing.py loads")
+print(f"  {CALIBRATION_PATH} at startup and uses these multipliers")
+print("  instead of hand-picked constants.")
 print("=" * 60)

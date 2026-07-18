@@ -48,28 +48,25 @@ const FareBreakdownScreen: React.FC = () => {
         fetchRide();
     }, [rideId]);
 
-    // Dynamic precise calculations
-    const total = rideData ? rideData.estimatedPrice : (totalFare || 185);
-    const distance = rideData ? parseFloat((rideData.distance || 0).toFixed(1)) : 5.8;
-    const duration = rideData ? Math.round(rideData.estimatedDuration || 0) : 18;
-    const rideType = rideData?.type || 'standard';
+    // Dynamic precise calculations. While the ride is still loading, `total` is
+    // null (rendered as a spinner, see heroBlock below) rather than a nav-param
+    // or hardcoded guess — showing one of those first and then swapping to the
+    // fetched estimatedPrice a moment later is exactly the "price changes after
+    // a couple seconds" flash reported on this screen.
+    const total: number | null = loading ? null : (rideData ? rideData.estimatedPrice : (totalFare ?? null));
+    const distance = rideData ? parseFloat((rideData.distance || 0).toFixed(1)) : 0;
+    const duration = rideData ? Math.round(rideData.estimatedDuration || 0) : 0;
 
-    let multiplier = 0.8;
-    if (rideType === 'rickshaw') multiplier = 1.5;
-    if (rideType === 'standard' || rideType === 'pink-pass') multiplier = 2.0;
-
-    const baseFare = Math.round((distance * 35 + 30) * multiplier);
-    const timeCharge = Math.round((duration * 4) * multiplier);
-    const safetyFee = 20;
-
-    let subtotal = baseFare + timeCharge + safetyFee;
-    let discount = subtotal - total;
-    let surge = 0;
-
-    if (discount < 0) {
-        surge = Math.abs(discount);
-        discount = 0;
-    }
+    // The real cost composition behind `total`, computed server-side and
+    // stored on the ride (ai-service/services/pricing.py) — always sums to
+    // exactly `total`. Previously this screen recomputed its own fake
+    // breakdown (a different formula, different multipliers) that didn't
+    // match the real charge and didn't scale correctly with distance.
+    const breakdown = rideData?.priceBreakdown;
+    const baseFare = Math.round(breakdown?.base_fare ?? 0);
+    const distanceCost = Math.round(breakdown?.distance_cost ?? 0);
+    const timeCost = Math.round(breakdown?.time_cost ?? 0);
+    const demandCharge = Math.round(breakdown?.demand_charge ?? 0);
 
     return (
         <View style={s.container}>
@@ -92,7 +89,11 @@ const FareBreakdownScreen: React.FC = () => {
 
                 {/* Large Amount Hero */}
                 <View style={s.heroBlock}>
-                    <Text style={s.heroAmount}>RS {total}</Text>
+                    {total === null ? (
+                        <ActivityIndicator color={theme.colors.primary} />
+                    ) : (
+                        <Text style={s.heroAmount}>RS {total}</Text>
+                    )}
                     <Text style={s.tripMeta}>
                         Trip #{rideId ? `SF-${rideId}` : 'SF-2024-00843'} · Cash Payment
                     </Text>
@@ -108,33 +109,27 @@ const FareBreakdownScreen: React.FC = () => {
                 ) : (
                     <View style={s.breakdownCard}>
                         <View style={s.breakRow}>
-                            <Text style={s.breakLabel}>Base Fare ({distance} km)</Text>
+                            <Text style={s.breakLabel}>Base Fare</Text>
                             <Text style={s.breakValue}>Rs {baseFare}</Text>
                         </View>
                         <View style={s.breakRow}>
-                            <Text style={s.breakLabel}>Time Charge ({duration} min)</Text>
-                            <Text style={s.breakValue}>Rs {timeCharge}</Text>
+                            <Text style={s.breakLabel}>Distance Charge ({distance} km)</Text>
+                            <Text style={s.breakValue}>Rs {distanceCost}</Text>
                         </View>
                         <View style={s.breakRow}>
-                            <Text style={s.breakLabel}>🛡️ SAFORA Safety Fee</Text>
-                            <Text style={s.breakValue}>Rs {safetyFee}</Text>
+                            <Text style={s.breakLabel}>Time Charge ({duration} min)</Text>
+                            <Text style={s.breakValue}>Rs {timeCost}</Text>
                         </View>
-                        {surge > 0 && (
+                        {demandCharge > 0 && (
                             <View style={s.breakRow}>
-                                <Text style={[s.breakLabel, { color: '#EAB308', fontWeight: '800' }]}>⚡ Peak Time Surge</Text>
-                                <Text style={[s.breakValue, { color: '#EAB308' }]}>+Rs {surge}</Text>
-                            </View>
-                        )}
-                        {discount > 0 && (
-                            <View style={s.breakRow}>
-                                <Text style={s.promoLabel}>AI Optimized Discount</Text>
-                                <Text style={s.promoValue}>-Rs {discount}</Text>
+                                <Text style={[s.breakLabel, { color: '#EAB308', fontWeight: '800' }]}>⚡ Demand Surcharge</Text>
+                                <Text style={[s.breakValue, { color: '#EAB308' }]}>+Rs {demandCharge}</Text>
                             </View>
                         )}
                         <View style={s.breakDivider} />
                         <View style={s.breakRow}>
                             <Text style={s.totalLabel}>Total</Text>
-                            <Text style={s.totalValue}>Rs {total}</Text>
+                            <Text style={s.totalValue}>Rs {total ?? (baseFare + distanceCost + timeCost + demandCharge)}</Text>
                         </View>
                     </View>
                 )}

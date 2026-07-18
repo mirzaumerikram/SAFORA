@@ -44,6 +44,9 @@ __pycache__/
 *.pyc
 *.pyo
 
+# Raw Kaggle dataset — too large to commit, download manually per ai-service/train_model.py
+ai-service/models/cab_rides.csv
+
 # University documents — not needed to run the app
 *.docx
 *.doc

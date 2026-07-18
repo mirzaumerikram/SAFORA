@@ -54,6 +54,18 @@ const rideSchema = new mongoose.Schema({
         type: Number,
         required: true
     },
+    // The real cost composition that produced estimatedPrice (base fare,
+    // distance cost, time cost, demand surcharge — always summing exactly to
+    // estimatedPrice, see ai-service/services/pricing.py). Stored at request
+    // time so the receipt screen can show the actual charge breakdown instead
+    // of reconstructing a fake one from the total after the fact.
+    priceBreakdown: {
+        base_fare: Number,
+        distance_cost: Number,
+        time_cost: Number,
+        demand_charge: Number,
+        type_multiplier: Number,
+    },
     actualPrice: Number,
     status: {
         type: String,
