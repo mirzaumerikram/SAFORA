@@ -441,7 +441,19 @@ const RideSelectionScreen: React.FC = () => {
                 {/* Back button floating over map */}
                 <TouchableOpacity
                     style={s.backBtn}
-                    onPress={() => navigation.goBack()}
+                    onPress={() => {
+                        // goBack() is a silent no-op when this screen has no navigation
+                        // history behind it (e.g. a fresh page load / deep link straight
+                        // to /select-ride?pickup=...&dropoff=..., which is how this
+                        // screen is commonly reached since the booking flow round-trips
+                        // through the browser URL). Fall back to Home so the button
+                        // always does something instead of appearing broken.
+                        if (navigation.canGoBack()) {
+                            navigation.goBack();
+                        } else {
+                            navigation.navigate('Home');
+                        }
+                    }}
                     activeOpacity={0.85}
                 >
                     <Text style={s.backArrow}>←</Text>
