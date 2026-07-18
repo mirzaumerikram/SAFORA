@@ -67,25 +67,30 @@ TRAINING_DATA_PATH = os.path.join('models', 'training_data.csv')
 # mid-range trip, inside the distance range actually present in the data.
 REFERENCE_DISTANCE_KM = 3.0
 
-# Which Kaggle ride names count as which SAFORA ride type. Only 'eco' and
-# 'standard' have a genuine equivalent in the source data — Uber/Lyft's
-# "Black"/"Lux" tiers are a *luxury vehicle class*, which is not what
-# 'pink-pass' means in SAFORA (same vehicle class as standard, just a
-# verified female driver). Mapping pink-pass to luxury-car fares would
-# conflate "safety premium" with "bigger car", so pink-pass and rickshaw
-# (no Boston equivalent either) are deliberately NOT regression-derived —
-# see the manual multipliers applied after this dict below.
+# Which Kaggle ride names count as which SAFORA ride type. Only 'standard'
+# has a genuine equivalent in the source data (UberX/Lyft — a single-rider
+# car, same as SAFORA's standard tier). Everything else has no honest match:
+# - 'eco' was originally mapped to Uber/Lyft's shared-*car* products
+#   (UberPool/Shared/Lyft Line), but SAFORA's eco tier is a MOTORBIKE, not a
+#   shared car — completely different cost structure, so that mapping never
+#   should have been treated as data-derived in the first place.
+# - 'pink-pass' means "verified female driver", not a vehicle class — mapping
+#   it to Uber/Lyft's "Black"/"Lux" luxury tiers would conflate a safety
+#   feature with a bigger car.
+# - 'rickshaw' has no Boston equivalent at all.
+# All three are set as manual multipliers below, calibrated to real Lahore
+# market rates rather than an unrelated foreign vehicle category.
 TYPE_GROUPS = {
-    'eco':       ['UberPool', 'Shared'],          # cheapest / shared tier
     'standard':  ['UberX', 'Lyft'],                 # baseline tier
 }
 
-# Business-set premiums for ride types with no honest Kaggle equivalent.
-# Kept modest and separate from vehicle-class pricing on purpose — a safety
-# feature shouldn't be priced like a luxury car.
+# Calibrated to real Lahore market rates (founder/local-market feedback,
+# 2026-07-18), not derived from the Kaggle dataset — see TYPE_GROUPS comment
+# above for why none of these three have an honest equivalent in it.
 MANUAL_MULTIPLIERS = {
-    'pink-pass': 1.15,  # verified female driver, same vehicle class as standard
-    'rickshaw':  0.75,  # cheaper than a car, no real-data equivalent in Boston
+    'eco':       0.50,  # motorbike — cheapest option
+    'rickshaw':  0.85,  # between bike and car
+    'pink-pass': 1.05,  # verified female driver, same vehicle class as standard
 }
 
 print("=" * 60)

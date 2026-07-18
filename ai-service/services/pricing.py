@@ -22,11 +22,19 @@ class PricingService:
     current state of the marketplace.
     """
 
+    # Calibrated to real Lahore market rates (founder/local-market feedback,
+    # 2026-07-18) after the Kaggle-derived absolute price level came out too
+    # low across the board, and pink-pass (same vehicle class as standard,
+    # just a verified driver) was overpriced as if it were a premium tier.
+    # 'standard' stays anchored at 1.0 and is the one type genuinely backed by
+    # the Kaggle regression (see train_model.py); the others have no honest
+    # equivalent in that dataset (no motorbike/rickshaw category, and pink-pass
+    # isn't a vehicle class at all) so they're set directly from local rates.
     DEFAULT_TYPE_MULTIPLIERS = {
-        'eco':       0.55,
-        'rickshaw':  0.75,
+        'eco':       0.50,
+        'rickshaw':  0.85,
         'standard':  1.0,
-        'pink-pass': 1.15,
+        'pink-pass': 1.05,
     }
 
     def __init__(self):
@@ -46,20 +54,26 @@ class PricingService:
         else:
             print("[WARN] Fare calibration not found. Using manual default multipliers. Run train_model.py to generate it.")
 
-        # Pricing constants — the transparent, defensible part of the fare
-        self.BASE_FARE = 50  # PKR
-        self.RATE_PER_KM = 25  # PKR
-        self.RATE_PER_MIN = 3  # PKR
+        # Pricing constants — the transparent, defensible part of the fare.
+        # Raised ~1.6x from the original 50/25/3 (2026-07-18) to match real
+        # Lahore market rates — the original constants were an initial
+        # estimate that priced every ride type too low once checked against
+        # actual local fares, not something the Kaggle data could validate
+        # (it only supports relative per-km scaling within itself, not PKR
+        # absolute levels — see train_model.py).
+        self.BASE_FARE = 80  # PKR
+        self.RATE_PER_KM = 40  # PKR
+        self.RATE_PER_MIN = 5  # PKR
 
         # The formula is a linear fit and can underprice a short trip below
         # what any real driver would accept. These floors are applied per
         # type after TYPE_MULTIPLIERS, so a short ride never quotes below a
         # realistic minimum.
         self.MIN_FARES = {
-            'eco':       150,
-            'rickshaw':  220,
-            'standard':  300,
-            'pink-pass': 345,
+            'eco':       180,
+            'rickshaw':  280,
+            'standard':  380,
+            'pink-pass': 420,
         }
 
         # Live marketplace signal (online drivers vs active ride requests
