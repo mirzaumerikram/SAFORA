@@ -270,12 +270,18 @@ const RideSelectionScreen: React.FC = () => {
     // loaded; while it's still in flight, price is null (rendered as a loading
     // skeleton) rather than a locally-computed guess, so only one number is ever
     // shown per ride type instead of a wrong one flashing before the real one.
-    // The local formula is only used as a fallback once loading has finished and
-    // the backend genuinely couldn't be reached.
+    // The local formula/hardcoded default is only used as a last-resort fallback
+    // once the route is known, a fetch has actually finished, and the backend
+    // still didn't return a quote — NOT merely whenever quoteLoading happens to
+    // be false, since quoteLoading only turns true after routeInfo exists. Before
+    // routeInfo arrives (map still computing the route), quoteLoading is still
+    // false too, and skipping this routeInfo check let the hardcoded per-type
+    // default (Rs 120/180/280/250) flash for that entire window instead of a
+    // spinner.
     const dynamicRideTypes = useMemo(() => {
         let list = rideTypes.map(ride => ({
             ...ride,
-            price: verifiedQuotes[ride.id]?.price ?? (quoteLoading ? null : (getPricing(ride.id) ?? ride.price))
+            price: verifiedQuotes[ride.id]?.price ?? (routeInfo && !quoteLoading ? (getPricing(ride.id) ?? ride.price) : null)
         }));
 
         // Restriction: Bikes only allowed for within-city (distance < 40km)
