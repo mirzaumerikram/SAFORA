@@ -482,6 +482,48 @@ router.patch('/pinkpass/passengers/:id/verify', async (req, res) => {
     }
 });
 
+// @route   DELETE /api/admin/pinkpass/passengers/:id
+// @desc    Revoke a passenger's Pink Pass verification — resets status back to
+//          'none' and clears the verified flag/documents in the DB, so the
+//          passenger no longer counts as Pink Pass verified anywhere in the app.
+// @access  Admin
+router.delete('/pinkpass/passengers/:id', async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id);
+        if (!user) return res.status(404).json({ message: 'Passenger not found' });
+
+        user.pinkPassStatus     = 'none';
+        user.pinkPassVerified   = false;
+        user.pinkPassCnicPhoto  = undefined;
+        user.pinkPassSelfiePhoto = undefined;
+        user.pinkPassAppliedAt  = undefined;
+        await user.save();
+
+        res.json({ success: true, message: 'Pink Pass verification revoked' });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// @route   DELETE /api/admin/pinkpass/drivers/:id
+// @desc    Revoke a driver's Pink Pass verification — resets status back to 'none'.
+// @access  Admin
+router.delete('/pinkpass/drivers/:id', async (req, res) => {
+    try {
+        const driver = await Driver.findById(req.params.id);
+        if (!driver) return res.status(404).json({ message: 'Driver not found' });
+
+        driver.pinkPassStatus    = 'none';
+        driver.pinkPassAppliedAt = undefined;
+        driver.cnics             = undefined;
+        await driver.save();
+
+        res.json({ success: true, message: 'Pink Pass verification revoked' });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
 // @route   GET /api/admin/list
 // @desc    Get all admin users
 // @access  Admin

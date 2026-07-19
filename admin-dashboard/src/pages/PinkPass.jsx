@@ -48,6 +48,23 @@ export default function PinkPass() {
     }
   };
 
+  const handleDelete = async (e, userId, name) => {
+    e.stopPropagation();
+    if (!window.confirm(`Permanently revoke Pink Pass for ${name || 'this user'}? This removes their verification from the database.`)) return;
+    try {
+      if (activeTab === 'passengers') {
+        await api.delete(`/admin/pinkpass/passengers/${userId}`);
+        setPassengers(prev => prev.filter(u => u._id !== userId));
+      } else {
+        await api.delete(`/admin/pinkpass/drivers/${userId}`);
+        setDrivers(prev => prev.filter(d => d._id !== userId));
+      }
+      window.dispatchEvent(new Event('safora:refresh-badges'));
+    } catch (e) {
+      alert('Delete failed: ' + e.message);
+    }
+  };
+
   const currentList = activeTab === 'passengers' ? passengers : drivers;
 
   return (
@@ -127,21 +144,43 @@ export default function PinkPass() {
                   <td>{u.phone || '—'}</td>
                   <td>{u.pinkPassAppliedAt ? new Date(u.pinkPassAppliedAt).toLocaleString() : '—'}</td>
                   <td>
-                    <button 
-                      className="btn-view"
-                      onClick={() => setSelectedUser(u)}
-                      style={{ 
-                        background: '#e91e63', 
-                        color: '#fff', 
-                        border: 'none',
-                        padding: '6px 12px',
-                        borderRadius: '4px',
-                        fontSize: '12px',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      View Documents
-                    </button>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <button
+                        className="btn-view"
+                        onClick={() => setSelectedUser(u)}
+                        style={{
+                          background: '#e91e63',
+                          color: '#fff',
+                          border: 'none',
+                          padding: '6px 12px',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        View Documents
+                      </button>
+                      <button
+                        title="Revoke Pink Pass (deletes from DB)"
+                        onClick={(e) => handleDelete(e, u._id, u.name)}
+                        style={{
+                          background: '#fff',
+                          color: '#e74c3c',
+                          border: '1px solid #e74c3c',
+                          width: 28,
+                          height: 28,
+                          borderRadius: '4px',
+                          fontSize: '14px',
+                          lineHeight: 1,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                      >
+                        🗑
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
