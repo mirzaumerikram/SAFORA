@@ -19,10 +19,29 @@ class SocketService {
             reconnectionDelayMax: 10000,
             timeout: 15000,
         });
-        this.socket.on('connect', () => console.log('[Socket] Connected:', this.socket?.id));
         this.socket.on('disconnect', (r) => console.log('[Socket] Disconnected:', r));
-        this.socket.on('connect_error', (e) => console.log('[Socket] Error:', e.message));
         this.socket.on('reconnect', (n) => console.log('[Socket] Reconnected after', n, 'attempts'));
+
+        // Wait for the actual handshake to complete instead of resolving as soon as
+        // the socket object is constructed. Callers (e.g. the driver going online)
+        // rely on this to know the socket is really connected before they mark
+        // themselves discoverable, otherwise a ride can be matched to them before
+        // their driver-room join below has a socket to run on.
+        await new Promise<void>((resolve, reject) => {
+            const onConnect = () => {
+                console.log('[Socket] Connected:', this.socket?.id);
+                this.socket?.off('connect_error', onError);
+                resolve();
+            };
+            const onError = (e: Error) => {
+                console.log('[Socket] Error:', e.message);
+                this.socket?.off('connect', onConnect);
+                reject(e);
+            };
+            this.socket!.once('connect', onConnect);
+            this.socket!.once('connect_error', onError);
+        });
+        this.socket.on('connect_error', (e) => console.log('[Socket] Error:', e.message));
     }
 
     joinRide(rideId: string): void {
@@ -95,8 +114,19 @@ class SocketService {
         this.socket?.on('driver:arrived', cb);
     }
 
-    emitDriverOnline(driverId: string): void {
-        this.socket?.emit('join:driver', { driverId });
+    // Resolves once the server has actually added this socket to the driver's
+    // room (acked), not just once the emit has been sent — the caller must not
+    // mark the driver online in the DB until this resolves, or a ride can be
+    // matched and the ride:request event fired before the room join lands.
+    emitDriverOnline(driverId: string): Promise<boolean> {
+        return new Promise((resolve) => {
+            if (!this.socket) return resolve(false);
+            const timeout = setTimeout(() => resolve(false), 8000);
+            this.socket.emit('join:driver', { driverId }, (ack: { success: boolean }) => {
+                clearTimeout(timeout);
+                resolve(!!ack?.success);
+            });
+        });
     }
 
     emitDriverOffline(driverId: string): void {

@@ -178,11 +178,15 @@ const DriverDashboard: React.FC = () => {
         }
     };
 
-    const connectSocket = async (id: string) => {
+    // Returns true only once the driver-room join is actually acked by the server —
+    // callers that mark the driver online in the DB must wait for this, otherwise a
+    // ride can be matched (via the DB status check) and its ride:request event
+    // fired before this join lands, which loses the notification entirely.
+    const connectSocket = async (id: string): Promise<boolean> => {
         try {
             await socketService.connect();
             setIsConnected(true);
-            socketService.emitDriverOnline(id);
+            const joined = await socketService.emitDriverOnline(id);
             socketService.onRideRequest((ride: IncomingRide) => {
                 setIncoming(ride);
                 setRideStatus('incoming');
@@ -193,9 +197,11 @@ const DriverDashboard: React.FC = () => {
                     setHasNewMessage(true);
                 }
             });
+            return joined;
         } catch (err) {
             console.error('[Driver] Socket connection failed:', err);
             setIsConnected(false);
+            return false;
         }
     };
 
@@ -258,6 +264,25 @@ const DriverDashboard: React.FC = () => {
             return;
         }
 
+        // Going online: connect the socket and confirm the driver-room join FIRST,
+        // before telling the server this driver is online. The server matches
+        // rides purely off the DB status field — if that flips to 'online' while
+        // the socket is still connecting, a request can be matched and its
+        // ride:request event fired into a room this driver hasn't joined yet, and
+        // that notification is lost for good (Socket.IO doesn't queue it for a
+        // later joiner). Going offline has no such race, so it keeps the old order.
+        if (value) {
+            if (driverId) {
+                const joined = await connectSocket(driverId);
+                if (!joined) {
+                    setIsOnline(false);
+                    Alert.alert('Connection Issue', 'Could not connect to the ride network. Please try again.');
+                    return;
+                }
+                startGPS(); // Start beaconing location when going online
+            }
+        }
+
         setIsOnline(value);
 
         if (Platform.OS === 'web') {
@@ -272,12 +297,7 @@ const DriverDashboard: React.FC = () => {
             console.error('[Driver] Failed to sync status with server:', error);
         }
 
-        if (value) {
-            if (driverId) {
-                connectSocket(driverId);
-                startGPS(); // Start beaconing location when going online
-            }
-        } else {
+        if (!value) {
             stopGPS(); // Stop GPS when going offline
             socketService.disconnect();
             setIsConnected(false);

@@ -180,23 +180,31 @@ io.on('connection', (socket) => {
 
   // Driver joins their personal room to receive ride requests and manage status.
   // Only that driver's own account (or an admin) may join their room.
-  socket.on('join:driver', async ({ driverId }) => {
+  socket.on('join:driver', async ({ driverId }, callback) => {
     if (!driverId) return;
     if (!socket.user) {
-      return socket.emit('error', { message: 'Authentication required to join driver room' });
+      socket.emit('error', { message: 'Authentication required to join driver room' });
+      return typeof callback === 'function' && callback({ success: false });
     }
     try {
       const Driver = require('./models/Driver');
       const driverDoc = await Driver.findById(driverId).select('user');
       const isSelf = driverDoc?.user?.toString() === socket.user.userId;
       if (!isSelf && socket.user.role !== 'admin') {
-        return socket.emit('error', { message: 'Not authorized for this driver room' });
+        socket.emit('error', { message: 'Not authorized for this driver room' });
+        return typeof callback === 'function' && callback({ success: false });
       }
 
       socket.join(`driver-${driverId}`);
       console.log(`[Socket] Driver ${driverId} joined room: driver-${driverId}`);
+      // Acknowledge the join so the client can wait for it before marking itself
+      // online in the DB — otherwise a ride can be matched to this driver (found
+      // by the DB status='online' check) before the socket room join actually
+      // lands, and the ride:request event fires into an empty room and is lost.
+      if (typeof callback === 'function') callback({ success: true });
     } catch (err) {
       console.error('[Socket] join:driver failed:', err.message);
+      if (typeof callback === 'function') callback({ success: false });
     }
   });
 
